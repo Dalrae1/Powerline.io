@@ -125,7 +125,7 @@ class Food {
         if (this.origin == snake.id) {
             return;
         }
-        Object.values(snakes).forEach((snakee) => {
+        Object.values(clients).forEach((snakee) => {
             var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
             Bit8.setUint8(0, MessageTypes.SendEntities);
             var offset = 1;
