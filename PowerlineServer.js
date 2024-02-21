@@ -620,7 +620,8 @@ function sleep(ms) {
 wss.on('connection', async function connection(ws) {
     let client = new Client(ws);
     let snake = new Snake(client);
-    ws.on('message', async function incoming(message) {
+    ws.on('message', async function incoming(message, req) {
+        console.log(req.socket.remoteAddress)
         let view = new DataView(new Uint8Array(message).buffer);
         let messageType = view.getUint8(0);
         snake.RecieveMessage(messageType, view)
