@@ -446,6 +446,8 @@ class Snake {
         this.network.send(Bit8);
     }
     update(updateType, entity) {
+        if (!entity.position)
+            return
         var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
         Bit8.setUint8(0, MessageTypes.SendEntities);
         var offset = 1;
