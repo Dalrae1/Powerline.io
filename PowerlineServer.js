@@ -870,15 +870,18 @@ async function main() {
             if (timeSinceLastAte < 1000) {
                 
                 snakes[snake.id].extraSpeed += 5;
-                if (this.extraSpeed > maxBoostSpeed)
-                    this.extraSpeed = maxBoostSpeed;
+                if (snake.extraSpeed > maxBoostSpeed)
+                    snakes[snake.id].extraSpeed = maxBoostSpeed;
                 snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
             } else {
-                if (snake.extraSpeed > 0)
+                if (snake.extraSpeed > 0) {
                     snakes[snake.id].extraSpeed -= 5
+                    if (snake.extraSpeed < 0)
+                        snakes[snake.id].extraSpeed = 0;
+                }
                 snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
-            
             }
+            console.log("Speed: "+snake.extraSpeed)
         }
         snake.updateLeaderboard();
         if (snake.id && snake.newPoints) {
