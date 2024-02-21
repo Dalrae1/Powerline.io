@@ -847,18 +847,20 @@ function UpdateArena() { // Main update loop
                         // Check if this line is in the same direction
                         let direction = getNormalizedDirection(point, nextPoint);
                         let snakeDirection = getNormalizedDirection(snake.position, secondPoint);
+                        let noRub = false;
                         if (!direction || !snakeDirection)
-                            continue;
+                            noRub = true
                         if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y)))
-                            continue;
+                            noRub = true
                         if (data.distance >= 4)
-                            continue;
+                            noRub = true
                         if (closestRubLine && data.distance > closestRubLine.distance)
-                            continue
-                        closestRubLine = {
-                            point: data.point,
-                            distance: data.distance
-                        }
+                            noRub = true
+                        if (!noRub)
+                            closestRubLine = {
+                                point: data.point,
+                                distance: data.distance
+                            }
                     }
                     
                 }
