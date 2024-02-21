@@ -871,7 +871,6 @@ async function main() {
     Object.values(snakes).forEach(function (snake) {
         if (snake.spawned) {
             let timeSinceLastAte = Date.now() - snake.lastAte;
-            console.log(timeSinceLastAte)
             if (timeSinceLastAte < 1000) {
                 
                 snakes[snake.id].extraSpeed += 5;
