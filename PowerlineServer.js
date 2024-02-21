@@ -157,6 +157,11 @@ class Snake {
     constructor(network) {
         this.network = network.socket;
         this.sendConfig();
+
+        if (!this.id) {
+          clients[lastClientId] = this;
+          lastClientId++;
+        }
     }
     sendConfig() {
         var Bit8 = new DataView(new ArrayBuffer(49));
@@ -190,10 +195,7 @@ class Snake {
         this.network.send(Bit8);
     }
     spawn(name) {
-        if (!this.id) {
-          clients[lastClientId] = this;
-          lastClientId++;
-        }
+        this.spawned = true;
         var Bit8 = new DataView(new ArrayBuffer(1000));
         Bit8.setUint8(0, MessageTypes.SendSpawn);
         Bit8.setUint32(1, lastEntityId, true);
@@ -371,11 +373,13 @@ class Snake {
         
         this.network.send(Bit8);
         // Update other snakes
+        console.log("Removing snake " + this.id);
         Object.values(clients).forEach((snake) => {
             if (snake.id != this.id) {
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, MessageTypes.SendEntities);
                 var offset = 1;
+                
                 Bit8.setUint16(offset, this.id, true);
                 offset = offset + 2;
                 Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
@@ -413,7 +417,7 @@ class Snake {
         }
 
 
-
+        this.spawned = false;
         delete snakes[this.id];
 
     }
@@ -826,20 +830,24 @@ async function main() {
     UpdateArena()
 
     Object.values(clients).forEach(function (snake) {
-        Object.values(snakes).forEach(function (otherSnake) {
-            if (otherSnake.id && otherSnake.newPoints) {
-                snake.update(UpdateTypes.OnUpdate, otherSnake);
-            }
-        })
-
-        Object.values(entities).forEach(function (food) {
+        
+            Object.values(snakes).forEach(function (otherSnake) {
+                if (otherSnake.id && otherSnake.newPoints) {
+                    snake.update(UpdateTypes.OnUpdate, otherSnake);
+                }
+            })
+        if (snake.spawned) {
+            Object.values(entities).forEach(function (food) {
             // Check if snake is near food
-            let distance = Math.sqrt(Math.pow(snake.position.x - food.position.x, 2) + Math.pow(snake.position.y - food.position.y, 2));
+            let distance = Math.sqrt(
+                Math.pow(snake.position.x - food.position.x, 2) +
+                Math.pow(snake.position.y - food.position.y, 2)
+            );
             if (distance < 4) {
                 food.eat(snake);
             }
-
-        })
+            });
+        }
         /*Object.values(entities).forEach(function (food) {
             snake.update(UpdateTypes.OnUpdate, food);
         })*/
