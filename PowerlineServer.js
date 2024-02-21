@@ -834,11 +834,17 @@ function UpdateArena() { // Main update loop
 
                 if (snake.position != nextPoint && secondPoint != point && snake.position != secondPoint && snake.position != point) {
                     if (doIntersect(snake.position, secondPoint, point, nextPoint)) {
-                        if (snake.id == otherSnake.id) {
-                            snake.kill(KillReasons.Self, snake.id);
-                        } else {
-                            snake.kill(KillReasons.Killed, otherSnake.id);
-                        }
+                        setTimeout(() => { // Make sure they didn't move out of the way
+                            if (snake.position != nextPoint && secondPoint != point && snake.position != secondPoint && snake.position != point) {
+                                if (doIntersect(snake.position, secondPoint, point, nextPoint)) {
+                                    if (snake.id == otherSnake.id) {
+                                        snake.kill(KillReasons.Self, snake.id);
+                                    } else {
+                                        snake.kill(KillReasons.Killed, otherSnake.id);
+                                    }
+                                }
+                            }
+                        }, snake.ping || 50)
                     }
                 }
 
