@@ -879,7 +879,7 @@ async function main() {
                 snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
             } else {
                 if (snake.extraSpeed > 0) {
-                    snakes[snake.id].extraSpeed -= 5
+                    snakes[snake.id].extraSpeed -= 2
                     if (snake.extraSpeed < 0)
                         snakes[snake.id].extraSpeed = 0;
                 }
