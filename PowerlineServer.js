@@ -129,9 +129,10 @@ class Food {
             var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
             Bit8.setUint8(0, MessageTypes.SendEntities);
             var offset = 1;
+            console.log("Removing entity food " + this.id + " from snake " + snakee.id);
             Bit8.setUint16(offset, this.id, true);
             offset = offset + 2;
-            Bit8.setUint8(offset, 2, true);
+            Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
             offset = offset + 1;
             Bit8.setUint16(offset, snake.id, true);
             offset = offset + 2;
