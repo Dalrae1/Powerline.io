@@ -864,12 +864,7 @@ function UpdateArena() { // Main update loop
                     }
                     
                 }
-                if (closestRubLine) {
-                    shouldRub = true;
-                    snake.rubX = closestRubLine.point.x;
-                    snake.rubY = closestRubLine.point.y;
-                    snake.rubAgainst(otherSnake, closestRubLine.distance);
-                }
+                
 
                 // Collision Mechanics
 
@@ -891,6 +886,12 @@ function UpdateArena() { // Main update loop
 
                 // Check if any points are colliding
 
+            }
+            if (closestRubLine) {
+                shouldRub = true;
+                snake.rubX = closestRubLine.point.x;
+                snake.rubY = closestRubLine.point.y;
+                snake.rubAgainst(otherSnake, closestRubLine.distance);
             }
         })
         if (!shouldRub) {
