@@ -1,0 +1,292 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+	<meta charset="utf-8" />
+	<meta name="title" content="powerline.io" />
+	<meta name="keywords" content="powerlineio, powerline, io, game, games, web game, html5, fun, flash, snake, line, lines, tron">
+	<meta name="description" content="powerline.io - Massive multiplayer online snake" />
+	<meta property="og:title" content="powerline.io" />
+	<meta property="og:description" content="powerline.io - Massive multiplayer online snake" />
+	<meta property="og:url" content="http://dalr.ae/powerline/"/>
+	<meta property="og:image" content="http://dalr.ae/powerline/images/thumbnail.png"/>
+	<meta property="og:image:type" content="image/png" />
+	<meta property="og:type" content="website"/>
+	<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+	<link rel="stylesheet" type="text/css" href="css/main.css?v=7" />
+	<link rel="canonical" href="http://dalr.ae/powerline/"/>
+	<link id="favicon" rel="icon" type="image/png" href="images/favicon.png" />
+	<title>powerline</title>
+
+    <script>
+    (function(zonefile) { 
+    var rnd = Math.round(Math.random()*999999);
+    var s = document.createElement('script'); s.type = 'text/javascript'; s.async = true;
+    var proto = document.location.protocol;
+    var host = ( proto == "https:" || proto == "file:")?"https://server":"//cdn";
+    if(window.location.hash=="#cpmstarDev") host = "//dev.server";
+    if(window.location.hash=="#cpmstarStaging") host = "//staging.server"; 
+    s.src = host + ".cpmstar.com/cached/zonefiles/" + zonefile + ".js?rnd="+rnd; 
+    var s2=document.getElementsByTagName('script')[0];
+    s2.parentNode.insertBefore(s, s2);
+    var y=window.location.href.split('#')[0].split('').reduce(function(a,b){return(a<<5)-a+b.charCodeAt(0)>>>1},0);y=(10+((y*7)%26)).toString(36)+y.toString(36);
+    var drutObj = window[y] = window[y] || {};
+    window.cpmstarAPI = function(o) { (drutObj.cmd = drutObj.cmd || []).push(o); }
+    }('98_47747_powerline'));
+    </script>
+
+	<script src="lib/jquery-1.4.2.min.js"></script>
+	<script src="lib/advertisement.js"></script>
+	<script async='async' src='https://www.googletagservices.com/tag/js/gpt.js'></script>
+	<script>
+		var debug = true;
+		var queryString = {};
+		var adsense = true;
+		(function(){
+			var suffix = window.location.search;
+			if(suffix.charAt(0) == '?')
+				suffix = suffix.slice(1);
+			var array = suffix.split('&');
+			for (var i = 0; i < array.length; i++) {
+				var suffixPart = array[i].split('=');
+				var p2 = suffixPart[1];
+				if(!p2) p2 = 1;
+				queryString[suffixPart[0]] = p2;
+			}
+		})();
+		if(!debug)
+		{
+		  	window['ads'] = [];
+		  	var hasAdblock = (document.getElementById("ads") == null);
+			var hasTopAd = false;
+			var hasMiddleAd = true;
+			var hasBottomAd = false;
+
+        	if(window.innerHeight > 980){
+	            hasTopAd = true;
+        	}
+	        else if(window.innerHeight < 771){
+	        	hasBottomAd = true;
+	        	hasMiddleAd = false;
+	        }
+	        if(hasAdblock){
+	        	hasTopAd = false;
+	        	hasBottomAd = false;
+	        }
+
+	        var googletag = googletag || {};
+			googletag.cmd = googletag.cmd || [];
+			googletag.cmd.push(function() {
+				if(hasMiddleAd){
+					window['ads'].push(googletag.defineSlot('/77853486/powerline_mainpage_300x250', [300, 250], 'mpu-top').addService(googletag.pubads()));
+				}
+			    if(hasTopAd || hasBottomAd){
+				    window['ads'].push(googletag.defineSlot('/77853486/powerline_leaderboard_728x90', [728, 90], 'ldr-top').addService(googletag.pubads()));
+				}
+			    googletag.pubads().enableSingleRequest();
+			    googletag.pubads().disableInitialLoad();
+			    googletag.enableServices();
+	            googletag.cmd.push(function() { googletag.display('mpu-top'); });
+	            googletag.cmd.push(function() { googletag.display('ldr-top'); });
+			});
+		}
+	</script>
+	</head>
+	<body data-feedly-mini="yes">
+		<canvas id="canvas"></canvas>
+		<div id="fps"></div>
+		<div id="overlay" style="display:none; position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0,0,0,0.0); z-index: 2;"/>
+		<div id="mainDialog" style="width:510px;height:215px;background-color:rgba(0,50,50,0.0);margin:10px auto;border-radius:15px;padding:5px 15px 5px 15px;position:absolute;top:17%;left:50%;transform-origin:top center;transform:translate(-50%,0%);-ms-transform:translate(-50%,0%);-ms-transform-origin:top center;-webkit-transform:translate(-50%,0%);-webkit-transform-origin:top center;">
+			<img src="images/logo.png" style="position:absolute;top:-100%;left:50%;transform:translate(-50%,0%);-ms-transform:translate(-50%,0%);-webkit-transform:translate(-50%,0%);"/>
+			<div hidden id="statsPanel" class="basic-text" style="-webkit-transform:translate(0%,-25%);background-color: rgba(0, 40, 40, 0.6);border-radius:30px;">
+				<center>
+				<div style="height:5px;"></div>
+				<h4><center><div style="font-size:20px;"><div id="stat-title">KILLED BY<br>JOSUE</div></div></center></h4>
+				<div style="height:5px;"></div>
+				<table style="width:400px;border-radius:30px;">
+				  <tr>
+				    <td>SCORE<br><div id="stat-length">0</div></td>
+				    <td>BEST SCORE<br><div id="stat-blength">0</div></td>
+				  </tr>
+				  <tr>
+				    <td>KILL STREAK<br><div id="stat-ks">0</div></td>
+				    <td>BEST KILL STREAK<br><div id="stat-bks">0</div></td>
+				  </tr>
+				  <tr>
+				    <td>TOP POSITION<br><div id="stat-top">0</div></td>
+				    <td>TIME ALIVE<br><div id="stat-time">0s</div></td>
+				  </tr>
+				</table>
+				<h4><center><div id="linkText" style="font-size:15px;">[ PRESS ENTER TO PLAY ]</div></center></h4>
+				<div style="height:5px;"></div>
+			</div>
+			<div id="basePanel">
+				<div style="height:10px;"></div>
+				<div id="tips" class="basic-text"></div>
+				<div style="height:40px;"></div>
+				<form role="form">
+					<div class="form-group">
+						<div id="topGui" style="height:100px;">
+							<div id="nickInput" style="height:50px;">
+								<center>
+								<input id="nick" type="text" class="form-control input-nick" placeholder="Type a Nickname..." maxlength="15" onkeydown="if (event.keyCode == 13){ clickPlay(document.getElementById('nick').value); return false;} return true;" autofocus/>
+								</center>
+							</div>
+							<center>
+							<div class="basic-text">
+								<h4><center><div id="linkText" style="font-size:15px;">[ PRESS ENTER TO PLAY ]</div></center></h4>
+                                <h4><center><div id="linkText" style="font-size:15px; margin-top: 10%">SELECT A SERVER:</div></center></h4>
+                                <form role="form">
+                                    <div class="form-group">
+                                        <center>
+                                        <button type="submit" id="continueButton" onclick="window.localStorage.wingsCC='US'" class="btn btn-play btn-primary"><div class="basic-text">Americas</div></button>
+                                        <button type="submit" id="continueButton" onclick="window.localStorage.wingsCC='FR'" class="btn btn-play btn-primary"><div class="basic-text">Europe</div></button>
+                                        <button type="submit" id="continueButton" onclick="window.localStorage.wingsCC='SG'" class="btn btn-play btn-primary"><div class="basic-text">Asia</div></button>
+                                        <button type="submit" id="continueButton" onclick="window.localStorage.wingsCC='CUSTOM'" class="btn btn-play btn-primary"><div class="basic-text">Custom</div></button>
+                                        </center>
+                                    </div>
+                                </form>
+							</div>
+							</center>
+							<br clear="both" />
+						</div>
+						<div hidden id="topGuiConnecting" class="basic-text" style="height:84px; transform: translateY(-40%);">
+							<h3><center>Connecting...</center></h3>
+						</div>
+						<div hidden id="roomFailed" style="height:90px;">
+							<div class="basic-text">
+								<h4><center><div id="linkText" style="font-size:30px;">SERVER IS FULL!</div><br>CLICK CONTINUE TO JOIN ANOTHER SERVER.</center></h4>
+							</div>
+							<br><br>
+							<form role="form">
+								<div class="form-group">
+									<center>
+									<button type="submit" id="continueButton" onclick="setContinue(); return false;" class="btn btn-play btn-primary"><div class="basic-text">CONTINUE</div></button>
+									</center>
+								</div>
+							</form>
+						</div>
+						<br>
+					</div>
+				</form>
+			</div>
+		</div>
+			<script>
+				if(hasMiddleAd)
+				{
+					document.write('<div id=\'mpu-top\'>');
+					if(hasAdblock){
+						$('#mpu-top').css('background-image', "url('images/ab.png')");
+					}
+					document.write('</div>');
+				}
+				
+	            if(hasTopAd || hasBottomAd)
+	            {
+	                document.write('<div id=\'ldr-top\'></div>');
+	            	if(hasTopAd)
+		            	$('#ldr-top').css('top', "0");
+		            else
+		            	$('#ldr-top').css('bottom', "17%");
+		        }
+        	</script>
+
+	        <footer class="leftBottomBox">
+			<a href="http://iogames.space" target="_blank"><font class="basic-text2" style="font-weight:bold;font-size:15px;">MORE IO GAMES</font></a> <font style="font-weight:bold;font-size:15px;"></a> • <a href="javascript:toggleGraphics();"><font id="graphicsID" class="basic-text2"  style="font-weight:bold;font-size:15px;">GRAPHICS: HIGH</font></a>
+        	</footer>
+        	<footer class="soundBox">
+			<button type="submit" id="muteButton" onclick="toggleSound(); return false;" class="btn-naked">
+                    <img id="soundImg" src="images/sound_on.png"/>
+            </button>
+        	</footer>
+			<footer id="firstRightBox" class="rightBoxNews" style="width:280px;height:93px;">
+				<center><font style="font-weight:bold;font-size:15px;color:#00FFFF;">Last Updated - Aug 9th 2021</font></center>
+				<div style="line-height:50%;"><br></div>
+				<font class="basic-text2" style="font-weight:bold;font-size:13px;">• Added server selector</font><br>
+				<div style="line-height:65%;"><br></div>
+	            <div style="text-align:right;">
+		            <a href="/powerline/more_info" target="_blank"><font class="basic-text2" style="font-weight:bold;font-size:10px;">TELL ME MORE</font></a>
+		            </a>
+		        </div>
+			</footer>
+        	<footer hidden id="afterRightBox" class="rightBoxSmall">
+			<a href="/powerline/more_info" target="_blank"><font class="basic-text2" style="font-weight:bold;font-size:15px;">TELL ME MORE</font></a> <font style="font-weight:bold;font-size:15px;"></a>
+	        </footer>
+	        <footer id="mobileBoxId" class="mobileBox" style="width:315px;height:92px;">
+    	    <center><img src="images/banner_mobile_text.png"/></center>
+    	    <div style="line-height:60%;"><br></div>
+            <center>
+            <a href="https://itunes.apple.com/us/app/powerline-io/id1267397935?mt=8" target="_blank"><img src="images/badge_ios.png""/></a>            
+            <a href="https://play.google.com/store/apps/details?id=com.profusionstudios.powerlineio" target="_blank"><img src="images/badge_android.png"/></a>
+            </center>
+	        </footer>
+	        <footer id="linksID" class="linkBox" style="bottom: 92px;">
+	        	<a href="https://discord.gg/NckDSyb" target="_blank">
+	        		<img src="images/discord.png"></a>	        		
+	        	</a>
+	        	<a href="https://twitter.com/AndredAlmeida">
+	        		<img src="images/twitter.png"></a>
+	        	</a>
+	        	<a href="https://reddit.com/r/powerlineio" target="_blank">
+	        		<img src="images/reddit.png"></a>	        		
+	        	</a>
+	        </footer>
+	        <footer hidden id="copyLink" class="leftBox">
+	            <a href="javascript:copyRoomLink();"><font class="basic-text2" style="font-weight:bold;font-size:15px;">COPY ROOM LINK</font></a> <font style="font-weight:bold;font-size:15px;"></font>
+	            </a>
+	            <div id="friendsDiv">
+	            <img id="pfArrow" src="images/playfriendsarrow.png" style="position:absolute;top:80%;left:35%;transform:translate(0%,35%);-ms-transform:translate(0%,35%);-webkit-transform:translate(0%,35%);"/>
+	            <img id="pfText" src="images/playfriendstext.png" style="position:absolute;top:350%;left:5%;transform:translate(0%,5%);-ms-transform:translate(0%,5%);-webkit-transform:translate(0%,5%);"/>
+	            </div>
+	        </footer>
+	        <footer hidden id="copyLinkBox" class="leftBox">
+	            <div style="line-height:50%;"><br></div>
+	            <font style="font-weight:bold;font-size:15px;" class="basic-text2">SHARE THIS LINK WITH YOUR FRIENDS!</font>
+	                <div style="line-height:50%;"><br></div>
+	                <center>
+	                    <div id="linkInput" style="height:43px;width:90%;">
+	                        <input id="roomlinkInput" class="linkInput form-control input-copylink" readonly style="cursor: text;"/>
+	                    </div>
+	                </center>
+
+	                <div hidden id="safariTooltip" style="width:160px;height:20px;background-color:rgba(0,0,0,0.6);margin:10px auto;border-radius:5px;padding:5px 15px 5px 15px;position:relative;top:0%;left:0%;transform-origin:top center;transform:translate(0%,0%);-ms-transform:translate(0%,0%);-ms-transform-origin:top center;-webkit-transform:translate(0%,-30%);">
+	                    <font style="position:relative;top:-5px;font-weight:bold;font-size:13px;color:#FFFFFF;">Press ⌘+C to Copy!</font>
+	                </div>
+
+	                <button id="copyButton" type="submit" onclick="setCopy(); return false;" class="btn btn-copy btn-primary basic-text2">COPY</button>
+
+	                <div style="line-height:50%;"><br></div>
+	        </footer>
+	</div>
+</div>
+
+<div hidden id="overlay2" style="position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0,100,100,0.25); z-index: 2;">
+<div style="width:280px;height:180px;background-color:rgba(0,0,0,0.85);margin:10px auto;border-radius:15px;padding:5px 15px 5px 15px;position:absolute;top:35%;left:50%;transform-origin:top center;transform:translate(-50%,0%);-ms-transform:translate(-50%,0%);-ms-transform-origin:top center;-webkit-transform:translate(-50%,0%);-webkit-transform-origin:top center;">
+    <center><font face="Arial Black, Arial, sans-serif" style="position:relative;top:30px;font-weight:bold;font-size:28px;color:#00FFFF;text-shadow: #00FFFF 0 0 5px;">LINK COPIED!</font>
+    <img id="copycheckimage" src="images/copycheck.png" style="position:relative;top:43px;"/></center>
+</div>
+</div>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-103841451-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+<script src="http://135.148.33.142:5500/lib/modernizr-custom.js"></script>
+<script src="http://135.148.33.142:5500/lib/Stats.js"></script>
+<script src="http://135.148.33.142:5500/lib/howler.min.js"></script>
+
+
+<script src = "http://135.148.33.142:5500/codenzi/main.js"></script>
+
+
+
+
+</body>
+</html>
