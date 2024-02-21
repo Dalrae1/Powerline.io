@@ -851,7 +851,7 @@ function UpdateArena() { // Main update loop
                         if (direction && snakeDirection) {
                             if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y)))
                                 noRub = true
-                            if (data.distance >= 4)
+                            if (data.distance >= 3)
                                 noRub = true
                             if (closestRubLine && data.distance > closestRubLine.distance)
                                 noRub = true
