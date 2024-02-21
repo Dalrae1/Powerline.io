@@ -25,7 +25,7 @@ let maxBoostSpeed = 200;
 var foodValue = 1.5;
 var scoreMultiplier = 10/foodValue;
 var defaultLength = 10;
-console.log("Tes")
+console.log("Test")
 const MessageTypes = Object.freeze({
     // Server Messages
     SendPingInfo: 0,
