@@ -320,6 +320,9 @@ class Snake {
     }
     kill(reason, killedByID) {
         if (killedByID != this.id) {
+            if (!snakes[killedByID])
+                return
+
             // Send "Killed By"
             var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
             Bit8.setUint8(0, MessageTypes.SendEvent);
