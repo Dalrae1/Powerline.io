@@ -108,8 +108,11 @@ class Food {
   value = foodValue;
   constructor(x, y, color, origin) {
     entities[lastEntityId] = this;
-    this.position.x = x || Math.random() * arenaSize - arenaSize / 2;
-    this.position.y = y || Math.random() * arenaSize - arenaSize / 2;
+    if (x == undefined) 
+          this.position = GetRandomPosition();
+    else {
+        this.position = { x: x, y: y };
+    }
     if (color == undefined) this.color = Math.random() * 360;
     else this.color = color;
       this.id = lastEntityId;
@@ -119,10 +122,15 @@ class Food {
     Object.values(snakes).forEach((snake) => {
       snake.update(UpdateTypes.OnRender, this);
     });
+      setTimeout(() => {
+          this.eat();
+          
+        
+      }, 5000+Math.random() * 60000);
     return this;
   }
     eat(snake) {
-        if (this.origin == snake.id) {
+        if (snake && this.origin == snake.id) {
             return;
         }
         Object.values(clients).forEach((snakee) => {
@@ -134,7 +142,7 @@ class Food {
             offset = offset + 2;
             Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
             offset = offset + 1;
-            Bit8.setUint16(offset, snake.id, true);
+            Bit8.setUint16(offset, snake && snake.id || 0, true);
             offset = offset + 2;
             Bit8.setUint8(offset, KillReasons.Killed, true);
             offset = offset + 1;
@@ -144,12 +152,16 @@ class Food {
             offset = offset + 4;
             snakee.network.send(Bit8);
         })
-        snake.length += this.value;
-        snake.lastAte = Date.now();
+        if (snake) {
+            snake.length += this.value;
+            snake.lastAte = Date.now();
+        }
         delete entities[this.id];
         
   }
 }
+
+
 let food = new Food();
 
 function GetRandomPosition() {
