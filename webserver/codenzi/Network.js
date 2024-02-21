@@ -486,7 +486,7 @@ var Network = function () {
             } else {
               // Something went wrong, lets refresh browser - quick fix
               console.log("ERROR: Entity does not exist: " + id);
-              window.location.href = window.location.href;
+              //window.location.href = window.location.href;
             }
           }
           break;
