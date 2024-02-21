@@ -235,7 +235,7 @@ class Snake {
         this.points = [{x: this.position.x, y: this.position.y}];
         this.newPoints = [];
         this.queuedPoints = [];
-        this.talkStamina = 0;
+        this.talkStamina = 255;
         this.color = Math.random() * 360;
         this.length = defaultLength;
 
@@ -516,6 +516,11 @@ class Snake {
                     Bit8.setUint16(offset, entity.RubSnake, true);
                     offset = offset + 2;
                 }
+                if (entity.flags & EntityFlags.ShowTalking) {
+                    Bit8.setUint8(offset, entity.talkId, true);
+                    offset = offset + 1;
+
+                }
                 Bit8.setUint8(offset, entity.talkStamina, true);
                 offset = offset + 1;
                 Bit8.setUint8(offset, entity.extraSpeed, true);
@@ -574,6 +579,14 @@ class Snake {
         this.network.send(Bit8);
 
     }
+    Talk(id) {
+        this.flags |= EntityFlags.ShowTalking;
+        this.talkId = id;
+        setTimeout(() => {
+            this.flags &= ~EntityFlags.ShowTalking;
+        }, 5000)
+
+    }
     RecieveMessage(messageType, view) {
         if (messageType != MessageTypes.RecieveNick && !this.id) {
             return
@@ -597,6 +610,12 @@ class Snake {
                 offset += 4;
                 let isFocused = view.getUint8(offset, true) & 1;
                 this.turn(direction, vector);
+                break;
+            case MessageTypes.RecieveTalk:
+                if (this.talkStamina >= 255) {
+                    this.Talk(view.getUint8(1, true));
+                    this.talkStamina = 0;
+                }
                 break;
         }
     }
@@ -912,15 +931,20 @@ async function main() {
             })
         if (snake.spawned) {
             Object.values(entities).forEach(function (food) {
-            // Check if snake is near food
-            let distance = Math.sqrt(
-                Math.pow(snake.position.x - food.position.x, 2) +
-                Math.pow(snake.position.y - food.position.y, 2)
-            );
-            if (distance < 4) {
-                food.eat(snake);
-            }
+                // Check if snake is near food
+                let distance = Math.sqrt(
+                    Math.pow(snake.position.x - food.position.x, 2) +
+                    Math.pow(snake.position.y - food.position.y, 2)
+                );
+                if (distance < 4) {
+                    food.eat(snake);
+                }
             });
+            if (snake.talkStamina < 255) {
+                snakes[snake.id].talkStamina += 2;
+                if (snake.talkStamina > 255)
+                    snakes[snake.id].talkStamina = 255;
+            }
         }
         /*Object.values(entities).forEach(function (food) {
             snake.update(UpdateTypes.OnUpdate, food);
