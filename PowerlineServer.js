@@ -152,6 +152,11 @@ class Food {
 }
 let food = new Food();
 
+function GetRandomPosition() {
+    return { x: Math.random() * arenaSize - arenaSize / 2, y: Math.random() * arenaSize - arenaSize / 2 };
+
+}
+
 
 class Snake {
     network = null;
@@ -208,7 +213,7 @@ class Snake {
         console.log("Spawning snake " + this.id)
         this.nick = this.id.toString();//name
         // Put snake in random position
-        let randomPos = { x: Math.random() * arenaSize /2, y: Math.random() * arenaSize / 2 };
+        let randomPos = GetRandomPosition();
         this.position = { x: randomPos.x, y: randomPos.y };
         //this.position = { x: 0, y: 0 };
         this.direction = Directions.Up;
