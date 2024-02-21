@@ -788,7 +788,16 @@ function UpdateArena() { // Main update loop
             snake.position.y > arenaSize / 2 ||
             snake.position.y < -arenaSize / 2
         ) {
-            snake.kill(KillReasons.Boundary, snake.id);
+            setTimeout(() => { // Make sure they didn't move out of the way
+                if (
+                    snake.position.x > arenaSize / 2 ||
+                    snake.position.x < -arenaSize / 2 ||
+                    snake.position.y > arenaSize / 2 ||
+                    snake.position.y < -arenaSize / 2
+                ) {
+                    snake.kill(KillReasons.Boundary, snake.id);
+                }
+            }, snake.ping || 50)
         }
         let shouldRub = false;
         let secondPoint = snake.points[0];
