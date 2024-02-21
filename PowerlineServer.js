@@ -162,6 +162,14 @@ class Snake {
           clients[lastClientId] = this;
           lastClientId++;
         }
+
+        Object.values(snakes).forEach((snake) => {
+            snake.update(UpdateTypes.OnRender, this); // Update other snakes about this
+            this.update(UpdateTypes.OnRender, snake); // Update this snake about other snakes
+        })
+        Object.values(entities).forEach((food) => {
+          this.update(UpdateTypes.OnRender, food);
+        });
     }
     sendConfig() {
         var Bit8 = new DataView(new ArrayBuffer(49));
@@ -193,6 +201,8 @@ class Snake {
         offset += 4;
         Bit8.setFloat32(offset, 1, true); //isTalkEnabled
         this.network.send(Bit8);
+
+        
     }
     spawn(name) {
         this.spawned = true;
@@ -231,6 +241,8 @@ class Snake {
         Object.values(entities).forEach((food) => {
           this.update(UpdateTypes.OnRender, food);
         });
+
+        
     }
     updateLeaderboard() {
         var Bit8 = new DataView(new ArrayBuffer(1000));
@@ -374,7 +386,7 @@ class Snake {
         this.network.send(Bit8);
         // Update other snakes
         console.log("Removing snake " + this.id);
-        Object.values(clients).forEach((snake) => {
+        Object.values(snakes).forEach((snake) => {
             if (snake.id != this.id) {
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, MessageTypes.SendEntities);
@@ -600,7 +612,6 @@ function sleep(ms) {
 }
 
 wss.on('connection', async function connection(ws) {
-  console.log("Connection Recieved");
     let client = new Client(ws);
     let snake = new Snake(client);
     ws.on('message', async function incoming(message) {
