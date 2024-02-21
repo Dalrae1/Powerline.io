@@ -387,7 +387,7 @@ class Snake {
             return
         }
         console.log("Removing snake " + this.id);
-        Object.values(snakes).forEach((snake) => {
+        Object.values(clients).forEach((snake) => {
             if (snake.id != this.id) {
                 
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
