@@ -848,19 +848,19 @@ function UpdateArena() { // Main update loop
                         let direction = getNormalizedDirection(point, nextPoint);
                         let snakeDirection = getNormalizedDirection(snake.position, secondPoint);
                         let noRub = false;
-                        if (!direction || !snakeDirection)
-                            noRub = true
-                        if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y)))
-                            noRub = true
-                        if (data.distance >= 4)
-                            noRub = true
-                        if (closestRubLine && data.distance > closestRubLine.distance)
-                            noRub = true
-                        if (!noRub)
-                            closestRubLine = {
-                                point: data.point,
-                                distance: data.distance
-                            }
+                        if (direction && snakeDirection) {
+                            if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y)))
+                                noRub = true
+                            if (data.distance >= 4)
+                                noRub = true
+                            if (closestRubLine && data.distance > closestRubLine.distance)
+                                noRub = true
+                            if (!noRub)
+                                closestRubLine = {
+                                    point: data.point,
+                                    distance: data.distance
+                                }
+                        }
                     }
                     
                 }
