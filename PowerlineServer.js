@@ -911,13 +911,13 @@ async function main() {
             let timeSinceLastAte = Date.now() - snake.lastAte;
             if (timeSinceLastAte < 1000) {
                 
-                snakes[snake.id].extraSpeed += 5;
+                snakes[snake.id].extraSpeed += 1;
                 if (snake.extraSpeed > maxBoostSpeed)
                     snakes[snake.id].extraSpeed = maxBoostSpeed;
                 snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
             } else {
                 if (snake.extraSpeed > 0) {
-                    snakes[snake.id].extraSpeed -= 2
+                    snakes[snake.id].extraSpeed -= 1
                     if (snake.extraSpeed < 0)
                         snakes[snake.id].extraSpeed = 0;
                 }
@@ -966,7 +966,6 @@ async function main() {
     // Add random food spawns
     let maxFood = arenaSize ^ 2 / 60;
     let foodSpawnPercent = (arenaSize ^ 2) / 10;
-    console.log(entities.length, maxFood, foodSpawnPercent)
     if (Object.keys(entities).length < maxFood) {
         if (Math.random()*100 < foodSpawnPercent) {
             new Food();
