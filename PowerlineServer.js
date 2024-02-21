@@ -215,7 +215,7 @@ class Snake {
         this.newPoints = [];
         this.queuedPoints = [];
         this.talkStamina = 0;
-        this.color = 0;
+        this.color = Math.random() * 360;
         this.length = defaultLength;
 
 
