@@ -161,8 +161,9 @@ class Food {
   }
 }
 
-
-let food = new Food();
+for (let i = 0; i < 30; i++) {
+    new Food();
+}
 
 function GetRandomPosition() {
     return { x: Math.random() * arenaSize - arenaSize / 2, y: Math.random() * arenaSize - arenaSize / 2 };
@@ -962,7 +963,16 @@ async function main() {
         }
     })
 
-
+    // Add random food spawns
+    let maxFood = arenaSize ^ 2 / 60;
+    let foodSpawnPercent = (arenaSize ^ 2) / 10;
+    console.log(entities.length, maxFood, foodSpawnPercent)
+    if (Object.keys(entities).length < maxFood) {
+        if (Math.random()*100 < foodSpawnPercent) {
+            new Food();
+        }
+        
+    }
 
 
 
