@@ -224,7 +224,7 @@ class Snake {
         Bit8.setUint32(1, lastEntityId, true);
         this.id = lastEntityId;
         console.log("Spawning snake " + this.id)
-        this.nick = this.id.toString();//name
+        this.nick = name
         // Put snake in random position
         let randomPos = GetRandomPosition();
         this.position = { x: randomPos.x, y: randomPos.y };
@@ -911,7 +911,7 @@ async function main() {
             let timeSinceLastAte = Date.now() - snake.lastAte;
             if (timeSinceLastAte < 1000) {
                 
-                snakes[snake.id].extraSpeed += 1;
+                snakes[snake.id].extraSpeed += 3;
                 if (snake.extraSpeed > maxBoostSpeed)
                     snakes[snake.id].extraSpeed = maxBoostSpeed;
                 snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
