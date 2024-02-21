@@ -206,7 +206,7 @@ class Snake {
         Bit8.setUint32(1, lastEntityId, true);
         this.id = lastEntityId;
         console.log("Spawning snake " + this.id)
-        this.nick = this.id;//name
+        this.nick = this.id.toString();//name
         // Put snake in random position
         let randomPos = { x: Math.random() * arenaSize /2, y: Math.random() * arenaSize / 2 };
         this.position = { x: randomPos.x, y: randomPos.y };
