@@ -162,14 +162,6 @@ class Snake {
           clients[lastClientId] = this;
           lastClientId++;
         }
-
-        Object.values(snakes).forEach((snake) => {
-            snake.update(UpdateTypes.OnRender, this); // Update other snakes about this
-            this.update(UpdateTypes.OnRender, snake); // Update this snake about other snakes
-        })
-        Object.values(entities).forEach((food) => {
-          this.update(UpdateTypes.OnRender, food);
-        });
     }
     sendConfig() {
         var Bit8 = new DataView(new ArrayBuffer(49));
@@ -235,6 +227,8 @@ class Snake {
         this.network.send(Bit8);
 
         Object.values(snakes).forEach((snake) => {
+            console.log("Adding entity " + this.id + " to snake " + snake.id);
+            console.log("Adding entity "+snake.id+" to snake "+this.id);
             snake.update(UpdateTypes.OnRender, this); // Update other snakes about this
             this.update(UpdateTypes.OnRender, snake); // Update this snake about other snakes
         })
@@ -394,6 +388,7 @@ class Snake {
                 
                 Bit8.setUint16(offset, this.id, true);
                 offset = offset + 2;
+                console.log("Removing entity "+this.id+" from snake "+snake.id);
                 Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
                 offset = offset + 1;
                 Bit8.setUint16(offset, killedByID, true);
