@@ -381,9 +381,14 @@ class Snake {
         
         this.network.send(Bit8);
         // Update other snakes
+        
+        if (!this.spawned) {
+            return
+        }
         console.log("Removing snake " + this.id);
         Object.values(snakes).forEach((snake) => {
             if (snake.id != this.id) {
+                
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, MessageTypes.SendEntities);
                 var offset = 1;
@@ -881,7 +886,6 @@ async function main() {
                 }
                 snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
             }
-            console.log("Speed: "+snake.extraSpeed)
         }
         snake.updateLeaderboard();
         if (snake.id && snake.newPoints) {
