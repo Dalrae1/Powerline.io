@@ -826,6 +826,7 @@ function UpdateArena() { // Main update loop
         // Other snake collision checks
         Object.values(snakes).forEach(function (otherSnake) {
             // Check if head of snake of near body of other snake
+            let closestRubLine
             for (let i = -1; i < otherSnake.points.length - 1; i++) {
                 let point, nextPoint;
                 if (i == -1)
@@ -836,19 +837,36 @@ function UpdateArena() { // Main update loop
 
                 // Rubbing Mechanics
                 if (otherSnake.id != snake.id) {
+                    
                     if (i <= otherSnake.points.length - 1) {
                         let data = nearestPointOnLine(
                             snake.position,
                             point,
                             nextPoint
                         );
-                        if (data.distance <= 4) {
-                            shouldRub = true;
-                            snake.rubX = data.point.x;
-                            snake.rubY = data.point.y;
-                            snake.rubAgainst(otherSnake, data.distance);
+                        // Check if this line is in the same direction
+                        let direction = getNormalizedDirection(point, nextPoint);
+                        let snakeDirection = getNormalizedDirection(snake.position, secondPoint);
+                        if (!direction || !snakeDirection)
+                            continue;
+                        if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y)))
+                            continue;
+                        if (data.distance >= 4)
+                            continue;
+                        if (closestRubLine && data.distance > closestRubLine.distance)
+                            continue
+                        closestRubLine = {
+                            point: data.point,
+                            distance: data.distance
                         }
                     }
+                    
+                }
+                if (closestRubLine) {
+                    shouldRub = true;
+                    snake.rubX = closestRubLine.point.x;
+                    snake.rubY = closestRubLine.point.y;
+                    snake.rubAgainst(otherSnake, closestRubLine.distance);
                 }
 
                 // Collision Mechanics
