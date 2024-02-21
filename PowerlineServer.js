@@ -565,7 +565,8 @@ class Snake {
             case MessageTypes.RecieveNick:
                 var nick = getNick(view, 1);
                 console.log("Spawning snake " + nick.nick);
-                this.spawn(nick.nick);
+                if (!this.spawned)
+                    this.spawn(nick.nick);
                 break;
             case MessageTypes.RecieveTurnPoint:
                 let offset = 1;
