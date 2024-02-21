@@ -144,7 +144,9 @@ class Food {
             snakee.network.send(Bit8);
         })
         snake.length += this.value;
+        snake.lastAte = Date.now();
         delete entities[this.id];
+        
   }
 }
 let food = new Food();
@@ -862,6 +864,22 @@ async function main() {
     })
 
     Object.values(snakes).forEach(function (snake) {
+        if (snake.spawned) {
+            let timeSinceLastAte = Date.now() - snake.lastAte;
+            console.log(timeSinceLastAte)
+            if (timeSinceLastAte < 1000) {
+                
+                snakes[snake.id].extraSpeed += 5;
+                if (this.extraSpeed > maxBoostSpeed)
+                    this.extraSpeed = maxBoostSpeed;
+                snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+            } else {
+                if (snake.extraSpeed > 0)
+                    snakes[snake.id].extraSpeed -= 5
+                snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+            
+            }
+        }
         snake.updateLeaderboard();
         if (snake.id && snake.newPoints) {
           snake.newPoints.shift();
