@@ -539,7 +539,7 @@ class Snake {
                                 if (entity.flags & EntityFlags.ShowTalking) {
                                     calculatedTotalBits += 1;
                                 }
-                                calculatedTotalBits += 1 + 1 + 1 + (4 + 4) * (entity.newPoints.length > 0 && 1 || 0);
+                                calculatedTotalBits += 1 + 1 + 1 + (4 + 4) * (entity.newPoints.length);
                                 break;
                             case EntityTypes.Item:
                                 calculatedTotalBits += 4 + 4;
@@ -665,10 +665,10 @@ class Snake {
                                 offset += 1;
                                 Bit8.setUint8(offset, entity.extraSpeed, true);
                                 offset += 1;
-                                let newPointsLength = entity.newPoints.length > 0 && 1 || 0;
+                                let newPointsLength = entity.newPoints.length
                                 Bit8.setUint8(offset, newPointsLength, true);
                                 offset += 1;
-                                for (let i = 0; i < newPointsLength; i++) {
+                                for (let i = newPointsLength - 1; i >= 0; i--) {
                                     let point = entity.newPoints[i];
                                     Bit8.setFloat32(offset, point.x, true);
                                     offset += 4;
@@ -1256,9 +1256,7 @@ async function main() {
     })
     Object.values(snakes).forEach(function (snake) {
         snake.updateLeaderboard();
-        if (snake.id && snake.newPoints) {
-          snake.newPoints.shift();
-        }
+        snake.newPoints = []
     })
     queuedEntityRenders = {};
     queuedEntityUpdates = {};
