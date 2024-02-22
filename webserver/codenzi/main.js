@@ -240,6 +240,7 @@ var fetchCountryCode = function(){
 	var s = '';
 	if(isSecure)
 		s = 's';
+	window.localStorage.wingsCCTime = +new Date();
 	/*$.get('http'+s+'://ip2l.wings.io/cc', function(data){
 		countryCode = data.substring(0, 2);
 		window.localStorage.wingsCC = countryCode;
@@ -260,6 +261,9 @@ var updateCountryCode = function(){
 		}else{
 			countryCode = window.localStorage.wingsCC;
 		}
+	}
+	if (!countryCode) {
+		countryCode = "US"
 	}
 }
 

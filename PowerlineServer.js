@@ -4,13 +4,17 @@ const fs = require("fs");
 const EventEmitter = require("events");
 const { kill } = require('process');
 const { get } = require('http');
-/*const server = HttpsServer({
-    ssl: true,
-    cert: fs.readFileSync("C:\\wamp64\\bin\\apache\\apache2.4.46\\conf\\key\\dalr.ae\\cert.pem"),
-    ca: fs.readFileSync("C:\\wamp64\\bin\\apache\\apache2.4.46\\conf\\key\\dalr.ae\\fullchain.pem"),
-    key: fs.readFileSync("C:\\wamp64\\bin\\apache\\apache2.4.46\\conf\\key\\dalr.ae\\privkey.pem")
-})
-const wss = new WebSocket.Server({ port: 1337, server: server });*/
+
+let server, wssSecure
+if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
+    server = HttpsServer({
+        ssl: true,
+        cert: fs.readFileSync("C:\\Certbot\\live\\dalr.ae\\cert.pem"),
+        ca: fs.readFileSync("C:\\Certbot\\live\\dalr.ae\\privkey.pem"),
+        key: fs.readFileSync("C:\\Certbot\\live\\dalr.ae\\fullchain.pem")
+    })
+    wssSecure = new WebSocket.Server({ port: 1338, server: server });
+}
 const wss = new WebSocket.Server({ port: 1337});
 var snakes = {}
 var entities = {}
@@ -910,6 +914,23 @@ function getNick(data, bitOffset) {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+if (wssSecure) {
+    wssSecure.on('connection', async function connection(ws) {
+        let client = new Client(ws);
+        let snake = new Snake(client);
+        ws.on('message', async function incoming(message, req) {
+            let view = new DataView(new Uint8Array(message).buffer);
+            let messageType = view.getUint8(0);
+            snake.RecieveMessage(messageType, view)
+        })
+        ws.on('close', function close() {
+            if (snake.id) {
+                snake.kill(KillReasons.LeftScreen, snake.id);
+                delete clients[snake.id];
+            }
+        })
+    });
 }
 
 wss.on('connection', async function connection(ws) {

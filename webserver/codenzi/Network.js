@@ -74,14 +74,15 @@ var Network = function () {
     // Testing locally, connect to local master server
     // OR
     // Dev. Connect to dev master server. Dont reveal where it is at.
-    MASTER_URL = domain + ":81/";
+    MASTER_URL = "master." + "powerline.io"
+    //MASTER_URL = domain + ":81/";
   } else {
     // Use default master server. Allow people to iframe and etc.
-    MASTER_URL = "master." + domain;
+    MASTER_URL = "master." + "powerline.io"//domain;
   }
   //console.log('Master URL is: ' + MASTER_URL);
-
   this.getServerAndConnect = function () {
+    console.log("Connecting")
     var room = null;
     var roomPart = "";
 
@@ -107,6 +108,7 @@ var Network = function () {
 
     var cc = countryCode;
     if (queryString["cc"]) cc = queryString["cc"];
+    countryCode = cc
     if (cc == undefined) {
       // Did not receive country code yet
       setTimeout(network.getServerAndConnect, 200);
@@ -115,44 +117,56 @@ var Network = function () {
 
     var s = "";
     if (isSecure) s = "s";
-    $.ajax({
-      url: "http" + s + "://" + MASTER_URL,
-      type: "PUT",
-      success: function (result) {
-        if (result == "0") {
-          $("#topGui").hide();
-          $("#topGuiConnecting").hide();
-          $("#roomFailed").show();
-          return;
-        }
-
-        var splitID = result.split("!");
-        network.roomID = 0;
-        if (splitID.length > 1) {
-          network.roomID = splitID[1];
-        }
-
-        var remaining = splitID[0];
-        var splitRoom = remaining.split("/");
-        network.roomNumber = 0;
-        var host = remaining;
-        if (splitRoom.length > 1) {
-          network.roomNumber = splitRoom[1];
-          host = splitRoom[0];
-        }
-        network.remoteHost = host;
+    if (cc == "CU") {
+        if (domainSplitLen == 1 || domainSplitLen == 3)
+          network.remoteHost = `127.0.0.1:133${isSecure && "8" || "7"}`
+        else
+          network.remoteHost = `135.148.33.142:133${isSecure && "8" || "7"}`
+        console.log("Connecting to REMOTEHOST " + network.remoteHost + "...")
         network.connect();
-      },
-      error: function () {
-        network.connectVar = setTimeout(network.getServerAndConnect, 1000);
-      },
-      dataType: "text", // was json
-      contentType: "text/plain",
-      method: "PUT",
-      cache: false,
-      crossDomain: true,
-      data: cc + roomPart,
-    });
+
+    } else {
+      $.ajax({
+        url: "http" + s + "://" + MASTER_URL,
+        type: "PUT",
+        success: function (result) {
+          console.log("Yeah")
+          if (result == "0") {
+            $("#topGui").hide();
+            $("#topGuiConnecting").hide();
+            $("#roomFailed").show();
+            return;
+          }
+
+          var splitID = result.split("!");
+          network.roomID = 0;
+          if (splitID.length > 1) {
+            network.roomID = splitID[1];
+          }
+
+          var remaining = splitID[0];
+          var splitRoom = remaining.split("/");
+          network.roomNumber = 0;
+          var host = remaining;
+          if (splitRoom.length > 1) {
+            network.roomNumber = splitRoom[1];
+            host = splitRoom[0];
+          }
+          network.remoteHost = host;
+          console.log("Connecting to REMOTEHOST " + network.remoteHost + "...")
+          network.connect();
+        },
+        error: function () {
+          network.connectVar = setTimeout(network.getServerAndConnect, 1000);
+        },
+        dataType: "text", // was json
+        contentType: "text/plain",
+        method: "PUT",
+        cache: false,
+        crossDomain: true,
+        data: cc + roomPart,
+      });
+    }
   };
 
   this.connect = function () {
@@ -197,6 +211,10 @@ var Network = function () {
         // For some reason, some people compain about "Connecting" forever because of this.
         //fullhost = fullhost + '/' + network.roomNumber;
       }
+    }
+
+    if (countryCode == "CU") {
+      fullhost = `ws${isSecure && "s" || ""}://${network.remoteHost}`
     }
     if (debug) console.log("Connecting to " + fullhost + "...");
     try {
