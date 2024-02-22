@@ -82,8 +82,17 @@ var Input = function () {
     }
 
     if (localPlayer && talkEnabled > 0.0) {
-      if ((e.keyCode >= 49 && e.keyCode <= 57) || e.keyCode == 48) {
+      if ((e.keyCode >= 49 && e.keyCode <= 57) || e.keyCode == 48 || e.keyCode == 69 || e.keyCode == 82) {
         if (localPlayer.canTalk()) {
+          if (e.keyCode == 69) {
+            network.sendTalk(11);
+            hud.hideTalkLayer();
+          }
+          if (e.keyCode == 82) {
+            network.sendTalk(12);
+            hud.hideTalkLayer();
+          }
+
           if (e.keyCode >= 49 && e.keyCode <= 57) {
             network.sendTalk(e.keyCode - 49 + 1);
             hud.hideTalkLayer();

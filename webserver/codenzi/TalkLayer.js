@@ -1,4 +1,4 @@
-var TalkLayer = function() {
+var TalkLayer = function () {
 	var talkLayer = this;
 
 	var startX = 10;
@@ -51,7 +51,7 @@ var TalkLayer = function() {
 	this.preRender = function(contextLayer, renderedElement) {
 		// Lets Pre-Render
 		renderedElement.width = labelWidth;
-		renderedElement.height = 10*31+23;
+		renderedElement.height = talkTexts.length*31+23;
 
 		contextLayer.font = 'Bold ' + 15 + "px 'proxima-nova-1','proxima-nova-2', Arial";
 		contextLayer.fillStyle = 'rgba(0, 255, 255, 1.0)';
@@ -59,8 +59,9 @@ var TalkLayer = function() {
 		contextLayer.shadowColor = 'rgba(0, 200, 200, 1.0)';
 
 		var baseY = 15;
-		baseY+=8;
-		for(var i = 0; i < 10; i++)
+		baseY += 8;
+		
+		for(var i = 0; i < talkTexts.length+1; i++)
 		{
 			contextLayer.globalAlpha = 0.3;
 			contextLayer.fillStyle = '#004444';
@@ -81,11 +82,16 @@ var TalkLayer = function() {
 			var index = (i+1);
 			if(index == 10)
 				index = 0;
+			if (index == 11)
+				index = "E";
+			if (index == 12)
+				index = "R";
 			contextLayer.fillText(index, marginX+offX, baseY+i*31 + 5 + 15);
 
 			var text = talkTexts[i];
 			var width = contextLayer.measureText(text).width;
-			contextLayer.fillText(text, 35 + (labelWidth-35)/2.0 - width/2.0, baseY+i*31 + 5 + 15);
+			contextLayer.fillText(text, 35 + (labelWidth - 35) / 2.0 - width / 2.0, baseY + i * 31 + 5 + 15);
+			
 		}
 		contextLayer.globalAlpha = 1.0;
 		contextLayer.shadowBlur = 0;

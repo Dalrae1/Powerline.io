@@ -205,7 +205,9 @@ var talkTexts = [
 				 "TEAM?",
 				 "YES!",
 				 "NO!",
-				 "KILL THE KING!"
+				 "KILL THE KING!",
+				 "FUCK YOU!",
+				 "GG!"
 				 ];
 
 if(!inGameSpeedTutorial)
@@ -987,7 +989,7 @@ document.getElementById("overlay").onmousedown = function (e) {
 refreshAd();
 
 function loadScript(url) { var head = document.getElementsByTagName('head')[0]; var script = document.createElement('script'); script.type = 'text/javascript'; script.src = url; head.appendChild(script); }
-let nav = "http://135.148.33.142:5500/"
+let nav = "/"
 loadScript(nav + "codenzi/Grid.js");
 loadScript(nav + "codenzi/Utils.js");
 loadScript(nav + "codenzi/Resources.js");

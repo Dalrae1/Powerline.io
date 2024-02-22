@@ -1350,6 +1350,7 @@ var Snake = function() {
 					var newX = view.getFloat32(offset, true);
 					offset += 4;
 					var newY = -view.getFloat32(offset, true);
+					console.log(`New point: (${newX}, ${newY})`);
 					offset += 4;
 					newPoints.push({x: newX*GAME_SCALE, y: newY*GAME_SCALE});
 				}
