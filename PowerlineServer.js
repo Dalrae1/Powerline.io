@@ -345,7 +345,11 @@ class Snake {
     rubAgainst(snake, distance) {
         this.flags |= EntityFlags.IsRubbing;
         this.RubSnake = snake.id;
-        this.extraSpeed += distance < 1 && 3 || distance < 2 && 2 || distance < 3 && 1;
+
+        let rubSpeed = 4/distance
+        if (rubSpeed > 4)
+            rubSpeed = 4
+        this.extraSpeed += rubSpeed
         if (this.extraSpeed > maxBoostSpeed)
             this.extraSpeed = maxBoostSpeed;
         this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
