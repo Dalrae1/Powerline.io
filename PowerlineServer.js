@@ -135,6 +135,14 @@ class Food {
         if (snake && this.origin == snake.id) {
             return;
         }
+        if (snake) {
+            snakes[snake.id].extraSpeed += 1.5;
+            if (snake.extraSpeed > maxBoostSpeed)
+                snakes[snake.id].extraSpeed = maxBoostSpeed;
+            snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+
+        }
+        
         Object.values(clients).forEach((snakee) => {
             if (snakee.id){
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
@@ -1108,7 +1116,7 @@ async function main() {
     })
 
     Object.values(snakes).forEach(function (snake) {
-        if (snake.spawned) {
+        /*if (snake.spawned) {
             let timeSinceLastAte = Date.now() - snake.lastAte;
             if (timeSinceLastAte < 1000) {
                 
@@ -1124,7 +1132,7 @@ async function main() {
                 }
                 snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
             }
-        }
+        }*/
         snake.updateLeaderboard();
         if (snake.id && snake.newPoints) {
           snake.newPoints.shift();
