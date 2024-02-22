@@ -255,15 +255,13 @@ class Snake {
         Bit8.setUint8(0, MessageTypes.SendSpawn);
         Bit8.setUint32(1, lastEntityId, true);
         this.id = lastEntityId;
-        console.log("Spawning snake " + this.id)
         this.nick = name
-        // Put snake in random position
         let randomPos = GetRandomPosition();
         this.position = { x: randomPos.x, y: randomPos.y };
-        //this.position = { x: 0, y: 0 };
         this.direction = Directions.Up;
         this.speed = 0.25;
         this.extraSpeed = 0;
+        this.killstreak = 0;
         this.points = [{x: this.position.x, y: this.position.y}];
         this.newPoints = [];
         this.queuedPoints = [];
@@ -380,8 +378,24 @@ class Snake {
         if (killedByID != this.id) {
             if (!snakes[killedByID])
                 return
+            //
+            snakes[killedByID].killstreak += 1;
+            if (snakes[killedByID].killstreak >= 8) {
+                snakes[killedByID].flags |= EntityFlags.Killstreak;
+                let oldKillstreak = snakes[killedByID].killstreak;
+                setTimeout(() => {
+                    if (snakes[killedByID].killstreak == oldKillstreak)
+                        snakes[killedByID].flags &= ~EntityFlags.Killstreak;
+                }, 5000)
+            }
+            if (king && king == this) {
+                snakes[killedByID].flags |= EntityFlags.KilledKing;
+                setTimeout(() => {
+                    snakes[killedByID].flags &= ~EntityFlags.KilledKing;
+                }, 5000)
+            }
 
-            // Send "Killed By"
+            // Send "Killed"
             var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
             Bit8.setUint8(0, MessageTypes.SendEvent);
             var offset = 1;
@@ -403,7 +417,7 @@ class Snake {
 
             offset = getNick(Bit8, offset).offset;
             snakes[killedByID].network.send(Bit8);
-            // Send "Killed"
+            // Send "Killed By"
             var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
             Bit8.setUint8(0, MessageTypes.SendEvent);
             var offset = 1;
@@ -662,7 +676,7 @@ class Snake {
                                 }
                                 if (entity.flags & EntityFlags.KilledKing) { }
                                 if (entity.flags & EntityFlags.Killstreak) {
-                                    Bit8.setUint16(offset, 0, true);
+                                    Bit8.setUint16(offset, entity.killstreak, true);
                                     offset += 2;
                                 }
                                 if (entity.flags & EntityFlags.ShowTalking) {
@@ -761,7 +775,7 @@ class Snake {
                                 }
                                 if (entity.flags & EntityFlags.KilledKing) { }
                                 if (entity.flags & EntityFlags.Killstreak) {
-                                    Bit8.setUint16(offset, 0, true);
+                                    Bit8.setUint16(offset, entity.killstreak, true);
                                     offset += 2;
                                 }
                                 if (entity.flags & EntityFlags.ShowTalking) {
