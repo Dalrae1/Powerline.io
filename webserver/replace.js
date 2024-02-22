@@ -1,5 +1,4 @@
 (function (s, x, k) {
-    console.log("Loaded")
     function Db() {
         var a = -1 < navigator.userAgent.indexOf("Chrome"),
             c = -1 < navigator.userAgent.indexOf("Safari");
@@ -2212,16 +2211,6 @@
                 c += 4;
                 Ja = a.getFloat32(c, !0);
                 Vb = !0;
-                console.log(g)
-                console.log(la/10)
-                console.log(X/10)
-                console.log(Ta)
-                console.log(Tb)
-                console.log(Ub/10)
-                console.log(pb/10)
-                console.log(db)
-                console.log(Zb)
-                console.log(Ja)
             };
             this.processMessage = function (e) {
                 e = new DataView(e);

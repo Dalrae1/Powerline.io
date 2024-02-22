@@ -1340,6 +1340,8 @@ var Snake = function() {
 		}else{
 			// New points?
 			var newPointCount = view.getUint8(offset, true);
+			if (newPointCount > 1)
+				console.log('newPointCount: ' + newPointCount);
 			offset++;
 
 			if(newPointCount > 0)
@@ -1350,7 +1352,7 @@ var Snake = function() {
 					var newX = view.getFloat32(offset, true);
 					offset += 4;
 					var newY = -view.getFloat32(offset, true);
-					console.log(`New point: (${newX}, ${newY})`);
+					//console.log(`New point: (${newX}, ${newY})`);
 					offset += 4;
 					newPoints.push({x: newX*GAME_SCALE, y: newY*GAME_SCALE});
 				}
