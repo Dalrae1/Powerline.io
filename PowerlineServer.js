@@ -19,12 +19,14 @@ var lastClientId = 1
 var lastEntityId = 1
 var arenaSize = 100
 var safezone = 0.01 // Safezone
+//var updateDuration = 100
 var updateDuration = 100
 var UPDATE_EVERY_N_TICKS = 3;
 let maxBoostSpeed = 200;
 var foodValue = 1.5;
 var scoreMultiplier = 10/foodValue;
 var defaultLength = 10;
+var king = null;
 
 const MessageTypes = Object.freeze({
     // Server Messages
@@ -77,13 +79,13 @@ const EntitySubtypes = Object.freeze({
 
 
 const EntityFlags = Object.freeze({
-    Unused: 1,
+    Debug: 1,
     IsRubbing: 2,
-    KeepFoodAlive: 4,
-    SomethingAffectingPointOffset: 8,
-    ShowTrophy: 16,
-    ShowKillStreak: 32,
-    ShowTalking: 64
+    Boosting: 4,
+    Ping: 8,
+    KilledKing: 0x10,
+    Killstreak: 0x20,
+    ShowTalking: 0x40
 })
 
 const KillReasons = Object.freeze({
@@ -134,23 +136,32 @@ class Food {
             return;
         }
         Object.values(clients).forEach((snakee) => {
-            var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
-            Bit8.setUint8(0, MessageTypes.SendEntities);
-            var offset = 1;
-            console.log("Removing entity food " + this.id + " from snake " + snakee.id);
-            Bit8.setUint16(offset, this.id, true);
-            offset = offset + 2;
-            Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
-            offset = offset + 1;
-            Bit8.setUint16(offset, snake && snake.id || 0, true);
-            offset = offset + 2;
-            Bit8.setUint8(offset, KillReasons.Killed, true);
-            offset = offset + 1;
-            Bit8.setFloat32(offset, this.position.x, true);
-            offset = offset + 4;
-            Bit8.setFloat32(offset, this.position.y, true);
-            offset = offset + 4;
-            snakee.network.send(Bit8);
+            if (snakee.id){
+                var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
+                Bit8.setUint8(0, MessageTypes.SendEntities);
+                var offset = 1;
+                //console.log("Removing entity food " + this.id + " from snake " + snakee.id);
+                Bit8.setUint16(offset, this.id, true);
+                offset = offset + 2;
+                Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
+                offset = offset + 1;
+                Bit8.setUint16(offset, snake && snake.id || 0, true);
+                offset = offset + 2;
+                Bit8.setUint8(offset, KillReasons.Killed, true);
+                offset = offset + 1;
+
+                // King
+                Bit8.setUint16(offset, 0, true);
+                offset = offset + 2;
+                Bit8.setUint16(offset, king && king.id || 0, true);
+                offset = offset + 2;
+                Bit8.setFloat32(offset, king && king.position.x || 0, true);
+                offset = offset + 4;
+                Bit8.setFloat32(offset, king && king.position.y || 0, true);
+                offset = offset + 4;
+                
+                snakee.network.send(Bit8);
+            }
         })
         if (snake) {
             snake.length += this.value;
@@ -274,6 +285,9 @@ class Snake {
             snake.rank = curRank;
             if (snake.id == this.id)
                 myRank = curRank;
+            if (curRank == 1) {
+                king = snake;
+            }
             Bit8.setUint16(offset, snake.id, true);
             offset += 2;
             Bit8.setUint32(offset, (snake.length - defaultLength)*scoreMultiplier, true);
@@ -406,7 +420,6 @@ class Snake {
         if (!this.spawned) {
             return
         }
-        console.log("Removing snake " + this.id);
         Object.values(clients).forEach((snake) => {
             if (snake.id != this.id) {
                 
@@ -416,7 +429,6 @@ class Snake {
                 
                 Bit8.setUint16(offset, this.id, true);
                 offset = offset + 2;
-                console.log("Removing entity "+this.id+" from snake "+snake.id);
                 Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
                 offset = offset + 1;
                 Bit8.setUint16(offset, killedByID, true);
@@ -426,6 +438,17 @@ class Snake {
                 Bit8.setFloat32(offset, this.position.x, true); //Kill position X
                 offset = offset + 4;
                 Bit8.setFloat32(offset, this.position.y, true); //Kill position Y
+                offset = offset + 4;
+
+                // King
+                Bit8.setUint16(offset, 0, true);
+                offset = offset + 2;
+                Bit8.setUint16(offset, king && king.id || 0, true);
+                offset = offset + 2;
+                Bit8.setFloat32(offset, king && king.position.x || 0, true);
+                offset = offset + 4;
+                Bit8.setFloat32(offset, king && king.position.y || 0, true);
+                offset = offset + 4;
                 snake.network.send(Bit8);
             }
         });
@@ -475,92 +498,226 @@ class Snake {
         Bit8.setUint8(0, MessageTypes.SendEntities);
         var offset = 1;
         Bit8.setUint16(offset, entity.id, true);
-        offset = offset + 2;
+        offset += 2;
         Bit8.setUint8(offset, updateType, true);
-        offset = offset + 1;
-        if (updateType == UpdateTypes.OnRender) {
-            Bit8.setUint8(offset, entity.type, true);
-            offset = offset + 1;
-            Bit8.setUint8(offset, entity.subtype || 0, true);
-            offset = offset + 1;
-            if (entity.type == EntityTypes.Player) {
-                for (var characterIndex = 0; characterIndex < entity.nick.length;characterIndex++) {
-                    Bit8.setUint16(offset + characterIndex * 2, entity.nick.charCodeAt(characterIndex),true);
-                }
-                offset = getNick(Bit8, offset).offset;
-            } else {
-                Bit8.setUint16(offset, 0, true);
-                offset = offset + 2;
-            }
-        }
-        switch (entity.type) {
-            case EntityTypes.Player:
-                Bit8.setFloat32(offset, entity.position.x, true);
-                offset = offset + 4;
-                Bit8.setFloat32(offset, entity.position.y, true);
-                offset = offset + 4;
-                Bit8.setFloat32(offset, entity.speed, true);
-                offset = offset + 4;
-                Bit8.setFloat32(offset, entity.length, true);
-                offset = offset + 5;
-                Bit8.setUint8(offset, entity.points.length, true);
-                offset = offset + 2;
-                Bit8.setUint8(offset, entity.flags, true);
-                offset = offset + 1;
-                if (entity.flags & EntityFlags.IsRubbing) {
-                    Bit8.setFloat32(offset, entity.rubX, true);
-                    offset = offset + 4;
-                    Bit8.setFloat32(offset, entity.rubY, true);
-                    offset = offset + 4;
-                    Bit8.setUint16(offset, entity.RubSnake, true);
-                    offset = offset + 2;
-                }
-                if (entity.flags & EntityFlags.ShowTalking) {
-                    Bit8.setUint8(offset, entity.talkId, true);
-                    offset = offset + 1;
+        offset += 1;
+        switch (updateType) {
+            case UpdateTypes.OnUpdate:
+                switch (entity.type) {
+                    case EntityTypes.Player:
+                        Bit8.setFloat32(offset, entity.position.x, true);
+                        offset += 4;
+                        Bit8.setFloat32(offset, entity.position.y, true);
+                        offset += 4;
+                        Bit8.setFloat32(offset, entity.speed, true);
+                        offset += 4;
+                        Bit8.setFloat32(offset, entity.length, true);
+                        offset += 4;
+                        offset += 1;
+                        Bit8.setUint16(offset, entity.points.length, true);
+                        offset += 2;
+                        Bit8.setUint8(offset, entity.flags, true);
+                        offset += 1;
+                        if (entity.flags & EntityFlags.Debug) {
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
 
-                }
-                Bit8.setUint8(offset, entity.talkStamina, true);
-                offset = offset + 1;
-                Bit8.setUint8(offset, entity.extraSpeed, true);
-                offset = offset + 1;
-                if (updateType == UpdateTypes.OnRender) {
-                    for (let i = 0; i < entity.points.length; i++) {
-                        let point = entity.points[i];
-                        Bit8.setFloat32(offset, point.x, true);
-                        offset = offset + 4;
-                        Bit8.setFloat32(offset, point.y, true);
-                        offset = offset + 4;
-                    }
-                    Bit8.setUint16(offset, entity.color, true);
-                    offset = offset + 3;
-                } else if (updateType == UpdateTypes.OnUpdate) {
-                    if (entity.newPoints.length > 0) {
-                        Bit8.setUint8(offset, /*snake.newPoints.length*/ 1, true);
-                        offset++;
-                        for (let i = 0; i < /*snake.newPoints.length*/ 1; i++) {
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+
+                            Bit8.setUint16(offset, 0, true);
+
+                            offset += 2;
+                        }
+                        if (entity.flags & EntityFlags.IsRubbing) {
+                            Bit8.setFloat32(offset, entity.rubX, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, entity.rubY, true);
+                            offset += 4;
+                            Bit8.setUint16(offset, entity.RubSnake, true);
+                            offset += 2;
+                        }
+                        if (entity.flags & EntityFlags.Boosting) { }
+                        if (entity.flags & EntityFlags.Ping) {
+                            Bit8.setUint16(offset, entity.ping || 0, true);
+                            offset += 2;
+                        }
+                        if (entity.flags & EntityFlags.KilledKing) { }
+                        if (entity.flags & EntityFlags.Killstreak) {
+                            Bit8.setUint16(offset, 0, true);
+                            offset += 2;
+                        }
+                        if (entity.flags & EntityFlags.ShowTalking) {
+                            Bit8.setUint8(offset, entity.talkId, true);
+                            offset += 1;
+                        }
+                        Bit8.setUint8(offset, entity.talkStamina, true);
+                        offset += 1;
+                        Bit8.setUint8(offset, entity.extraSpeed, true);
+                        offset += 1;
+                        let newPointsLength = 0
+                        Bit8.setUint8(offset, newPointsLength, true); // newPoints.length
+                        offset += 1;
+                        for (let i = 0; i < newPointsLength; i++) {
                             let point = entity.newPoints[i];
                             Bit8.setFloat32(offset, point.x, true);
-                            offset = offset + 4;
+                            offset += 4;
                             Bit8.setFloat32(offset, point.y, true);
-                            offset = offset + 4;
+                            offset += 4;
                         }
-                        
-                    }
+                        break;
+                    case EntityTypes.Item:
+                        Bit8.setFloat32(offset, entity.position.x, true);
+                        offset += 4;
+                        Bit8.setFloat32(offset, entity.position.y, true);
+                        offset += 4;
+                        break;
                 }
-                break;
-            case EntityTypes.Item:
-                if (entity.subtype == EntitySubtypes.Food) {
-                    Bit8.setFloat32(offset, entity.position.x, true);
-                    offset = offset + 4;
-                    Bit8.setFloat32(offset, entity.position.y, true);
-                    offset = offset + 4;
-                    Bit8.setUint16(offset, entity.color, true);
-                    offset = offset + 2;
+                break
+            case UpdateTypes.OnRender:
+                Bit8.setUint8(offset, entity.type, true);
+                offset += 1;
+                Bit8.setUint8(offset, entity.subtype || 0, true);
+                offset += 1;
+                if (entity.type == EntityTypes.Player) {
+                    for (var characterIndex = 0; characterIndex < entity.nick.length;characterIndex++) {
+                        Bit8.setUint16(offset + characterIndex * 2, entity.nick.charCodeAt(characterIndex),true);
+                    }
+                    offset = getNick(Bit8, offset).offset;
+                } else {
+                    Bit8.setUint16(offset, 0, true);
+                    offset += 2;
+                }
+                switch (entity.type) {
+                    case EntityTypes.Player:
+                        Bit8.setFloat32(offset, entity.position.x, true);
+                        offset += 4;
+                        Bit8.setFloat32(offset, entity.position.y, true);
+                        offset += 4;
+                        Bit8.setFloat32(offset, entity.speed, true);
+                        offset += 4;
+                        Bit8.setFloat32(offset, entity.length, true);
+                        offset += 4;
+                        offset += 1;
+                        Bit8.setUint16(offset, entity.points.length, true);
+                        offset += 2;
+                        Bit8.setUint8(offset, entity.flags, true);
+                        offset += 1;
+                        if (entity.flags & EntityFlags.Debug) {
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
 
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, 0, true);
+                            offset += 4;
+
+                            Bit8.setUint16(offset, 0, true);
+
+                            offset += 2;
+                        }
+                        if (entity.flags & EntityFlags.IsRubbing) {
+                            Bit8.setFloat32(offset, entity.rubX, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, entity.rubY, true);
+                            offset += 4;
+                            Bit8.setUint16(offset, entity.RubSnake, true);
+                            offset += 2;
+                        }
+                        if (entity.flags & EntityFlags.Boosting) { }
+                        if (entity.flags & EntityFlags.Ping) {
+                            Bit8.setUint16(offset, entity.ping || 0, true);
+                            offset += 2;
+                        }
+                        if (entity.flags & EntityFlags.KilledKing) { }
+                        if (entity.flags & EntityFlags.Killstreak) {
+                            Bit8.setUint16(offset, 0, true);
+                            offset += 2;
+                        }
+                        if (entity.flags & EntityFlags.ShowTalking) {
+                            Bit8.setUint8(offset, entity.talkId, true);
+                            offset += 1;
+                        }
+                        Bit8.setUint8(offset, entity.talkStamina, true);
+                        offset += 1;
+                        Bit8.setUint8(offset, entity.extraSpeed, true);
+                        offset += 1;
+                        for (let i = 0; i < entity.points.length; i++) {
+                            let point = entity.points[i];
+                            Bit8.setFloat32(offset, point.x, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, point.y, true);
+                            offset += 4;
+                        }
+                        Bit8.setUint16(offset, entity.color, true);
+                        offset += 2;
+                        Bit8.setUint8(offset, 0, true);
+                        offset += 1;
+
+
+
+                        break;
+                    case EntityTypes.Item:
+                        Bit8.setFloat32(offset, entity.position.x, true);
+                        offset += 4;
+                        Bit8.setFloat32(offset, entity.position.y, true);
+                        offset += 4;
+                        Bit8.setUint16(offset, entity.color, true);
+                        offset += 2;
+                        break;
+
+                }
+
+
+                break;
+            case UpdateTypes.OnRemove:
+                switch (entity.type) {
+                    case EntityTypes.Player:
+                        Bit8.setUint16(offset, entity.id, true);
+                        offset += 2;
+                        Bit8.setUint8(offset, reason, true);
+                        offset += 1;
+                        Bit8.setFloat32(offset, entity.position.x, true);
+                        offset += 4;
+                        Bit8.setFloat32(offset, entity.position.y, true);
+                        offset += 4;
+                        break
+                    case EntityTypes.Item:
+
+                        break
                 }
                 break;
         }
+        Bit8.setUint16(offset, 0, true);
+        offset = offset + 2;
+        Bit8.setUint16(offset, king && king.id || 0, true);
+        offset = offset + 2;
+        Bit8.setFloat32(offset, king && king.position.x || 0, true);
+        offset = offset + 4;
+        Bit8.setFloat32(offset, king && king.position.y || 0, true);
+        offset = offset + 4;
       this.network.send(Bit8);
     }
     DrawDebugCircle(x, y, color) {
