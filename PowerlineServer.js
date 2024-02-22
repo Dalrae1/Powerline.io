@@ -17,7 +17,7 @@ var entities = {}
 var clients = {}
 var lastClientId = 1
 var lastEntityId = 1
-var arenaSize = 2000
+var arenaSize = 300
 var safezone = 0.01 // Safezone
 //var updateDuration = 100
 var updateDuration = 100
@@ -180,7 +180,7 @@ class Food {
   }
 }
 
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < arenaSize ^ 2 / 60; i++) {
     new Food();
 }
 
@@ -1120,23 +1120,6 @@ async function main() {
     })
 
     Object.values(snakes).forEach(function (snake) {
-        /*if (snake.spawned) {
-            let timeSinceLastAte = Date.now() - snake.lastAte;
-            if (timeSinceLastAte < 1000) {
-                
-                snakes[snake.id].extraSpeed += 1.5;
-                if (snake.extraSpeed > maxBoostSpeed)
-                    snakes[snake.id].extraSpeed = maxBoostSpeed;
-                snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
-            } else {
-                if (snake.extraSpeed > 0) {
-                    //snakes[snake.id].extraSpeed -= 0.5
-                    if (snake.extraSpeed < 0)
-                        snakes[snake.id].extraSpeed = 0;
-                }
-                snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
-            }
-        }*/
         snake.updateLeaderboard();
         if (snake.id && snake.newPoints) {
           snake.newPoints.shift();
