@@ -6,14 +6,18 @@ const { kill } = require('process');
 const { get } = require('http');
 
 let server, wssSecure
+
 if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
+    let cert = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")
+    let key = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\privkey.pem")
+    let chain = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\fullchain.pem")
     server = HttpsServer({
-        ssl: true,
-        cert: fs.readFileSync("C:\\Certbot\\live\\dalr.ae\\cert.pem"),
-        ca: fs.readFileSync("C:\\Certbot\\live\\dalr.ae\\privkey.pem"),
-        key: fs.readFileSync("C:\\Certbot\\live\\dalr.ae\\fullchain.pem")
+        cert: fs.readFileSync(cert),
+        key: fs.readFileSync(key)
     })
-    wssSecure = new WebSocket.Server({ port: 1338, server: server });
+    wssSecure = new WebSocket.Server({ server: server });
+    server.listen(1338);
+    
 }
 const wss = new WebSocket.Server({ port: 1337});
 var snakes = {}

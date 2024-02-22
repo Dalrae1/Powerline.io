@@ -121,7 +121,7 @@ var Network = function () {
         if (domainSplitLen == 1 || domainSplitLen == 3)
           network.remoteHost = `127.0.0.1:133${isSecure && "8" || "7"}`
         else
-          network.remoteHost = `135.148.33.142:133${isSecure && "8" || "7"}`
+          network.remoteHost = `dalr.ae:133${isSecure && "8" || "7"}`
         console.log("Connecting to REMOTEHOST " + network.remoteHost + "...")
         network.connect();
 
