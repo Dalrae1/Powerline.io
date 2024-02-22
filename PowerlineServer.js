@@ -180,7 +180,8 @@ class Food {
   }
 }
 
-for (let i = 0; i < arenaSize ^ 2 / 60; i++) {
+//for (let i = 0; i < arenaSize ^ 2 / 60; i++) {
+for (let i = 0; i < 30; i++) {
     new Food();
 }
 
