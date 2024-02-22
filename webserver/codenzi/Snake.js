@@ -1340,7 +1340,7 @@ var Snake = function() {
 		}else{
 			// New points?
 			var newPointCount = view.getUint8(offset, true);
-			if (newPointCount > 1)
+			if (/*newPointCount > 1 &&*/ this == localPlayer)
 				console.log('newPointCount: ' + newPointCount);
 			offset++;
 
