@@ -567,7 +567,7 @@ class Snake {
                         offset += 1;
                         Bit8.setUint8(offset, entity.extraSpeed, true);
                         offset += 1;
-                        let newPointsLength = entity.newPoints.length //> 0 && 1 || 0;
+                        let newPointsLength = entity.newPoints.length > 0 && 1 || 0;
                         Bit8.setUint8(offset, newPointsLength, true);
                         offset += 1;
                         for (let i = 0; i < newPointsLength; i++) {
