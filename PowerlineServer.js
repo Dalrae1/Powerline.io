@@ -135,7 +135,7 @@ class Food {
         queuedEntityRenders[this.id] = this
     });
       setTimeout(() => {
-          this.eat();
+          //this.eat();
           
         
       }, 5000+Math.random() * 60000);
