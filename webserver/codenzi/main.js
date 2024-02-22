@@ -260,6 +260,7 @@ var updateCountryCode = function(){
 			fetchCountryCode();
 		}else{
 			countryCode = window.localStorage.wingsCC;
+			document.querySelector(`.${countryCode}`).style.backgroundColor = "rgba(0, 0, 0, 0.5)";
 		}
 	}
 	if (!countryCode) {
