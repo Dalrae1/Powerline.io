@@ -1217,7 +1217,7 @@ async function main() {
                 }
             });
             if (snake.talkStamina < 255) {
-                snakes[snake.id].talkStamina += 2;
+                snakes[snake.id].talkStamina += 8;
                 if (snake.talkStamina > 255)
                     snakes[snake.id].talkStamina = 255;
             }
