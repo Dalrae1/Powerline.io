@@ -363,8 +363,8 @@ class Snake {
         if (rubSpeed > 4)
             rubSpeed = 4
         this.extraSpeed += rubSpeed
-        if (this.extraSpeed > maxBoostSpeed)
-            this.extraSpeed = maxBoostSpeed;
+        //if (this.extraSpeed > maxBoostSpeed)
+            //this.extraSpeed = maxBoostSpeed;
         this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
     }
     stopRubbing() {
