@@ -567,17 +567,15 @@ class Snake {
                         offset += 1;
                         Bit8.setUint8(offset, entity.extraSpeed, true);
                         offset += 1;
-                        if (entity.newPoints.length > 0) {
-                            let newPointsLength = 1
-                            Bit8.setUint8(offset, newPointsLength, true); // newPoints.length
-                            offset += 1;
-                            for (let i = 0; i < newPointsLength; i++) {
-                                let point = entity.newPoints[i];
-                                Bit8.setFloat32(offset, point.x, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, point.y, true);
-                                offset += 4;
-                            }
+                        let newPointsLength = entity.newPoints.length //> 0 && 1 || 0;
+                        Bit8.setUint8(offset, newPointsLength, true);
+                        offset += 1;
+                        for (let i = 0; i < newPointsLength; i++) {
+                            let point = entity.newPoints[i];
+                            Bit8.setFloat32(offset, point.x, true);
+                            offset += 4;
+                            Bit8.setFloat32(offset, point.y, true);
+                            offset += 4;
                         }
                         break;
                     case EntityTypes.Item:
