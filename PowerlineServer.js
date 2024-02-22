@@ -154,7 +154,9 @@ class Food {
         }
         
         Object.values(clients).forEach((snakee) => {
-            if (snakee.id){
+            if (snakee.id) {
+                if (queuedEntityRenders[this.id])
+                    delete queuedEntityRenders[this.id];
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, MessageTypes.SendEntities);
                 var offset = 1;
@@ -207,6 +209,7 @@ class Snake {
     type = EntityTypes.Player;
     queuedEntityRenders = {};
     queuedEntityUpdates = {};
+    loadedEntities = {};
     constructor(network) {
         this.network = network.socket;
         this.sendConfig();
@@ -574,6 +577,7 @@ class Snake {
                         }
                         break
                     case UpdateTypes.OnRender:
+                        this.loadedEntities[entity.id] = entity;
                         calculatedTotalBits += 1 + 1
                         if (entity.type == EntityTypes.Player)
                             calculatedTotalBits += (1 + entity.nick.length) * 2;
