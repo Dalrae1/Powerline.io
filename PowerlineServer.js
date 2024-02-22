@@ -264,7 +264,16 @@ class Snake {
         var offset = 0
         Bit8.setUint8(offset, MessageTypes.SendLeaderboard);
         offset += 1;
-        Object.values(snakes).forEach((snake) => {
+        let sortedSnakes = Object.values(snakes).sort((a, b) => {
+            return b.length - a.length;
+        });
+        let myRank = 0;
+        let curRank = 0
+        Object.values(sortedSnakes).forEach((snake) => {
+            curRank++
+            snake.rank = curRank;
+            if (snake.id == this.id)
+                myRank = curRank;
             Bit8.setUint16(offset, snake.id, true);
             offset += 2;
             Bit8.setUint32(offset, (snake.length - defaultLength)*scoreMultiplier, true);
@@ -282,17 +291,7 @@ class Snake {
         offset += 4;
         // Set rank
         // Sort snakes
-        let sortedSnakes = Object.values(snakes).sort((a, b) => {
-            return b.length - a.length;
-        });
-        let rank = 0;
-        Object.values(sortedSnakes).forEach((snake) => {
-            rank++;
-            if (snake.id == this.id) {
-                return;
-            }
-        })
-        Bit8.setUint16(offset, rank, true);
+        Bit8.setUint16(offset, myRank, true);
         offset += 2;
 
         this.network.send(Bit8);
