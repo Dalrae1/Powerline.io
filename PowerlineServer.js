@@ -384,6 +384,8 @@ class Snake {
                 snakes[killedByID].flags |= EntityFlags.Killstreak;
                 let oldKillstreak = snakes[killedByID].killstreak;
                 setTimeout(() => {
+                    if (!snakes[killedByID])
+                        return
                     if (snakes[killedByID].killstreak == oldKillstreak)
                         snakes[killedByID].flags &= ~EntityFlags.Killstreak;
                 }, 5000)
@@ -391,6 +393,8 @@ class Snake {
             if (king && king == this) {
                 snakes[killedByID].flags |= EntityFlags.KilledKing;
                 setTimeout(() => {
+                    if (!snakes[killedByID])
+                        return
                     snakes[killedByID].flags &= ~EntityFlags.KilledKing;
                 }, 5000)
             }
