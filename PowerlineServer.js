@@ -15,6 +15,8 @@ const wss = new WebSocket.Server({ port: 1337});
 var snakes = {}
 var entities = {}
 var clients = {}
+var queuedEntityRenders = {}
+var queuedEntityUpdates = {}
 var lastClientId = 1
 var lastEntityId = 1
 var arenaSize = 100
@@ -122,7 +124,7 @@ class Food {
         this.origin = origin.id;
     lastEntityId++;
     Object.values(snakes).forEach((snake) => {
-      snake.update(UpdateTypes.OnRender, this);
+        queuedEntityRenders[this.id] = this
     });
       setTimeout(() => {
           this.eat();
@@ -195,6 +197,8 @@ class Snake {
     network = null;
     nick = "";
     type = EntityTypes.Player;
+    queuedEntityRenders = {};
+    queuedEntityUpdates = {};
     constructor(network) {
         this.network = network.socket;
         this.sendConfig();
@@ -267,14 +271,15 @@ class Snake {
         
         this.network.send(Bit8);
 
+        queuedEntityRenders[this.id] = this;
+        
+
         Object.values(snakes).forEach((snake) => {
-            console.log("Adding entity " + this.id + " to snake " + snake.id);
-            console.log("Adding entity "+snake.id+" to snake "+this.id);
-            snake.update(UpdateTypes.OnRender, this); // Update other snakes about this
-            this.update(UpdateTypes.OnRender, snake); // Update this snake about other snakes
+
+            this.queuedEntityRenders[snake.id] = snake
         })
         Object.values(entities).forEach((food) => {
-          this.update(UpdateTypes.OnRender, food);
+          this.queuedEntityRenders[food.id] = food
         });
 
         
@@ -342,6 +347,7 @@ class Snake {
         }*/
         this.direction = direction;
         this.addPoint(this.position.x, this.position.y);
+        queuedEntityUpdates[this.id] = this;
     }
     rubAgainst(snake, distance) {
         this.flags |= EntityFlags.IsRubbing;
@@ -504,225 +510,305 @@ class Snake {
         Bit8.setUint8(0, MessageTypes.PingLoop);
         this.network.send(Bit8);
     }
-    update(updateType, entity) {
-        if (!entity.position)
-            return
-        var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 100000));
+    update(updateType, entities) {
+        /* CALCULATING TOTAL BITS */
+        var calculatedTotalBits = 1;
+        Object.values(entities).forEach((entity) => {
+            if (entity.position) {
+                calculatedTotalBits += 2 + 1;
+                switch (updateType) {
+                    case UpdateTypes.OnUpdate:
+                        switch (entity.type) {
+                            case EntityTypes.Player:
+                                calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
+                                
+                                if (entity.flags & EntityFlags.Debug) {
+                                    calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
+                                }
+                                if (entity.flags & EntityFlags.IsRubbing) {
+                                    calculatedTotalBits += 4 + 4 + 2;
+                                }
+                                if (entity.flags & EntityFlags.Boosting) { }
+                                if (entity.flags & EntityFlags.Ping) {
+                                    calculatedTotalBits += 2;
+                                }
+                                if (entity.flags & EntityFlags.KilledKing) { }
+                                if (entity.flags & EntityFlags.Killstreak) {
+                                    calculatedTotalBits += 2;
+                                }
+                                if (entity.flags & EntityFlags.ShowTalking) {
+                                    calculatedTotalBits += 1;
+                                }
+                                calculatedTotalBits += 1 + 1 + 1 + (4 + 4) * (entity.newPoints.length > 0 && 1 || 0);
+                                break;
+                            case EntityTypes.Item:
+                                calculatedTotalBits += 4 + 4;
+                                break;
+                        }
+                        break
+                    case UpdateTypes.OnRender:
+                        calculatedTotalBits += 1 + 1
+                        if (entity.type == EntityTypes.Player)
+                            calculatedTotalBits += (1 + entity.nick.length) * 2;
+                        else
+                            calculatedTotalBits += 2;
+                        
+                        switch (entity.type) {
+                            case EntityTypes.Player:
+                                calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
+                                if (entity.flags & EntityFlags.Debug) {
+                                    calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
+                                }
+                                if (entity.flags & EntityFlags.IsRubbing) {
+                                    calculatedTotalBits += 4 + 4 + 2;
+                                }
+                                if (entity.flags & EntityFlags.Boosting) { }
+                                if (entity.flags & EntityFlags.Ping) {
+                                    calculatedTotalBits += 2;
+                                }
+                                if (entity.flags & EntityFlags.KilledKing) { }
+                                if (entity.flags & EntityFlags.Killstreak) {
+                                    calculatedTotalBits += 2;
+                                }
+                                if (entity.flags & EntityFlags.ShowTalking) {
+                                    calculatedTotalBits += 1;
+                                }
+                                
+                                calculatedTotalBits += 1 + 1
+                                calculatedTotalBits += (4 + 4) * entity.points.length;
+                                calculatedTotalBits += 2 + 1;
+                                break
+                            case EntityTypes.Item:
+                                calculatedTotalBits += 4 + 4 + 2;
+                                break
+                        }
+                        break
+                }
+            }
+        })
+        calculatedTotalBits += 2 + 2 + 4 + 4;
+        var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
         Bit8.setUint8(0, MessageTypes.SendEntities);
         var offset = 1;
-        Bit8.setUint16(offset, entity.id, true);
-        offset += 2;
-        Bit8.setUint8(offset, updateType, true);
-        offset += 1;
-        switch (updateType) {
-            case UpdateTypes.OnUpdate:
-                switch (entity.type) {
-                    case EntityTypes.Player:
-                        Bit8.setFloat32(offset, entity.position.x, true);
-                        offset += 4;
-                        Bit8.setFloat32(offset, entity.position.y, true);
-                        offset += 4;
-                        Bit8.setFloat32(offset, entity.speed, true);
-                        offset += 4;
-                        Bit8.setFloat32(offset, entity.length, true);
-                        offset += 4;
-                        offset += 1;
-                        Bit8.setUint16(offset, entity.points.length, true);
-                        offset += 2;
-                        Bit8.setUint8(offset, entity.flags, true);
-                        offset += 1;
-                        if (entity.flags & EntityFlags.Debug) {
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
+        
 
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-
-                            Bit8.setUint16(offset, 0, true);
-
-                            offset += 2;
-                        }
-                        if (entity.flags & EntityFlags.IsRubbing) {
-                            Bit8.setFloat32(offset, entity.rubX, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, entity.rubY, true);
-                            offset += 4;
-                            Bit8.setUint16(offset, entity.RubSnake, true);
-                            offset += 2;
-                        }
-                        if (entity.flags & EntityFlags.Boosting) { }
-                        if (entity.flags & EntityFlags.Ping) {
-                            Bit8.setUint16(offset, entity.ping || 0, true);
-                            offset += 2;
-                        }
-                        if (entity.flags & EntityFlags.KilledKing) { }
-                        if (entity.flags & EntityFlags.Killstreak) {
-                            Bit8.setUint16(offset, 0, true);
-                            offset += 2;
-                        }
-                        if (entity.flags & EntityFlags.ShowTalking) {
-                            Bit8.setUint8(offset, entity.talkId, true);
-                            offset += 1;
-                        }
-                        Bit8.setUint8(offset, entity.talkStamina, true);
-                        offset += 1;
-                        Bit8.setUint8(offset, entity.extraSpeed, true);
-                        offset += 1;
-                        let newPointsLength = entity.newPoints.length > 0 && 1 || 0;
-                        Bit8.setUint8(offset, newPointsLength, true);
-                        offset += 1;
-                        for (let i = 0; i < newPointsLength; i++) {
-                            let point = entity.newPoints[i];
-                            Bit8.setFloat32(offset, point.x, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, point.y, true);
-                            offset += 4;
-                        }
-                        break;
-                    case EntityTypes.Item:
-                        Bit8.setFloat32(offset, entity.position.x, true);
-                        offset += 4;
-                        Bit8.setFloat32(offset, entity.position.y, true);
-                        offset += 4;
-                        break;
-                }
-                break
-            case UpdateTypes.OnRender:
-                Bit8.setUint8(offset, entity.type, true);
+        Object.values(entities).forEach((entity) => {
+            if (entity.position) {
+                Bit8.setUint16(offset, entity.id, true);
+                offset += 2;
+                Bit8.setUint8(offset, updateType, true);
                 offset += 1;
-                Bit8.setUint8(offset, entity.subtype || 0, true);
-                offset += 1;
-                if (entity.type == EntityTypes.Player) {
-                    for (var characterIndex = 0; characterIndex < entity.nick.length;characterIndex++) {
-                        Bit8.setUint16(offset + characterIndex * 2, entity.nick.charCodeAt(characterIndex),true);
-                    }
-                    offset = getNick(Bit8, offset).offset;
-                } else {
-                    Bit8.setUint16(offset, 0, true);
-                    offset += 2;
-                }
-                switch (entity.type) {
-                    case EntityTypes.Player:
-                        Bit8.setFloat32(offset, entity.position.x, true);
-                        offset += 4;
-                        Bit8.setFloat32(offset, entity.position.y, true);
-                        offset += 4;
-                        Bit8.setFloat32(offset, entity.speed, true);
-                        offset += 4;
-                        Bit8.setFloat32(offset, entity.length, true);
-                        offset += 4;
-                        offset += 1;
-                        Bit8.setUint16(offset, entity.points.length, true);
-                        offset += 2;
-                        Bit8.setUint8(offset, entity.flags, true);
-                        offset += 1;
-                        if (entity.flags & EntityFlags.Debug) {
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
+                switch (updateType) {
+                    case UpdateTypes.OnUpdate:
+                        switch (entity.type) {
+                            case EntityTypes.Player:
+                                Bit8.setFloat32(offset, entity.position.x, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.position.y, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.speed, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.length, true);
+                                offset += 4;
+                                offset += 1;
+                                Bit8.setUint16(offset, entity.points.length, true);
+                                offset += 2;
+                                Bit8.setUint8(offset, entity.flags, true);
+                                offset += 1;
+                                if (entity.flags & EntityFlags.Debug) {
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
 
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, 0, true);
-                            offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
 
+                                    Bit8.setUint16(offset, 0, true);
+
+                                    offset += 2;
+                                }
+                                if (entity.flags & EntityFlags.IsRubbing) {
+                                    Bit8.setFloat32(offset, entity.rubX, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, entity.rubY, true);
+                                    offset += 4;
+                                    Bit8.setUint16(offset, entity.RubSnake, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & EntityFlags.Boosting) { }
+                                if (entity.flags & EntityFlags.Ping) {
+                                    Bit8.setUint16(offset, entity.ping || 0, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & EntityFlags.KilledKing) { }
+                                if (entity.flags & EntityFlags.Killstreak) {
+                                    Bit8.setUint16(offset, 0, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & EntityFlags.ShowTalking) {
+                                    Bit8.setUint8(offset, entity.talkId, true);
+                                    offset += 1;
+                                }
+                                
+                                Bit8.setUint8(offset, entity.talkStamina, true);
+                                offset += 1;
+                                Bit8.setUint8(offset, entity.extraSpeed, true);
+                                offset += 1;
+                                let newPointsLength = entity.newPoints.length > 0 && 1 || 0;
+                                Bit8.setUint8(offset, newPointsLength, true);
+                                offset += 1;
+                                for (let i = 0; i < newPointsLength; i++) {
+                                    let point = entity.newPoints[i];
+                                    Bit8.setFloat32(offset, point.x, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, point.y, true);
+                                    offset += 4;
+                                }
+                                break;
+                            case EntityTypes.Item:
+                                Bit8.setFloat32(offset, entity.position.x, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.position.y, true);
+                                offset += 4;
+                                break;
+                        }
+                        break
+                    case UpdateTypes.OnRender:
+                        Bit8.setUint8(offset, entity.type, true);
+                        offset += 1;
+                        Bit8.setUint8(offset, entity.subtype || 0, true);
+                        offset += 1;
+                        if (entity.type == EntityTypes.Player) {
+                            for (var characterIndex = 0; characterIndex < entity.nick.length; characterIndex++) {
+                                Bit8.setUint16(offset + characterIndex * 2, entity.nick.charCodeAt(characterIndex), true);
+                            }
+                            offset += (1 + entity.nick.length) * 2;
+                        } else {
                             Bit8.setUint16(offset, 0, true);
+                            offset += 2;
+                        }
+                        
+                        switch (entity.type) {
+                            case EntityTypes.Player:
+                                Bit8.setFloat32(offset, entity.position.x, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.position.y, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.speed, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.length, true);
+                                offset += 4;
+                                offset += 1;
+                                Bit8.setUint16(offset, entity.points.length, true);
+                                offset += 2;
+                                Bit8.setUint8(offset, entity.flags, true);
+                                offset += 1;
+                                if (entity.flags & EntityFlags.Debug) {
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
 
-                            offset += 2;
-                        }
-                        if (entity.flags & EntityFlags.IsRubbing) {
-                            Bit8.setFloat32(offset, entity.rubX, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, entity.rubY, true);
-                            offset += 4;
-                            Bit8.setUint16(offset, entity.RubSnake, true);
-                            offset += 2;
-                        }
-                        if (entity.flags & EntityFlags.Boosting) { }
-                        if (entity.flags & EntityFlags.Ping) {
-                            Bit8.setUint16(offset, entity.ping || 0, true);
-                            offset += 2;
-                        }
-                        if (entity.flags & EntityFlags.KilledKing) { }
-                        if (entity.flags & EntityFlags.Killstreak) {
-                            Bit8.setUint16(offset, 0, true);
-                            offset += 2;
-                        }
-                        if (entity.flags & EntityFlags.ShowTalking) {
-                            Bit8.setUint8(offset, entity.talkId, true);
-                            offset += 1;
-                        }
-                        Bit8.setUint8(offset, entity.talkStamina, true);
-                        offset += 1;
-                        Bit8.setUint8(offset, entity.extraSpeed, true);
-                        offset += 1;
-                        for (let i = 0; i < entity.points.length; i++) {
-                            let point = entity.points[i];
-                            Bit8.setFloat32(offset, point.x, true);
-                            offset += 4;
-                            Bit8.setFloat32(offset, point.y, true);
-                            offset += 4;
-                        }
-                        Bit8.setUint16(offset, entity.color, true);
-                        offset += 2;
-                        Bit8.setUint8(offset, 0, true);
-                        offset += 1;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
 
+                                    Bit8.setUint16(offset, 0, true);
+
+                                    offset += 2;
+                                }
+                                if (entity.flags & EntityFlags.IsRubbing) {
+                                    Bit8.setFloat32(offset, entity.rubX, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, entity.rubY, true);
+                                    offset += 4;
+                                    Bit8.setUint16(offset, entity.RubSnake, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & EntityFlags.Boosting) { }
+                                if (entity.flags & EntityFlags.Ping) {
+                                    Bit8.setUint16(offset, entity.ping || 0, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & EntityFlags.KilledKing) { }
+                                if (entity.flags & EntityFlags.Killstreak) {
+                                    Bit8.setUint16(offset, 0, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & EntityFlags.ShowTalking) {
+                                    Bit8.setUint8(offset, entity.talkId, true);
+                                    offset += 1;
+                                }
+                                Bit8.setUint8(offset, entity.talkStamina, true);
+                                offset += 1;
+                                Bit8.setUint8(offset, entity.extraSpeed, true);
+                                offset += 1;
+                                for (let i = 0; i < entity.points.length; i++) {
+                                    let point = entity.points[i];
+                                    Bit8.setFloat32(offset, point.x, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, point.y, true);
+                                    offset += 4;
+                                }
+                                Bit8.setUint16(offset, entity.color, true);
+                                offset += 2;
+                                Bit8.setUint8(offset, 0, true);
+                                offset += 1;
+                                break;
+                            case EntityTypes.Item:
+                                Bit8.setFloat32(offset, entity.position.x, true);
+                                offset += 4;
+                                
+                                Bit8.setFloat32(offset, entity.position.y, true);
+                                offset += 4;
+                                Bit8.setUint16(offset, entity.color, true);
+                                offset += 2;
+                                break;
+
+                        }
 
 
                         break;
-                    case EntityTypes.Item:
-                        Bit8.setFloat32(offset, entity.position.x, true);
-                        offset += 4;
-                        Bit8.setFloat32(offset, entity.position.y, true);
-                        offset += 4;
-                        Bit8.setUint16(offset, entity.color, true);
-                        offset += 2;
+                    case UpdateTypes.OnRemove:
+                        switch (entity.type) {
+                            case EntityTypes.Player:
+                                Bit8.setUint16(offset, entity.id, true);
+                                offset += 2;
+                                Bit8.setUint8(offset, reason, true);
+                                offset += 1;
+                                Bit8.setFloat32(offset, entity.position.x, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.position.y, true);
+                                offset += 4;
+                                break
+                            case EntityTypes.Item:
+
+                                break
+                        }
                         break;
-
                 }
-
-
-                break;
-            case UpdateTypes.OnRemove:
-                switch (entity.type) {
-                    case EntityTypes.Player:
-                        Bit8.setUint16(offset, entity.id, true);
-                        offset += 2;
-                        Bit8.setUint8(offset, reason, true);
-                        offset += 1;
-                        Bit8.setFloat32(offset, entity.position.x, true);
-                        offset += 4;
-                        Bit8.setFloat32(offset, entity.position.y, true);
-                        offset += 4;
-                        break
-                    case EntityTypes.Item:
-
-                        break
-                }
-                break;
-        }
+            }
+        })
         Bit8.setUint16(offset, 0, true);
         offset = offset + 2;
         Bit8.setUint16(offset, king && king.id || 0, true);
@@ -1085,6 +1171,7 @@ function UpdateArena() { // Main update loop
         if (!shouldRub) {
           snake.stopRubbing();
         }
+        queuedEntityUpdates[snake.id] = snake;
     });
 }
 
@@ -1092,12 +1179,6 @@ async function main() {
     UpdateArena()
 
     Object.values(clients).forEach(function (snake) {
-        
-            Object.values(snakes).forEach(function (otherSnake) {
-                if (otherSnake.id && otherSnake.newPoints) {
-                    snake.update(UpdateTypes.OnUpdate, otherSnake);
-                }
-            })
         if (snake.spawned) {
             Object.values(entities).forEach(function (food) {
                 // Check if snake is near food
@@ -1115,19 +1196,13 @@ async function main() {
                     snakes[snake.id].talkStamina = 255;
             }
         }
-        /*Object.values(entities).forEach(function (food) {
-            snake.update(UpdateTypes.OnUpdate, food);
-        })*/
-    })
-
-    Object.values(snakes).forEach(function (snake) {
-        snake.updateLeaderboard();
-        if (snake.id && snake.newPoints) {
-          snake.newPoints.shift();
-        }
     })
     
+    
+    
     Object.values(snakes).forEach(function (snake) {
+
+        /* CALCULATE TAIL LENGTH */
         let totalPointLength = 0;
         for (let i = -1; i < snake.points.length - 1; i++) {
             let point;
@@ -1158,6 +1233,7 @@ async function main() {
                 snake.points.pop();
             }
         }
+        //
     })
 
     // Add random food spawns
@@ -1169,6 +1245,24 @@ async function main() {
         }
         
     }
+
+    Object.values(clients).forEach(function (snake) {
+        if (snake.id) {
+            snake.update(UpdateTypes.OnRender, [...Object.values(queuedEntityRenders), ...Object.values(snake.queuedEntityRenders)])
+            snake.update(UpdateTypes.OnUpdate, [...Object.values(queuedEntityUpdates), ...Object.values(snake.queuedEntityUpdates)])
+            snake.queuedEntityRenders = {};
+            snake.queuedEntityUpdates = {};
+        }
+    })
+    Object.values(snakes).forEach(function (snake) {
+        snake.updateLeaderboard();
+        if (snake.id && snake.newPoints) {
+          snake.newPoints.shift();
+        }
+    })
+    queuedEntityRenders = {};
+    queuedEntityUpdates = {};
+
 
 
 
