@@ -860,8 +860,10 @@ class Snake {
     Talk(id) {
         this.flags |= EntityFlags.ShowTalking;
         this.talkId = id;
+        let oldTalkId = id;
         setTimeout(() => {
-            this.flags &= ~EntityFlags.ShowTalking;
+            if (this.talkId == oldTalkId)
+                this.flags &= ~EntityFlags.ShowTalking;
         }, 5000)
 
     }
