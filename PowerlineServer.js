@@ -217,11 +217,11 @@ class Snake {
             Bit8.setFloat32(offset, 0, true); //Minimap Entities Y Offset
             offset += 4;
         }
-        Bit8.setFloat32(offset, 2, true); //Zoom Level
+        Bit8.setFloat32(offset, 2, true); //Default zoom
         offset += 4;
-        Bit8.setFloat32(offset, 1.5, true); //Max Zoom In
+        Bit8.setFloat32(offset, 1.5, true); //Minimum zoom
         offset += 4;
-        Bit8.setFloat32(offset, 0.15, true); //Max Zoom Out
+        Bit8.setFloat32(offset, 100, true); //Minimum zoom score
         offset += 4;
         Bit8.setFloat32(offset, 10, true); //Zoom Level 2
         offset += 4 + 4;
@@ -506,7 +506,7 @@ class Snake {
     update(updateType, entity) {
         if (!entity.position)
             return
-        var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
+        var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 100000));
         Bit8.setUint8(0, MessageTypes.SendEntities);
         var offset = 1;
         Bit8.setUint16(offset, entity.id, true);

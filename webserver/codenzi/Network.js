@@ -523,6 +523,7 @@ var Network = function () {
     minZoom = view.getFloat32(offset, true);
     offset += 4;
     minZoomScore = view.getFloat32(offset, true) * GAME_SCALE;
+    console.log(minZoomScore)
     offset += 4;
     startLength = view.getFloat32(offset, true) * GAME_SCALE;
     offset += 4;
