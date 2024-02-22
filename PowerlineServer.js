@@ -494,7 +494,8 @@ class Snake {
           actualLength += segmentLength;
         }
 
-        for (let i = 0; i < actualLength; i+=2) {
+        //for (let i = 0; i < actualLength; i+=2) {
+        for (let i = 0; i < actualLength; i+=0.1) {
             let point = getPointAtDistance(this, i);
 
             new Food(point.x, point.y, this.color - 25 +Math.random()*50, this);
