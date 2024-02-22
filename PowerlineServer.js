@@ -146,7 +146,7 @@ class Food {
             return;
         }
         if (snake) {
-            snakes[snake.id].extraSpeed += 1.5;
+            snakes[snake.id].extraSpeed += 2;
             if (snake.extraSpeed > maxBoostSpeed)
                 snakes[snake.id].extraSpeed = maxBoostSpeed;
             snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
