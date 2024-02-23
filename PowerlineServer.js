@@ -18,6 +18,7 @@ if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
     server.listen(1338);
     
 }
+var admins = ["73.96.77.58", "127.0.0.1"]
 const wss = new WebSocket.Server({ port: 1337});
 var snakes = {}
 var entities = {}
@@ -402,6 +403,7 @@ class Snake {
     
     constructor(network) {
         this.network = network.socket;
+        this.ip = network.ip;
         this.sendConfig();
 
         if (!this.id) {
@@ -1100,16 +1102,20 @@ class Snake {
                 this.windowSizeX = view.getUint16(1, true)/2;
                 this.windowSizeY = view.getUint16(3, true) / 2;
             case MessageTypes.RecieveBoost:
-                this.extraSpeed += 2;
-                if (this.extraSpeed > maxBoostSpeed)
-                    this.speedBypass = true
-                this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+                if (admins.includes(this.ip)) {
+                    this.extraSpeed += 2;
+                    if (this.extraSpeed > maxBoostSpeed)
+                        this.speedBypass = true
+                    this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+                }
                 break;
             case MessageTypes.RecieveDebugFoodGrab:
-                this.length += 1000;
+                if (admins.includes(this.ip))
+                    this.length += 1000;
                 break;
             case 0x0d: // Invincible
-                this.invincible = view.getUint8(1, true) == 1;
+                if (admins.includes(this.ip))
+                    this.invincible = view.getUint8(1, true) == 1;
             
                 break;
                 
@@ -1126,11 +1132,13 @@ function round(num) {
     return Math.round(num / 1000) * 1000
 }
 class Client extends EventEmitter {
-    constructor(websocket) {
+    constructor(websocket, ip) {
         super();
         this.socket = websocket;
         this.nick = "";
         this.id = 0;
+        this.ip = (ip.toString()).split(":")[3];
+        console.log(`Client connected from "${this.ip}"`);
     }
 }
 
@@ -1169,8 +1177,8 @@ if (wssSecure) {
     });
 }
 
-wss.on('connection', async function connection(ws) {
-    let client = new Client(ws);
+wss.on('connection', async function connection(ws, req) {
+    let client = new Client(ws, req.socket.remoteAddress);
     let snake = new Snake(client);
     ws.on('message', async function incoming(message, req) {
         let view = new DataView(new Uint8Array(message).buffer);
