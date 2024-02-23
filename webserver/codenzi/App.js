@@ -491,6 +491,7 @@ var App = function(aCanvas) {
 
 	// Constructor
 	(function(){
+
 		canvas = aCanvas;
 		context = canvas.getContext('2d');
 		app.context = context;

@@ -1107,9 +1107,7 @@ var Snake = function() {
 		//this.lastLen = view.getFloat32(offset, true)*GAME_SCALE;
 		//offset += 4;
 		
-		this.lastSpeed = view.getFloat32(offset, true) * GAME_SCALE * UPDATE_EVERY_N_TICKS;
-		if (this == localPlayer)
-			console.log("speed: "+view.getFloat32(offset, true))
+		this.lastSpeed = view.getFloat32(offset, true)*GAME_SCALE*UPDATE_EVERY_N_TICKS;
 		offset += 4;
 
 		//var var1 = this.lastSpeed * UPDATE_EVERY_N_TICKS;
@@ -1261,9 +1259,7 @@ var Snake = function() {
 		offset += 1;
 
 		// Extra Speed Perc
-		extraSpeed = (view.getUint8(offset, true) / 255) * 100.0;
-		if (this == localPlayer)
-			console.log("extraSpeed: "+view.getUint8(offset, true))
+		extraSpeed = (view.getUint8(offset, true)/255)*100.0;
 		offset += 1;
 
 		if(localPlayer == this)
@@ -1354,7 +1350,6 @@ var Snake = function() {
 					var newX = view.getFloat32(offset, true);
 					offset += 4;
 					var newY = -view.getFloat32(offset, true);
-					//console.log(`New point: (${newX}, ${newY})`);
 					offset += 4;
 					newPoints.push({x: newX*GAME_SCALE, y: newY*GAME_SCALE});
 				}
@@ -1503,7 +1498,7 @@ var Snake = function() {
 		return {x: turnPointX/GAME_SCALE, y: turnPointY/GAME_SCALE};
 	}
 
-	this.deleteNetwork = function (view, offset) {
+	this.deleteNetwork = function(view, offset) {
 		if(this.id == localPlayerID && killCount+1 >= KILLS_TO_FOLLOW) // +1 because wasKilled is only called after this
 		{
 			lastKillerID = this.killedByID;

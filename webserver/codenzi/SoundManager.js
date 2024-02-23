@@ -80,9 +80,8 @@ var SoundManager = function() {
 	};
 
 	this.playSound = function(soundID, volume, pitch, playRule, cb) {
-		if (!loaded || !focus) {
+		if(!loaded || !focus)
 			return;
-		}
 
 		volume = volume*masterVolume;
 		if(!firstClick){ // No sound before first play
@@ -99,7 +98,7 @@ var SoundManager = function() {
 		
 		var maxPlayingSounds = playRule;
 		if(maxPlayingSounds > 0){
-			if (playingSounds[soundID] >= maxPlayingSounds)
+			if(playingSounds[soundID] >= maxPlayingSounds)
 				return;
 		}
 

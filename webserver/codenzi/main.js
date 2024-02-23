@@ -133,7 +133,6 @@ var drawAABB = false;
 var drawFood = true;
 var glowSnakes = true;
 var drawServerPos = false;
-var dalraeDebugCircles = [];
 var statsVisible = false;
 
 // Game vars
@@ -205,9 +204,7 @@ var talkTexts = [
 				 "TEAM?",
 				 "YES!",
 				 "NO!",
-				 "KILL THE KING!",
-				 "FUCK YOU!",
-				 "GG!"
+				 "KILL THE KING!"
 				 ];
 
 if(!inGameSpeedTutorial)
@@ -240,13 +237,12 @@ var fetchCountryCode = function(){
 	var s = '';
 	if(isSecure)
 		s = 's';
-	window.localStorage.wingsCCTime = +new Date();
-	/*$.get('http'+s+'://ip2l.wings.io/cc', function(data){
+	$.get('http'+s+'://ip2l.wings.io/cc', function(data){
 		countryCode = data.substring(0, 2);
 		window.localStorage.wingsCC = countryCode;
 		window.localStorage.wingsCCTime = +new Date();
 		//console.log('Fetched new country code: ' + countryCode);
-	}, 'text');*/
+	}, 'text');
 }
 
 var updateCountryCode = function(){
@@ -260,11 +256,7 @@ var updateCountryCode = function(){
 			fetchCountryCode();
 		}else{
 			countryCode = window.localStorage.wingsCC;
-			document.querySelector(`.${countryCode}`).style.backgroundColor = "rgba(0, 0, 0, 0.5)";
 		}
-	}
-	if (!countryCode) {
-		countryCode = "US"
 	}
 }
 
@@ -993,29 +985,28 @@ document.getElementById("overlay").onmousedown = function (e) {
 
 refreshAd();
 
-function loadScript(url) { var head = document.getElementsByTagName('head')[0]; var script = document.createElement('script'); script.type = 'text/javascript'; script.src = url; head.appendChild(script); }
-let nav = "/"
-loadScript(nav + "codenzi/Grid.js");
-loadScript(nav + "codenzi/Utils.js");
-loadScript(nav + "codenzi/Resources.js");
-loadScript(nav + "codenzi/Input.js");
-loadScript(nav + "codenzi/Effects.js");
-loadScript(nav + "codenzi/Hud.js");
-loadScript(nav + "codenzi/Snake.js");
-loadScript(nav + "codenzi/Food.js");
-loadScript(nav + "codenzi/Map.js");
-loadScript(nav + "codenzi/Minimap.js");
-loadScript(nav + "codenzi/Network.js");
-loadScript(nav + "codenzi/App.js");
-loadScript(nav + "codenzi/Camera.js");
-loadScript(nav + "codenzi/Frame.js");
-loadScript(nav + "codenzi/AnimationManager.js");
-loadScript(nav + "codenzi/sheet.js");
-loadScript(nav + "codenzi/Particle.js");
-loadScript(nav + "codenzi/ParticleSystem.js");
-loadScript(nav + "codenzi/Explosion.js");
-loadScript(nav + "codenzi/SpeedupTutorial.js");
-loadScript(nav + "codenzi/SoundManager.js");
-loadScript(nav + "codenzi/TalkLayer.js");
+function loadScript(url){var head = document.getElementsByTagName('head')[0];var script = document.createElement('script');script.type = 'text/javascript';script.src = url;head.appendChild(script);}
+loadScript("codenzi/Grid.js");
+loadScript("codenzi/Utils.js");
+loadScript("codenzi/Resources.js");
+loadScript("codenzi/Input.js");
+loadScript("codenzi/Effects.js");
+loadScript("codenzi/Hud.js");
+loadScript("codenzi/Snake.js");
+loadScript("codenzi/Food.js");
+loadScript("codenzi/Map.js");
+loadScript("codenzi/Minimap.js");
+loadScript("codenzi/Network.js");
+loadScript("codenzi/App.js");
+loadScript("codenzi/Camera.js");
+loadScript("codenzi/Frame.js");
+loadScript("codenzi/AnimationManager.js");
+loadScript("codenzi/sheet.js");
+loadScript("codenzi/Particle.js");
+loadScript("codenzi/ParticleSystem.js");
+loadScript("codenzi/Explosion.js");
+loadScript("codenzi/SpeedupTutorial.js");
+loadScript("codenzi/SoundManager.js");
+loadScript("codenzi/TalkLayer.js");
 
 window.onload = init;

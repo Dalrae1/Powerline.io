@@ -1,4 +1,4 @@
-var Food = function () {
+var Food = function() {
 	var food = this;
 
 	this.id = -1;
@@ -184,6 +184,7 @@ var Food = function () {
 	};
 
 	this.deleteNetwork = function(view, offset) {
+		//console.log('Delete food: ' + this.id);
 		if(focus)
 		{
 			this.beingDeleted = true;
