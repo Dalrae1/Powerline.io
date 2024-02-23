@@ -1161,7 +1161,7 @@ function sleep(ms) {
 }
 if (wssSecure) {
     wssSecure.on('connection', async function connection(ws) {
-        let client = new Client(ws);
+        let client = new Client(ws, req.socket.remoteAddress);
         let snake = new Snake(client);
         ws.on('message', async function incoming(message, req) {
             let view = new DataView(new Uint8Array(message).buffer);
