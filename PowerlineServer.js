@@ -190,14 +190,13 @@ class QuadEntityTree {
 }
 
 class Bounds {
-    constructor(x, y, width, height, centerX, centerY, radius) {
+    constructor(x, y, width, height, centerX, centerY) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.centerX = centerX;
         this.centerY = centerY;
-        this.radius = radius;
     }
 
     contains(point) {
@@ -219,15 +218,17 @@ class Bounds {
     }
 }
 
-function entitiesWithinRadius(center, entities, radius, checksnake) {
-    const quadtreeBounds = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2, center[0], center[1], radius);
+function entitiesWithinRadius(center, entities, checksnake) {
+    let windowSizeX = checksnake.windowSizeX;
+    let windowSizeY = checksnake.windowSizeY;
+    const quadtreeBounds = new Bounds(center[0] - windowSizeX/2, center[1] - windowSizeY/2, windowSizeX, windowSizeY, center[0], center[1]);
     const quadtree = new QuadEntityTree(quadtreeBounds, 4);
 
     for (const entity of entities) {
         quadtree.insert(entity);
     }
 
-    const range = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2, center[0], center[1], radius);
+    const range = new Bounds(center[0] - windowSizeX/2, center[1] - windowSizeY/2, windowSizeX, windowSizeY, center[0], center[1]);
 
     let entitiesFound = quadtree.queryRange(range, [], checksnake);
 
@@ -256,8 +257,8 @@ const MessageTypes = Object.freeze({
     RecieveBigPicture: 11,
     RecieveTalk: 12,
     RecievePong: 16,
-    RecieveDebugHello: 171,
-    RecieveHello: 191,
+    RecieveDebugHello: 0xab,
+    RecieveHello: 0xbf,
 })
 const EventTypes = Object.freeze({
     Kill: 1,
@@ -357,7 +358,6 @@ class Food {
                     var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                     Bit8.setUint8(0, MessageTypes.SendEntities);
                     var offset = 1;
-                    //console.log("Removing entity food " + this.id + " from snake " + snakee.id);
                     Bit8.setUint16(offset, this.id, true);
                     offset += 2;
                     Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
@@ -417,6 +417,8 @@ class Snake {
           lastClientId++;
         }
     }
+    windowSizeX = 128;
+    windowSizeY = 64;
     sendConfig() {
         var Bit8 = new DataView(new ArrayBuffer(49));
         let cfgType = MessageTypes.SendConfig;
@@ -549,10 +551,6 @@ class Snake {
             return;
         }
         this.position[whatVector] = vector;
-        /*if (this.points[0].x == this.position.x && this.points[0].y == this.position.y) {
-            console.log("Attempting to add diagonal point");
-            return
-        }*/
         this.direction = direction;
         this.addPoint(this.position.x, this.position.y);
         queuedEntityUpdates[this.id] = this;
@@ -1106,6 +1104,17 @@ class Snake {
                     this.talkStamina = 0;
                 }
                 break;
+            case MessageTypes.RecieveResize:
+                this.windowSizeX = view.getUint16(1, true)/2;
+                this.windowSizeY = view.getUint16(3, true)/2;
+                break;
+            case MessageTypes.RecieveHello:
+                this.windowSizeX = view.getUint16(1, true);
+                this.windowSizeY = view.getUint16(3, true);
+            case MessageTypes.RecieveDebugHello:
+                this.windowSizeX = view.getUint16(1, true);
+                this.windowSizeY = view.getUint16(3, true);
+
         }
     }
 
@@ -1123,8 +1132,6 @@ class Client extends EventEmitter {
         this.socket = websocket;
         this.nick = "";
         this.id = 0;
-        this.windowSizeX = 0;
-        this.windowSizeY = 0;
     }
 }
 
@@ -1426,8 +1433,8 @@ function UpdateArena() { // Main update loop
     });
 }
 
-function entitiesNearSnake(snake, radius) { // Returns entities near snake and loaded entities that are not in radius
-    let entitiesInRadius = entitiesWithinRadius([snake.position.x, snake.position.y], Object.values(entities), radius, snake);
+function entitiesNearSnake(snake) { // Returns entities near snake and loaded entities that are not in radius
+    let entitiesInRadius = entitiesWithinRadius([snake.position.x, snake.position.y], Object.values(entities), snake);
     let loadedEntities = Object.values(snake.loadedEntities);
     let entitiesToAdd = entitiesInRadius.filter(entity => !loadedEntities.includes(entity));
     let entitiesToRemove = loadedEntities.filter(entity => !entitiesInRadius.includes(entity));
@@ -1510,13 +1517,9 @@ async function main() {
 
     Object.values(clients).forEach(function (snake) {
         if (snake.id) {
-            let entQuery = entitiesNearSnake(snake, 40);
+            let entQuery = entitiesNearSnake(snake);
             let nearbyEntities = entQuery.entitiesToAdd;
             let removeEntities = entQuery.entitiesToRemove;
-            console.log(nearbyEntities.length, removeEntities.length)
-
-            //if (snake && !snake.loadedEntities[snake.id])
-                //nearbyEntities.unshift(snake)
             snake.update(UpdateTypes.OnRender, nearbyEntities);
             snake.update(UpdateTypes.OnRemove, removeEntities)
 
