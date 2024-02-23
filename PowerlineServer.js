@@ -1160,7 +1160,7 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 if (wssSecure) {
-    wssSecure.on('connection', async function connection(ws) {
+    wssSecure.on('connection', async function connection(ws, req) {
         let client = new Client(ws, req.socket.remoteAddress);
         let snake = new Snake(client);
         ws.on('message', async function incoming(message, req) {
