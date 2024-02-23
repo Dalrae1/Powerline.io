@@ -31,7 +31,7 @@ var Input = function () {
     //hud.addSpecialMessage('9 KILLSTREAK');
     //hud.addMessage('Killed by', HUD_BOTTOM, 'MALANDRO');
   };
-
+  var boostDown = false;
   input.keydown = function (e) {
     //console.log('e.keyCode: ' + e.keyCode);
     if (UIVisible && (e.metaKey || e.ctrlKey) && e.keyCode == 65) {
@@ -67,6 +67,17 @@ var Input = function () {
       //network.sendBoost(true);
       if (arrows != undefined && arrows != 0)
         spacePressedShowTutorialTime = 1000;
+    }
+    if (e.keyCode == 32) {
+      // Space
+      boostDown = true;
+      function boostLoop() {
+        if (boostDown) {
+          network.sendBoost(false);
+          setTimeout(boostLoop, 100);
+        }
+      }
+      boostLoop()
     }
 
     if (e.keyCode == 73) {
@@ -300,10 +311,10 @@ var Input = function () {
 
   input.keyup = function (e) {
     if (UIVisible) return;
-
     if (e.keyCode == 32) {
       // Space
-      network.sendBoost(false);
+      boostDown = false;
+    
     } else if (e.keyCode == 38) {
       // Up
     } else if (e.keyCode == 37) {

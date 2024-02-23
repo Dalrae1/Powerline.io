@@ -339,7 +339,7 @@ class Food {
         }
         if (snake) {
             snakes[snake.id].extraSpeed += 2;
-            if (snake.extraSpeed > maxBoostSpeed)
+            if (snake.extraSpeed > maxBoostSpeed && !snake.speedBypass)
                 snakes[snake.id].extraSpeed = maxBoostSpeed;
             snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
 
@@ -399,6 +399,7 @@ class Snake {
     nick = "";
     type = EntityTypes.Player;
     loadedEntities = {};
+    
     constructor(network) {
         this.network = network.socket;
         this.sendConfig();
@@ -454,6 +455,7 @@ class Snake {
         this.position = { x: randomPos.x, y: randomPos.y };
         this.direction = Directions.Up;
         this.speed = 0.25;
+        this.speedBypass = false;
         this.extraSpeed = 0;
         this.killstreak = 0;
         this.points = [{x: this.position.x, y: this.position.y}];
@@ -542,7 +544,7 @@ class Snake {
         if (rubSpeed > 4)
             rubSpeed = 4
         this.extraSpeed += rubSpeed
-        if (this.extraSpeed > maxBoostSpeed)
+        if (this.extraSpeed > maxBoostSpeed && !this.speedBypass)
             this.extraSpeed = maxBoostSpeed;
         this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
     }
@@ -551,6 +553,8 @@ class Snake {
         this.RubSnake = null;
         if (this.extraSpeed > 0)
             this.extraSpeed -= 1
+        if (this.speedBypass && this.extraSpeed < maxBoostSpeed)
+            this.speedBypass = false;
         this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
     }
     kill(reason, killedByID) {
@@ -1096,7 +1100,7 @@ class Snake {
             case MessageTypes.RecieveBoost:
                 this.extraSpeed += 2;
                 if (this.extraSpeed > maxBoostSpeed)
-                    this.extraSpeed = maxBoostSpeed;
+                    this.speedBypass = true
                 this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
                 break;
             case MessageTypes.RecieveDebugFoodGrab:
