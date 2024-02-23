@@ -22,8 +22,6 @@ const wss = new WebSocket.Server({ port: 1337});
 var snakes = {}
 var entities = {}
 var clients = {}
-var queuedEntityRenders = {}
-var queuedEntityUpdates = {}
 var lastClientId = 1
 var lastEntityId = 1
 var arenaSize = 300
@@ -31,7 +29,7 @@ var safezone = 0.01 // Safezone
 //var updateDuration = 100
 var updateDuration = 100
 var UPDATE_EVERY_N_TICKS = 3;
-let maxBoostSpeed = 200;
+let maxBoostSpeed = 255;
 var foodValue = 1.5;
 var scoreMultiplier = 10/foodValue;
 var defaultLength = 10;
@@ -329,9 +327,6 @@ class Food {
     if (origin)
         this.origin = origin.id;
     lastEntityId++;
-    Object.values(snakes).forEach((snake) => {
-        snake.queuedEntityRenders[this.id] = this
-    });
       setTimeout(() => {
           //this.eat();
           
@@ -405,8 +400,6 @@ class Snake {
     network = null;
     nick = "";
     type = EntityTypes.Player;
-    queuedEntityRenders = {};
-    queuedEntityUpdates = {};
     loadedEntities = {};
     constructor(network) {
         this.network = network.socket;
@@ -481,17 +474,6 @@ class Snake {
         
         this.network.send(Bit8);
 
-        queuedEntityRenders[this.id] = this;
-        
-
-        Object.values(snakes).forEach((snake) => {
-
-            this.queuedEntityRenders[snake.id] = snake
-        })
-        Object.values(entities).forEach((food) => {
-          this.queuedEntityRenders[food.id] = food
-        });
-
         
     }
     updateLeaderboard() {
@@ -553,7 +535,6 @@ class Snake {
         this.position[whatVector] = vector;
         this.direction = direction;
         this.addPoint(this.position.x, this.position.y);
-        queuedEntityUpdates[this.id] = this;
     }
     rubAgainst(snake, distance) {
         this.flags |= EntityFlags.IsRubbing;
