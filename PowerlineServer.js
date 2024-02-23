@@ -652,12 +652,11 @@ class Snake {
             return
         }
         Object.values(clients).forEach((snake) => {
-            //if (snake.id != this.id) {
-            console.log("Deleting snake " + this.id + " from " + snake.id)
+            if (snake.loadedEntities[this.id]) {
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, MessageTypes.SendEntities);
                 var offset = 1;
-                
+            
                 Bit8.setUint16(offset, this.id, true);
                 offset += 2;
                 Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
@@ -682,7 +681,7 @@ class Snake {
                 offset += 4;
                 snake.network.send(Bit8);
                 delete snake.loadedEntities[this.id]
-            //}
+            }
         });
 
 
@@ -729,7 +728,10 @@ class Snake {
         /* CALCULATING TOTAL BITS */
         var calculatedTotalBits = 1;
         Object.values(entities).forEach((entity) => {
-            if (entity.position && entity.spawned) {
+            if (
+                entity.position && entity.spawned &&
+                (((updateType == UpdateTypes.OnUpdate || updateType == UpdateTypes.OnRender) && this.loadedEntities[entity.id]) || updateType == UpdateTypes.OnRender) // Make sure that entity is rendered before making updates
+            ) {
                 calculatedTotalBits += 2 + 1;
                 switch (updateType) {
                     case UpdateTypes.OnUpdate:
@@ -821,7 +823,10 @@ class Snake {
         
 
         Object.values(entities).forEach((entity) => {
-            if (entity.position  && entity.spawned) {
+            if (
+                entity.position && entity.spawned &&
+                (((updateType == UpdateTypes.OnUpdate || updateType == UpdateTypes.OnRender) && this.loadedEntities[entity.id]) || updateType == UpdateTypes.OnRender) // Make sure that entity is rendered before making updates
+            ) {
                 Bit8.setUint16(offset, entity.id, true);
                 offset += 2;
                 Bit8.setUint8(offset, updateType, true);

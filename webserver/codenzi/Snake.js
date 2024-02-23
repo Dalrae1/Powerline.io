@@ -1108,10 +1108,6 @@ var Snake = function() {
 		//offset += 4;
 		
 		this.lastSpeed = view.getFloat32(offset, true) * GAME_SCALE * UPDATE_EVERY_N_TICKS;
-		if (this == localPlayer) {
-			console.log(curY/GAME_SCALE)
-			console.log(view.getFloat32(offset, true))
-		}
 		offset += 4;
 
 		//var var1 = this.lastSpeed * UPDATE_EVERY_N_TICKS;
