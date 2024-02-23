@@ -109,7 +109,7 @@ var Input = function () {
     }
 
     if (true) {
-      if (e.keyCode == 73) {
+      /*if (e.keyCode == 73) {
         // i
         console.log("AL: " + antiLagEnabled);
         console.log("WL: " + globalWebLag);
@@ -157,7 +157,7 @@ var Input = function () {
       } else if (e.keyCode == 48) {
         // 0
         glowSnakes = !glowSnakes;
-      } else if (e.keyCode == 71) {
+      } else */if (e.keyCode == 71) {
         // G
         network.debugFoodGrab();
       } else if (e.keyCode == 80) {
@@ -303,7 +303,7 @@ var Input = function () {
 
     if (e.keyCode == 32) {
       // Space
-      //network.sendBoost(false);
+      network.sendBoost(false);
     } else if (e.keyCode == 38) {
       // Up
     } else if (e.keyCode == 37) {

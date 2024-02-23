@@ -25,8 +25,6 @@ var clients = {}
 var lastClientId = 1
 var lastEntityId = 1
 var arenaSize = 300
-var safezone = 0.01 // Safezone
-//var updateDuration = 100
 var updateDuration = 100
 var UPDATE_EVERY_N_TICKS = 3;
 let maxBoostSpeed = 255;
@@ -1094,7 +1092,16 @@ class Snake {
                 this.windowSizeY = view.getUint16(3, true)/2;
             case MessageTypes.RecieveDebugHello:
                 this.windowSizeX = view.getUint16(1, true)/2;
-                this.windowSizeY = view.getUint16(3, true)/2;
+                this.windowSizeY = view.getUint16(3, true) / 2;
+            case MessageTypes.RecieveBoost:
+                this.extraSpeed += 2;
+                if (this.extraSpeed > maxBoostSpeed)
+                    this.extraSpeed = maxBoostSpeed;
+                this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+                break;
+            case MessageTypes.RecieveDebugFoodGrab:
+                this.length += 1000;
+                break;
 
         }
     }
