@@ -26,7 +26,7 @@ var queuedEntityRenders = {}
 var queuedEntityUpdates = {}
 var lastClientId = 1
 var lastEntityId = 1
-var arenaSize = 100
+var arenaSize = 1000
 var safezone = 0.01 // Safezone
 //var updateDuration = 100
 var updateDuration = 100
@@ -344,8 +344,8 @@ class Food {
   }
 }
 
-//for (let i = 0; i < arenaSize ^ 2 / 60; i++) {
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < arenaSize ^ 2 / 60; i++) {
+//for (let i = 0; i < 30; i++) {
     new Food();
 }
 
