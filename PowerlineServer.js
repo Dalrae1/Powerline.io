@@ -29,6 +29,7 @@ var arenaSize = 300
 var updateDuration = 100
 var UPDATE_EVERY_N_TICKS = 3;
 let maxBoostSpeed = 255;
+let maxRubSpeed = 200;
 var foodValue = 1.5;
 var scoreMultiplier = 10/foodValue;
 var defaultLength = 10;
@@ -410,17 +411,14 @@ class Snake {
     windowSizeY = 64;
 
     setExtraSpeed(speed) {
-        this.speeding = true
-        this.extraSpeed += 1
-        this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
-        if (this.extraSpeed > maxBoostSpeed && !this.speedBypass)
-                this.extraSpeed = maxBoostSpeed;
+        if (this.extraSpeed + 1 <= maxBoostSpeed || this.speedBypass) {
+            this.extraSpeed += 2
+            this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+        }
         if (this.extraSpeed < speed) {
             setTimeout(() => {
                 this.setExtraSpeed(speed)
             }, updateDuration * 2)
-        } else {
-            this.speeding = false
         }
         
     }
@@ -557,20 +555,15 @@ class Snake {
         let rubSpeed = 4/distance
         if (rubSpeed > 4)
             rubSpeed = 4
-        this.extraSpeed += rubSpeed
-        if (this.extraSpeed > maxBoostSpeed && !this.speedBypass)
-            this.extraSpeed = maxBoostSpeed;
-        this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+        if (this.extraSpeed + rubSpeed <= maxRubSpeed || this.speedBypass) {
+            this.extraSpeed += rubSpeed
+            this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+        }
+        
     }
     stopRubbing() {
         this.flags &= ~EntityFlags.IsRubbing;
         this.speeding = false
-        /*this.RubSnake = null;
-        if (this.extraSpeed > 0)
-            this.extraSpeed -= 1
-        if (this.speedBypass && this.extraSpeed < maxBoostSpeed)
-            this.speedBypass = false;
-        this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);*/
     }
     kill(reason, killedByID) {
         if (this.invincible)
@@ -1450,8 +1443,8 @@ function UpdateArena() { // Main update loop
         }
 
         if (!snake.speeding) {
-            if (snake.extraSpeed > 0) {
-                snake.extraSpeed -= 1;
+            if (snake.extraSpeed-2 > 0) {
+                snake.extraSpeed -= 2;
                 snake.speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
             }
 
