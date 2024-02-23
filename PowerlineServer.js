@@ -122,7 +122,7 @@ class QuadEntityTree {
                     else
                         point = entity.points[i];
                     let nextPoint = entity.points[i + 1];
-                    if (this.intersectsCircle(point, nextPoint, {x: range.x, y: range.y}, range.radius)) {
+                    if (this.intersectsCircle(point, nextPoint, {x: range.centerX, y: range.centerY}, range.radius)) {
                         found.push(entity);
                         break;
                     }
@@ -178,12 +178,14 @@ class QuadEntityTree {
 }
 
 class Bounds {
-    constructor(x, y, width, height, radius) {
+    constructor(x, y, width, height, centerX, centerY, radius) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-        this.radius = radius
+        this.centerX = centerX;
+        this.centerY = centerY;
+        this.radius = radius;
     }
 
     contains(point) {
@@ -206,14 +208,14 @@ class Bounds {
 }
 
 function entitiesWithinRadius(center, entities, radius, checksnake) {
-    const quadtreeBounds = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2, radius/2);
+    const quadtreeBounds = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2, center[0], center[1], radius);
     const quadtree = new QuadEntityTree(quadtreeBounds, 4);
 
     for (const entity of entities) {
         quadtree.insert(entity);
     }
 
-    const range = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2, radius);
+    const range = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2, center[0], center[1], radius);
 
     let entitiesFound = quadtree.queryRange(range, [], checksnake);
 
