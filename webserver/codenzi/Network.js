@@ -124,6 +124,7 @@ var Network = function() {
 				fullhost = `wss://${network.remoteHost}:1338`;
 			else
 				fullhost = `ws://${network.remoteHost}:1337`;
+			console.log('Connecting to ' + fullhost + '...');
 			webSocket = new WebSocket(fullhost);
 			webSocket.binaryType 	= "arraybuffer";
 			webSocket.onopen 		= network.onSocketOpen;
