@@ -702,10 +702,15 @@ class Snake {
           actualLength += segmentLength;
         }
 
-        const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+        function customEasing(t) {
+            // Adjust the value of a for the desired effect
+            const a = 8; // Controls the rate of slowing down
+
+            // Apply easing equation
+            return 1 - Math.exp(-a * t);
+        }
 
         function easeOut(entity, targetPosition, duration) {
-            let startTime = null;
             const startX = entity.position.x;
             const startY = entity.position.y;
             const deltaX = targetPosition.x - startX;
@@ -714,13 +719,16 @@ class Snake {
             const fps = 60; // frames per second
             const frameDuration = 1000 / fps;
 
+            let startTime = null;
+
             const animate = (timestamp) => {
+                if (!entity || !entity.position) return;
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime;
                 const progress = Math.min(elapsed / duration, 1); // Ensure progress doesn't exceed 1
 
-                // Apply easing function to progress
-                const easedProgress = easeOutCubic(progress);
+                // Apply custom easing function to progress
+                const easedProgress = customEasing(progress);
 
                 // Calculate eased position
                 entity.position.x = startX + deltaX * easedProgress;
@@ -743,22 +751,24 @@ class Snake {
         let dropAtInterval = actualLength / (foodToDrop);
         for (let i = 0; i < actualLength; i += dropAtInterval) {
             let point = getPointAtDistance(this, i);
-            if (i < actualLength - 1) {
-                let nextPoint = getPointAtDistance(this, i + 1);
-                let food = new Food(point.x, point.y, this.color - 25 + Math.random() * 50, this);
-                
-                // Move food forward the direction that the line was going
-                
-                let direction = getNormalizedDirection(nextPoint, point);
+            let nextPoint
+            if (i == actualLength-1)
+                nextPoint = this.position;
+            else
+                nextPoint = getPointAtDistance(this, i + 1);
+            let food = new Food(point.x, point.y, this.color - 25 + Math.random() * 50, this);
+            
+            // Move food forward the direction that the line was going
+            
+            let direction = getNormalizedDirection(nextPoint, point);
 
-                let amountDispersion = 2;
-                let speedMultiplier = 2;
-                let easingRandomX = Math.random() * (amountDispersion - (amountDispersion/2));
-                easingRandomX += direction.x * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier;
-                let easingRandomY = Math.random() * (amountDispersion - (amountDispersion/2));
-                easingRandomY += direction.y * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier;
-                easeOut(food, { x: point.x + easingRandomX, y: point.y + easingRandomY }, 1000);
-            }
+            let amountDispersion = 2;
+            let speedMultiplier = 2;
+            let easingRandomX = Math.random() * (amountDispersion - (amountDispersion/2));
+            easingRandomX += direction.x * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier;
+            let easingRandomY = Math.random() * (amountDispersion - (amountDispersion/2));
+            easingRandomY += direction.y * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier;
+            easeOut(food, { x: point.x + easingRandomX, y: point.y + easingRandomY }, 5000);
         }
         
 
