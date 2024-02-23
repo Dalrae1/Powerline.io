@@ -2,7 +2,7 @@
 var version = 1.05;
 var href = window.location.href;
 var urlSplit = href.split('/');
-var domain = urlSplit[2];
+var domain = "powerline.io"/*urlSplit[2]*/;
 //domain = domain.split(':')[0];
 var domainSplit = domain.split('.');
 lastPart = urlSplit[urlSplit.length-1];
