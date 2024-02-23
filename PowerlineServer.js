@@ -34,7 +34,7 @@ var UPDATE_EVERY_N_TICKS = 3;
 let maxBoostSpeed = 200;
 var foodValue = 1.5;
 var scoreMultiplier = 10/foodValue;
-var defaultLength = 10;
+var defaultLength = 2000;
 var king = null;
 let maxFood = arenaSize * 5;
 let foodSpawnPercent = (arenaSize ^ 2) / 10;
@@ -48,7 +48,11 @@ class QuadEntityTree {
     }
 
     insert(entity) {
-        if (!this.bounds.contains([entity.position.x, entity.position.y])) {
+        let isPlayer = false
+        if (entity.type == EntityTypes.Player) {
+            isPlayer = true
+        }
+        if (!this.bounds.contains([entity.position.x, entity.position.y]) && !isPlayer) {
             return false;
         }
 
@@ -94,7 +98,7 @@ class QuadEntityTree {
         this.entities = [];
     }
 
-    queryRange(range, found) {
+    queryRange(range, found, checksnake) {
         if (!found) {
             found = [];
         }
@@ -105,54 +109,82 @@ class QuadEntityTree {
 
         for (const entity of this.entities) {
             let alreadyAdded = false;
-            if (entity.type === EntityTypes.Player) {
-                for (let i = 0; i < entity.points.length - 1; i++) {
-                    const point = entity.points[i];
-                    const nextPoint = entity.points[i + 1];
-                    if (this.intersectsCircle(point, nextPoint, range)) {
+            if (!alreadyAdded && range.contains([entity.position.x, entity.position.y])) {
+                found.push(entity);
+                alreadyAdded = true;
+            }
+            if (entity.type == EntityTypes.Player)
+                console.log(`CheckID: ${checksnake.id} Type: ${entity.type} AlreadyAdded: ${alreadyAdded} ID: ${entity.id}`)
+            if (entity.type === EntityTypes.Player && !alreadyAdded) {
+                for (let i = -1; i < entity.points.length - 1; i++) {
+                    let point;
+                    if (i == -1)
+                        point = entity.position;
+                    else
+                        point = entity.points[i];
+                    let nextPoint = entity.points[i + 1];
+                    if (this.intersectsCircle(point, nextPoint, {x: range.x, y: range.y}, range.radius)) {
                         found.push(entity);
-                        alreadyAdded = true;
                         break;
                     }
                 }
             }
-            if (!alreadyAdded && range.contains([entity.position.x, entity.position.y])) {
-                found.push(entity);
-            }
+            
         }
 
         for (const child of this.children) {
-            child.queryRange(range, found);
+            child.queryRange(range, found, checksnake);
         }
 
         return found;
     }
+    intersectsCircle(lineStart, lineEnd, circleCenter, circleRadius) {
+        // Calculate the vector representing the line
+        const lineVector = [lineEnd.x - lineStart.x, lineEnd.y - lineStart.y];
 
-    intersectsCircle(pointA, pointB, circle) {
-        const dx = pointB[0] - pointA[0];
-        const dy = pointB[1] - pointA[1];
-        const len2 = dx * dx + dy * dy;
-        const dot = ((circle.x - pointA[0]) * dx + (circle.y - pointA[1]) * dy) / len2;
-        const closestX = pointA[0] + dot * dx;
-        const closestY = pointA[1] + dot * dy;
+        // Vector from one endpoint of the line to the circle's center
+        const lineToCircle = [circleCenter.x - lineStart.x, circleCenter.y - lineStart.y];
 
-        if (closestX < Math.min(pointA[0], pointB[0]) || closestX > Math.max(pointA[0], pointB[0]) ||
-            closestY < Math.min(pointA[1], pointB[1]) || closestY > Math.max(pointA[1], pointB[1])) {
+        // Calculate the length of the line segment
+        const lineLength = Math.sqrt(lineVector[0] * lineVector[0] + lineVector[1] * lineVector[1]);
+
+        // Normalize the line vector
+        const normalizedLineVector = [lineVector[0] / lineLength, lineVector[1] / lineLength];
+
+        // Calculate the projection of the vector from one endpoint of the line to the circle's center onto the line
+        const projection = normalizedLineVector[0] * lineToCircle[0] + normalizedLineVector[1] * lineToCircle[1];
+
+        // If the projection is less than 0 or greater than the length of the line segment,
+        // then the closest point on the line to the circle is outside the line segment
+        if (projection < 0 || projection > lineLength) {
             return false;
         }
 
-        const distanceSquared = (circle.x - closestX) * (circle.x - closestX) + (circle.y - closestY) * (circle.y - closestY);
-        return distanceSquared <= circle.radius * circle.radius;
+        // Calculate the closest point on the line to the circle's center
+        const closestPoint = {
+            x: lineStart.x + normalizedLineVector[0] * projection,
+            y: lineStart.y + normalizedLineVector[1] * projection
+        };
+
+        // Calculate the distance between the closest point and the circle's center
+        const distanceToCircleCenter = Math.sqrt(
+            (circleCenter.x - closestPoint.x) ** 2 + (circleCenter.y - closestPoint.y) ** 2
+        );
+
+        // If the distance to the circle's center is less than or equal to the circle's radius,
+        // then there is an intersection
+        return distanceToCircleCenter <= circleRadius;
     }
 
 }
 
 class Bounds {
-    constructor(x, y, width, height) {
+    constructor(x, y, width, height, radius) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
+        this.radius = radius
     }
 
     contains(point) {
@@ -174,17 +206,17 @@ class Bounds {
     }
 }
 
-function entitiesWithinRadius(center, entities, radius) {
-    const quadtreeBounds = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
+function entitiesWithinRadius(center, entities, radius, checksnake) {
+    const quadtreeBounds = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2, radius/2);
     const quadtree = new QuadEntityTree(quadtreeBounds, 4);
 
     for (const entity of entities) {
         quadtree.insert(entity);
     }
 
-    const range = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
+    const range = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2, radius);
 
-    let entitiesFound = quadtree.queryRange(range);
+    let entitiesFound = quadtree.queryRange(range, [], checksnake);
 
     return entitiesFound;
 }
@@ -300,8 +332,8 @@ class Food {
         }
         if (snake) {
             snakes[snake.id].extraSpeed += 2;
-            //if (snake.extraSpeed > maxBoostSpeed)
-                //snakes[snake.id].extraSpeed = maxBoostSpeed;
+            if (snake.extraSpeed > maxBoostSpeed)
+                snakes[snake.id].extraSpeed = maxBoostSpeed;
             snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
 
         }
@@ -520,8 +552,8 @@ class Snake {
         if (rubSpeed > 4)
             rubSpeed = 4
         this.extraSpeed += rubSpeed
-        //if (this.extraSpeed > maxBoostSpeed)
-            //this.extraSpeed = maxBoostSpeed;
+        if (this.extraSpeed > maxBoostSpeed)
+            this.extraSpeed = maxBoostSpeed;
         this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
     }
     stopRubbing() {
@@ -1379,7 +1411,7 @@ function UpdateArena() { // Main update loop
 }
 
 function entitiesNearSnake(snake, radius) { // Returns entities near snake and loaded entities that are not in radius
-    let entitiesInRadius = entitiesWithinRadius([snake.position.x, snake.position.y], Object.values(entities), radius);
+    let entitiesInRadius = entitiesWithinRadius([snake.position.x, snake.position.y], Object.values(entities), radius, snake);
     let loadedEntities = Object.values(snake.loadedEntities);
     let entitiesToAdd = entitiesInRadius.filter(entity => !loadedEntities.includes(entity));
     let entitiesToRemove = loadedEntities.filter(entity => !entitiesInRadius.includes(entity));
