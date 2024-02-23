@@ -263,7 +263,7 @@ var updateCountryCode = function(){
 updateCountryCode();
 let button = document.getElementsByClassName(`${countryCode}`)[0]
 if (!button)
-	countryCode = "CU"
+	countryCode = "01"
 button = document.getElementsByClassName(`${countryCode}`)[0]
 button.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
 
