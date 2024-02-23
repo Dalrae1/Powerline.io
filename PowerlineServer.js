@@ -767,13 +767,15 @@ class Snake {
             
             let direction = getNormalizedDirection(nextPoint, point);
 
-            let amountDispersion = 2;
-            let speedMultiplier = 2;
-            let easingRandomX = Math.random() * (amountDispersion - (amountDispersion / 2));
-            easingRandomX += (direction.x * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier);
-            let easingRandomY = Math.random() * (amountDispersion - (amountDispersion/2));
-            easingRandomY += (direction.y * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier);
-            easeOut(food, { x: point.x + easingRandomX, y: point.y + easingRandomY }, 5000);
+            if (direction) {
+                let amountDispersion = 2;
+                let speedMultiplier = 2;
+                let easingRandomX = Math.random() * (amountDispersion - (amountDispersion / 2));
+                easingRandomX += (direction.x * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier);
+                let easingRandomY = Math.random() * (amountDispersion - (amountDispersion / 2));
+                easingRandomY += (direction.y * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier);
+                easeOut(food, { x: point.x + easingRandomX, y: point.y + easingRandomY }, 5000);
+            }
         }
         
         
