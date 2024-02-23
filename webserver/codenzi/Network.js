@@ -116,14 +116,16 @@ var Network = function() {
 			setTimeout(network.getServerAndConnect, 200);
 			return;
 		}
-		if (cc == "CU") {
+		if (Number(cc) > 0) {
+			let but = document.getElementsByClassName(`${cc}`)[0]
+			let port = but.getAttribute("port")
 			let actualDomain = window.location.href.split('/')[2].split(":")[0];
 			network.remoteHost = `${actualDomain}`
 			let fullhost
 			if (isSecure)
-				fullhost = `wss://${network.remoteHost}:1338`;
+				fullhost = `wss://${network.remoteHost}:${port+1}`;
 			else
-				fullhost = `ws://${network.remoteHost}:1337`;
+				fullhost = `ws://${network.remoteHost}:${port}`;
 			console.log('Connecting to ' + fullhost + '...');
 			webSocket = new WebSocket(fullhost);
 			webSocket.binaryType 	= "arraybuffer";

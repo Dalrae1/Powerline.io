@@ -261,7 +261,13 @@ var updateCountryCode = function(){
 }
 
 updateCountryCode();
-document.querySelector(`.${countryCode || "US"}`).style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+let button = document.getElementsByClassName(`${countryCode}`)[0]
+if (button)
+	button.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+else {
+	countryCode = "US"
+	document.querySelector(".US").style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+}
 
 var runLoop = function() {
 	now = +new Date();
@@ -465,7 +471,7 @@ window['toggleGraphics'] = function(){
 	window.localStorage.lq = !highQuality;
 	updateGraphicsLabel();
 }
-
+let but = document.querySelector("#CU")
 window['copyRoomLink'] = function(){
 	$('#copyLink').hide();
 	$('#copyLinkBox').show();
