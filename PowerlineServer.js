@@ -36,6 +36,8 @@ var foodValue = 1.5;
 var scoreMultiplier = 10/foodValue;
 var defaultLength = 10;
 var king = null;
+let maxFood = arenaSize * 5;
+let foodSpawnPercent = (arenaSize ^ 2) / 10;
 
 class QuadEntityTree {
     constructor(bounds, capacity) {
@@ -306,33 +308,33 @@ class Food {
         
         Object.values(clients).forEach((snakee) => {
             if (snakee.id) {
-                if (queuedEntityRenders[this.id])
-                    delete queuedEntityRenders[this.id];
-                var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
-                Bit8.setUint8(0, MessageTypes.SendEntities);
-                var offset = 1;
-                //console.log("Removing entity food " + this.id + " from snake " + snakee.id);
-                Bit8.setUint16(offset, this.id, true);
-                offset += 2;
-                Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
-                offset += 1;
-                Bit8.setUint16(offset, snake && snake.id || 0, true);
-                offset += 2;
-                Bit8.setUint8(offset, KillReasons.Killed, true);
-                offset += 1;
+                if (snakee.loadedEntities[this.id]) {
+                    var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
+                    Bit8.setUint8(0, MessageTypes.SendEntities);
+                    var offset = 1;
+                    //console.log("Removing entity food " + this.id + " from snake " + snakee.id);
+                    Bit8.setUint16(offset, this.id, true);
+                    offset += 2;
+                    Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
+                    offset += 1;
+                    Bit8.setUint16(offset, snake && snake.id || 0, true);
+                    offset += 2;
+                    Bit8.setUint8(offset, KillReasons.Killed, true);
+                    offset += 1;
 
-                // King
-                Bit8.setUint16(offset, 0, true);
-                offset += 2;
-                Bit8.setUint16(offset, king && king.id || 0, true);
-                offset += 2;
-                Bit8.setFloat32(offset, king && king.position.x || 0, true);
-                offset += 4;
-                Bit8.setFloat32(offset, king && king.position.y || 0, true);
-                offset += 4;
-                
-                snakee.network.send(Bit8);
-                delete snakee.loadedEntities[this.id]
+                    // King
+                    Bit8.setUint16(offset, 0, true);
+                    offset += 2;
+                    Bit8.setUint16(offset, king && king.id || 0, true);
+                    offset += 2;
+                    Bit8.setFloat32(offset, king && king.position.x || 0, true);
+                    offset += 4;
+                    Bit8.setFloat32(offset, king && king.position.y || 0, true);
+                    offset += 4;
+                    
+                    snakee.network.send(Bit8);
+                    delete snakee.loadedEntities[this.id]
+                }
             }
         })
         if (snake) {
@@ -344,7 +346,7 @@ class Food {
   }
 }
 
-for (let i = 0; i < arenaSize ^ 2 / 60; i++) {
+for (let i = 0; i < maxFood; i++) {
 //for (let i = 0; i < 30; i++) {
     new Food();
 }
@@ -1388,6 +1390,7 @@ async function main() {
     UpdateArena()
 
     Object.values(clients).forEach(function (snake) {
+        
         if (snake.spawned) {
             Object.values(entities).forEach(function (food) {
                 if (food.type == EntityTypes.Item) {
@@ -1448,8 +1451,8 @@ async function main() {
     })
 
     // Add random food spawns
-    let maxFood = arenaSize ^ 2 / 60;
-    let foodSpawnPercent = (arenaSize ^ 2) / 10;
+    
+    
     if (Object.keys(entities).length < maxFood) {
         if (Math.random()*100 < foodSpawnPercent) {
             new Food();
@@ -1459,7 +1462,7 @@ async function main() {
 
     Object.values(clients).forEach(function (snake) {
         if (snake.id) {
-            let entQuery = entitiesNearSnake(snake, 50);
+            let entQuery = entitiesNearSnake(snake, 40);
             let nearbyEntities = entQuery.entitiesToAdd;
             let removeEntities = entQuery.entitiesToRemove;
 
