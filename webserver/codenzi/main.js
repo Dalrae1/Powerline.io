@@ -262,12 +262,9 @@ var updateCountryCode = function(){
 
 updateCountryCode();
 let button = document.getElementsByClassName(`${countryCode}`)[0]
-if (button)
-	button.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-else {
-	countryCode = "US"
-	document.querySelector(".US").style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-}
+if (!button)
+	countryCode = "CU"
+button.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
 
 var runLoop = function() {
 	now = +new Date();
