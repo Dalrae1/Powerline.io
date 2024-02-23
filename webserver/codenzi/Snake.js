@@ -1108,8 +1108,6 @@ var Snake = function() {
 		//offset += 4;
 		
 		this.lastSpeed = view.getFloat32(offset, true) * GAME_SCALE * UPDATE_EVERY_N_TICKS;
-		if (this == localPlayer)
-			console.log(this.lastSpeed)
 		offset += 4;
 
 		//var var1 = this.lastSpeed * UPDATE_EVERY_N_TICKS;
@@ -1261,7 +1259,8 @@ var Snake = function() {
 		offset += 1;
 
 		// Extra Speed Perc
-		extraSpeed = (view.getUint8(offset, true)/255)*100.0;
+		extraSpeed = (view.getUint8(offset, true) / 255) * 100.0;
+		console.log(view.getUint8(offset, true))
 		offset += 1;
 
 		if(localPlayer == this)
