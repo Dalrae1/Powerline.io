@@ -336,7 +336,7 @@ class Food {
     subtype = EntitySubtypes.Food;
     position = { x: 0, y: 0 };
     spawned = true
-    value = foodValue*3;
+    value = foodValue*2;
     lastUpdate = Date.now();
   constructor(x, y, color, origin, timeToLive = 5000+(Math.random()*60*1000*5)) {
     entities[lastEntityId] = this;
