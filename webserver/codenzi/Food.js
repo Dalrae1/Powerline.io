@@ -184,7 +184,6 @@ var Food = function () {
 	};
 
 	this.deleteNetwork = function(view, offset) {
-		//console.log('Delete food: ' + this.id);
 		if(focus)
 		{
 			this.beingDeleted = true;

@@ -1340,8 +1340,6 @@ var Snake = function() {
 		}else{
 			// New points?
 			var newPointCount = view.getUint8(offset, true);
-			if (/*newPointCount > 1 &&*/ this == localPlayer)
-				console.log('newPointCount: ' + newPointCount);
 			offset++;
 
 			if(newPointCount > 0)
@@ -1501,7 +1499,7 @@ var Snake = function() {
 		return {x: turnPointX/GAME_SCALE, y: turnPointY/GAME_SCALE};
 	}
 
-	this.deleteNetwork = function(view, offset) {
+	this.deleteNetwork = function (view, offset) {
 		if(this.id == localPlayerID && killCount+1 >= KILLS_TO_FOLLOW) // +1 because wasKilled is only called after this
 		{
 			lastKillerID = this.killedByID;

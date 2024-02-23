@@ -407,7 +407,7 @@ var Network = function () {
 
     return offset;
   }
-
+  let lastOne = ""
   function updateEntities(view) {
     var offset = 1; // Skip opcode
 
@@ -436,6 +436,7 @@ var Network = function () {
       }
 
       var flags = view.getUint8(offset, true);
+      lastOne = flags
       offset += 1;
 
       //console.log('updateEntities: ' + flags + ' EntityID: ' + id);

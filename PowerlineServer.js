@@ -2,8 +2,7 @@ const WebSocket = require('ws');
 const HttpsServer = require('https').createServer;
 const fs = require("fs");
 const EventEmitter = require("events");
-const { kill } = require('process');
-const { get } = require('http');
+
 
 let server, wssSecure
 
@@ -37,6 +36,267 @@ var foodValue = 1.5;
 var scoreMultiplier = 10/foodValue;
 var defaultLength = 10;
 var king = null;
+
+class Quadtree {
+    constructor(bounds, capacity) {
+        this.bounds = bounds;
+        this.capacity = capacity;
+        this.points = [];
+        this.children = [];
+    }
+
+    insert(point) {
+        if (!this.bounds.contains(point)) {
+            return false;
+        }
+
+        if (this.points.length < this.capacity) {
+            this.points.push(point);
+            return true;
+        }
+
+        if (!this.children.length) {
+            this.subdivide();
+        }
+
+        for (const child of this.children) {
+            if (child.insert(point)) {
+                return true;
+            }
+        }
+
+        // Point cannot be inserted (should never happen in this example)
+        return false;
+    }
+
+    subdivide() {
+        const { x, y, width, height } = this.bounds;
+        const halfWidth = width / 2;
+        const halfHeight = height / 2;
+
+        this.children.push(
+            new Quadtree(new BBounds(x, y, halfWidth, halfHeight), this.capacity),
+            new Quadtree(new BBounds(x + halfWidth, y, halfWidth, halfHeight), this.capacity),
+            new Quadtree(new BBounds(x, y + halfHeight, halfWidth, halfHeight), this.capacity),
+            new Quadtree(new BBounds(x + halfWidth, y + halfHeight, halfWidth, halfHeight), this.capacity)
+        )
+
+        for (const point of this.points) {
+            for (const child of this.children) {
+                if (child.insert(point)) {
+                    break;
+                }
+            }
+        }
+
+        this.points = [];
+    }
+
+    queryRange(range, found) {
+        if (!found) {
+            found = [];
+        }
+
+        if (!this.bounds.intersects(range)) {
+            return found;
+        }
+
+        for (const point of this.points) {
+            if (range.contains(point)) {
+                found.push(point);
+            }
+        }
+
+        for (const child of this.children) {
+            child.queryRange(range, found);
+        }
+
+        return found;
+    }
+}
+
+class BBounds {
+    constructor(x, y, width, height) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+    }
+
+    contains(point) {
+        return (
+            point[0] >= this.x &&
+            point[0] <= this.x + this.width &&
+            point[1] >= this.y &&
+            point[1] <= this.y + this.height
+        );
+    }
+
+    intersects(otherBounds) {
+        return !(
+            otherBounds.x > this.x + this.width ||
+            otherBounds.x + otherBounds.width < this.x ||
+            otherBounds.y > this.y + this.height ||
+            otherBounds.y + otherBounds.height < this.y
+        );
+    }
+}
+
+function pointsWithinRadius(center, points, radius) {
+    const quadtreeBounds = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
+    const quadtree = new Quadtree(quadtreeBounds, 4);
+
+    for (const point of points) {
+        quadtree.insert(point);
+    }
+
+    const range = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
+
+    return quadtree.queryRange(range);
+}
+
+class QuadEntityTree {
+    constructor(bounds, capacity) {
+        this.bounds = bounds;
+        this.capacity = capacity;
+        this.entities = [];
+        this.children = [];
+    }
+
+    insert(entity) {
+        if (!this.bounds.contains([entity.position.x, entity.position.y])) {
+            return false;
+        }
+
+        if (this.entities.length < this.capacity) {
+            this.entities.push(entity);
+            return true;
+        }
+
+        if (!this.children.length) {
+            this.subdivide();
+        }
+
+        for (const child of this.children) {
+            if (child.insert(entity)) {
+                return true;
+            }
+        }
+
+        // Point cannot be inserted (should never happen in this example)
+        return false;
+    }
+
+    subdivide() {
+        const { x, y, width, height } = this.bounds;
+        const halfWidth = width / 2;
+        const halfHeight = height / 2;
+
+        this.children.push(
+            new QuadEntityTree(new Bounds(x, y, halfWidth, halfHeight), this.capacity),
+            new QuadEntityTree(new Bounds(x + halfWidth, y, halfWidth, halfHeight), this.capacity),
+            new QuadEntityTree(new Bounds(x, y + halfHeight, halfWidth, halfHeight), this.capacity),
+            new QuadEntityTree(new Bounds(x + halfWidth, y + halfHeight, halfWidth, halfHeight), this.capacity)
+        )
+
+        for (const entity of this.entities) {
+            for (const child of this.children) {
+                if (child.insert(entity)) {
+                    break;
+                }
+            }
+        }
+
+        this.entities = [];
+    }
+
+    queryRange(range, found) {
+        if (!found) {
+            found = [];
+        }
+
+        if (!this.bounds.intersects(range)) {
+            return found;
+        }
+
+        for (const entity of this.entities) {
+            if (entity.type == EntityTypes.Player) {
+                for (const point of entity.points) {
+                    if (range.contains([point.x, point.y])) {
+                        found.push(entity);
+                        break;
+                    }
+                }
+            } else {
+                if (range.contains([entity.position.x, entity.position.y])) {
+                    found.push(entity);
+                }
+            }
+        }
+
+        for (const child of this.children) {
+            child.queryRange(range, found);
+        }
+
+        return found;
+    }
+
+}
+
+class Bounds {
+    constructor(x, y, width, height) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+    }
+
+    contains(point) {
+        return (
+            point[0] >= this.x &&
+            point[0] <= this.x + this.width &&
+            point[1] >= this.y &&
+            point[1] <= this.y + this.height
+        );
+    }
+
+    intersects(otherBounds) {
+        return !(
+            otherBounds.x > this.x + this.width ||
+            otherBounds.x + otherBounds.width < this.x ||
+            otherBounds.y > this.y + this.height ||
+            otherBounds.y + otherBounds.height < this.y
+        );
+    }
+}
+
+function pointsWithinRadius(center, points, radius) {
+    const quadtreeBounds = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
+    const quadtree = new QuadEntityTree(quadtreeBounds, 4);
+
+    for (const point of points) {
+        quadtree.insert(point);
+    }
+
+    const range = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
+
+    return quadtree.queryRange(range);
+}
+
+function entitiesWithinRadius(center, entities, radius) {
+    const quadtreeBounds = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
+    const quadtree = new QuadEntityTree(quadtreeBounds, 4);
+
+    for (const entity of entities) {
+        quadtree.insert(entity);
+    }
+
+    const range = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
+
+    let entitiesFound = quadtree.queryRange(range);
+
+    return entitiesFound;
+}
 
 const MessageTypes = Object.freeze({
     // Server Messages
@@ -116,7 +376,8 @@ const Directions = Object.freeze({
 class Food {
   type = EntityTypes.Item;
   subtype = EntitySubtypes.Food;
-  position = { x: 0, y: 0 };
+    position = { x: 0, y: 0 };
+    spawned = true
   value = foodValue;
   constructor(x, y, color, origin) {
     entities[lastEntityId] = this;
@@ -132,7 +393,7 @@ class Food {
         this.origin = origin.id;
     lastEntityId++;
     Object.values(snakes).forEach((snake) => {
-        queuedEntityRenders[this.id] = this
+        snake.queuedEntityRenders[this.id] = this
     });
       setTimeout(() => {
           //this.eat();
@@ -142,6 +403,7 @@ class Food {
     return this;
   }
     eat(snake) {
+        this.spawned = false
         if (snake && this.origin == snake.id) {
             return;
         }
@@ -162,25 +424,26 @@ class Food {
                 var offset = 1;
                 //console.log("Removing entity food " + this.id + " from snake " + snakee.id);
                 Bit8.setUint16(offset, this.id, true);
-                offset = offset + 2;
+                offset += 2;
                 Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
-                offset = offset + 1;
+                offset += 1;
                 Bit8.setUint16(offset, snake && snake.id || 0, true);
-                offset = offset + 2;
+                offset += 2;
                 Bit8.setUint8(offset, KillReasons.Killed, true);
-                offset = offset + 1;
+                offset += 1;
 
                 // King
                 Bit8.setUint16(offset, 0, true);
-                offset = offset + 2;
+                offset += 2;
                 Bit8.setUint16(offset, king && king.id || 0, true);
-                offset = offset + 2;
+                offset += 2;
                 Bit8.setFloat32(offset, king && king.position.x || 0, true);
-                offset = offset + 4;
+                offset += 4;
                 Bit8.setFloat32(offset, king && king.position.y || 0, true);
-                offset = offset + 4;
+                offset += 4;
                 
                 snakee.network.send(Bit8);
+                delete snakee.loadedEntities[this.id]
             }
         })
         if (snake) {
@@ -199,7 +462,6 @@ for (let i = 0; i < 30; i++) {
 
 function GetRandomPosition() {
     return { x: Math.random() * arenaSize - arenaSize / 2, y: Math.random() * arenaSize - arenaSize / 2 };
-
 }
 
 
@@ -276,6 +538,7 @@ class Snake {
 
         lastEntityId++;
         snakes[this.id] = this;
+        entities[this.id] = this;
 
         
         this.network.send(Bit8);
@@ -407,9 +670,9 @@ class Snake {
             Bit8.setUint8(0, MessageTypes.SendEvent);
             var offset = 1;
             Bit8.setUint8(offset, EventTypes.Kill, true);
-            offset = offset + 1;
+            offset += 1;
             Bit8.setUint16(offset, 0, true); //(ID?), unused.
-            offset = offset + 2;
+            offset += 2;
             for (
               var characterIndex = 0;
               characterIndex < this.nick.length;
@@ -429,9 +692,9 @@ class Snake {
             Bit8.setUint8(0, MessageTypes.SendEvent);
             var offset = 1;
             Bit8.setUint8(offset, EventTypes.Killed, true);
-            offset = offset + 1;
+            offset += 1;
             Bit8.setUint16(offset, 0, true); //(ID?), unused.
-            offset = offset + 2;
+            offset += 2;
             for (
                 var characterIndex = 0;
                 characterIndex < snakes[killedByID].nick.length;
@@ -446,59 +709,44 @@ class Snake {
             offset = getNick(Bit8, offset).offset;
             this.network.send(Bit8);
         }
-        var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
-        Bit8.setUint8(0, MessageTypes.SendEntities);
-        var offset = 1;
-        Bit8.setUint16(offset, this.id, true);
-        offset = offset + 2;
-        Bit8.setUint8(offset, 2, true);
-        offset = offset + 1;
-        Bit8.setUint16(offset, killedByID, true);
-        offset = offset + 2;
-        Bit8.setUint8(offset, reason);
-        offset = offset + 1;
-        Bit8.setFloat32(offset, this.position.x, true); //Kill position X
-        offset = offset + 4;
-        Bit8.setFloat32(offset, this.position.y, true); //Kill position Y
-        offset = offset + 4;
-        
-        this.network.send(Bit8);
+        delete this.loadedEntities[this.id]
         // Update other snakes
         
         if (!this.spawned) {
             return
         }
         Object.values(clients).forEach((snake) => {
-            if (snake.id != this.id) {
-                
+            //if (snake.id != this.id) {
+            console.log("Deleting snake " + this.id + " from " + snake.id)
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, MessageTypes.SendEntities);
                 var offset = 1;
                 
                 Bit8.setUint16(offset, this.id, true);
-                offset = offset + 2;
+                offset += 2;
                 Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
-                offset = offset + 1;
+                offset += 1;
                 Bit8.setUint16(offset, killedByID, true);
-                offset = offset + 2;
+                offset += 2;
                 Bit8.setUint8(offset, reason);
-                offset = offset + 1;
+                offset += 1;
                 Bit8.setFloat32(offset, this.position.x, true); //Kill position X
-                offset = offset + 4;
+                offset += 4;
                 Bit8.setFloat32(offset, this.position.y, true); //Kill position Y
-                offset = offset + 4;
+                offset += 4;
 
                 // King
                 Bit8.setUint16(offset, 0, true);
-                offset = offset + 2;
+                offset += 2;
                 Bit8.setUint16(offset, king && king.id || 0, true);
-                offset = offset + 2;
+                offset += 2;
                 Bit8.setFloat32(offset, king && king.position.x || 0, true);
-                offset = offset + 4;
+                offset += 4;
                 Bit8.setFloat32(offset, king && king.position.y || 0, true);
-                offset = offset + 4;
+                offset += 4;
                 snake.network.send(Bit8);
-            }
+                delete snake.loadedEntities[this.id]
+            //}
         });
 
 
@@ -526,6 +774,7 @@ class Snake {
 
         this.spawned = false;
         delete snakes[this.id];
+        delete entities[this.id]
 
     }
     doPong() {
@@ -544,7 +793,7 @@ class Snake {
         /* CALCULATING TOTAL BITS */
         var calculatedTotalBits = 1;
         Object.values(entities).forEach((entity) => {
-            if (entity.position) {
+            if (entity.position && entity.spawned) {
                 calculatedTotalBits += 2 + 1;
                 switch (updateType) {
                     case UpdateTypes.OnUpdate:
@@ -614,17 +863,29 @@ class Snake {
                                 break
                         }
                         break
+                    case UpdateTypes.OnRemove:
+                        calculatedTotalBits += 2 + 1
+                        
+                        switch (entity.type) {
+                            case EntityTypes.Player:
+                                calculatedTotalBits += 4 + 4;
+                                break
+                            case EntityTypes.Item:
+
+                                break
+                        }
+                        break
                 }
             }
         })
-        calculatedTotalBits += 2 + 2 + 4 + 4;
+        calculatedTotalBits += 2 + 2 + 4 + 4; // King bits
         var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
         Bit8.setUint8(0, MessageTypes.SendEntities);
         var offset = 1;
         
 
         Object.values(entities).forEach((entity) => {
-            if (entity.position) {
+            if (entity.position  && entity.spawned) {
                 Bit8.setUint16(offset, entity.id, true);
                 offset += 2;
                 Bit8.setUint8(offset, updateType, true);
@@ -821,19 +1082,19 @@ class Snake {
 
                         break;
                     case UpdateTypes.OnRemove:
+                        Bit8.setUint16(offset, entity.id, true);
+                        offset += 2;
+                        Bit8.setUint8(offset, KillReasons.LeftScreen, true);
+                        offset += 1;
+                        delete this.loadedEntities[entity.id]
                         switch (entity.type) {
                             case EntityTypes.Player:
-                                Bit8.setUint16(offset, entity.id, true);
-                                offset += 2;
-                                Bit8.setUint8(offset, reason, true);
-                                offset += 1;
                                 Bit8.setFloat32(offset, entity.position.x, true);
                                 offset += 4;
                                 Bit8.setFloat32(offset, entity.position.y, true);
                                 offset += 4;
                                 break
                             case EntityTypes.Item:
-
                                 break
                         }
                         break;
@@ -841,13 +1102,14 @@ class Snake {
             }
         })
         Bit8.setUint16(offset, 0, true);
-        offset = offset + 2;
+        offset += 2;
         Bit8.setUint16(offset, king && king.id || 0, true);
-        offset = offset + 2;
+        offset += 2;
         Bit8.setFloat32(offset, king && king.position.x || 0, true);
-        offset = offset + 4;
+        offset += 4;
         Bit8.setFloat32(offset, king && king.position.y || 0, true);
-        offset = offset + 4;
+        offset += 4;
+        
       this.network.send(Bit8);
     }
     DrawDebugCircle(x, y, color) {
@@ -1225,19 +1487,29 @@ function UpdateArena() { // Main update loop
     });
 }
 
+function entitiesNearSnake(snake, radius) { // Returns entities near snake and loaded entities that are not in radius
+    let entitiesInRadius = entitiesWithinRadius([snake.position.x, snake.position.y], Object.values(entities), radius);
+    let loadedEntities = Object.values(snake.loadedEntities);
+    let entitiesToAdd = entitiesInRadius.filter(entity => !loadedEntities.includes(entity));
+    let entitiesToRemove = loadedEntities.filter(entity => !entitiesInRadius.includes(entity));
+    return { entitiesToAdd, entitiesToRemove };
+}
+
 async function main() {
     UpdateArena()
 
     Object.values(clients).forEach(function (snake) {
         if (snake.spawned) {
             Object.values(entities).forEach(function (food) {
-                // Check if snake is near food
-                let distance = Math.sqrt(
-                    Math.pow(snake.position.x - food.position.x, 2) +
-                    Math.pow(snake.position.y - food.position.y, 2)
-                );
-                if (distance < 4) {
-                    food.eat(snake);
+                if (food.type == EntityTypes.Item) {
+                    // Check if snake is near food
+                    let distance = Math.sqrt(
+                        Math.pow(snake.position.x - food.position.x, 2) +
+                        Math.pow(snake.position.y - food.position.y, 2)
+                    );
+                    if (distance < 4) {
+                        food.eat(snake);
+                    }
                 }
             });
             if (snake.talkStamina < 255) {
@@ -1298,10 +1570,19 @@ async function main() {
 
     Object.values(clients).forEach(function (snake) {
         if (snake.id) {
-            snake.update(UpdateTypes.OnRender, [...Object.values(queuedEntityRenders), ...Object.values(snake.queuedEntityRenders)])
-            snake.update(UpdateTypes.OnUpdate, [...Object.values(queuedEntityUpdates), ...Object.values(snake.queuedEntityUpdates)])
-            snake.queuedEntityRenders = {};
-            snake.queuedEntityUpdates = {};
+            let entQuery = entitiesNearSnake(snake, 50);
+            let nearbyEntities = entQuery.entitiesToAdd;
+            let removeEntities = entQuery.entitiesToRemove;
+
+            if (snake && !snake.loadedEntities[snake.id])
+                nearbyEntities.unshift(snake)
+            snake.update(UpdateTypes.OnRender, nearbyEntities);
+            snake.update(UpdateTypes.OnRemove, removeEntities)
+
+            Object.values(snake.loadedEntities).forEach(function (entity) {
+                if (entity.type == EntityTypes.Player)
+                    snake.update(UpdateTypes.OnUpdate, [entity]);
+            })
         }
     })
     Object.values(snakes).forEach(function (snake) {
