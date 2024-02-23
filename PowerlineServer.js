@@ -34,7 +34,7 @@ var updateDuration = 100
 var UPDATE_EVERY_N_TICKS = 3;
 let maxBoostSpeed = 255;
 let maxRubSpeed = 200;
-var foodValue = 1.5;
+var foodValue = 1.5*3//1.5;
 var scoreMultiplier = 10/foodValue;
 var defaultLength = 10;
 var king = null;
@@ -338,7 +338,7 @@ class Food {
     spawned = true
     value = foodValue;
     lastUpdate = Date.now();
-  constructor(x, y, color, origin) {
+  constructor(x, y, color, origin, timeToLive = 5000+(Math.random()*60*1000*5)) {
     entities[lastEntityId] = this;
     if (x == undefined) 
           this.position = GetRandomPosition();
@@ -353,7 +353,7 @@ class Food {
     lastEntityId++;
       setTimeout(() => {
           this.eat();
-      }, 5000+Math.random() * 60000);
+      }, timeToLive);
     return this;
     }
     
@@ -761,7 +761,7 @@ class Snake {
                 nextPoint = this.position;
             else
                 nextPoint = getPointAtDistance(this, i + 1);
-            let food = new Food(point.x, point.y, this.color - 25 + Math.random() * 50, this);
+            let food = new Food(point.x, point.y, this.color - 25 + Math.random() * 50, this, 20000 + (Math.random() * 60 * 1000 * 5));
             
             // Move food forward the direction that the line was going
             
