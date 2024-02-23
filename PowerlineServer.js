@@ -37,124 +37,6 @@ var scoreMultiplier = 10/foodValue;
 var defaultLength = 10;
 var king = null;
 
-class Quadtree {
-    constructor(bounds, capacity) {
-        this.bounds = bounds;
-        this.capacity = capacity;
-        this.points = [];
-        this.children = [];
-    }
-
-    insert(point) {
-        if (!this.bounds.contains(point)) {
-            return false;
-        }
-
-        if (this.points.length < this.capacity) {
-            this.points.push(point);
-            return true;
-        }
-
-        if (!this.children.length) {
-            this.subdivide();
-        }
-
-        for (const child of this.children) {
-            if (child.insert(point)) {
-                return true;
-            }
-        }
-
-        // Point cannot be inserted (should never happen in this example)
-        return false;
-    }
-
-    subdivide() {
-        const { x, y, width, height } = this.bounds;
-        const halfWidth = width / 2;
-        const halfHeight = height / 2;
-
-        this.children.push(
-            new Quadtree(new BBounds(x, y, halfWidth, halfHeight), this.capacity),
-            new Quadtree(new BBounds(x + halfWidth, y, halfWidth, halfHeight), this.capacity),
-            new Quadtree(new BBounds(x, y + halfHeight, halfWidth, halfHeight), this.capacity),
-            new Quadtree(new BBounds(x + halfWidth, y + halfHeight, halfWidth, halfHeight), this.capacity)
-        )
-
-        for (const point of this.points) {
-            for (const child of this.children) {
-                if (child.insert(point)) {
-                    break;
-                }
-            }
-        }
-
-        this.points = [];
-    }
-
-    queryRange(range, found) {
-        if (!found) {
-            found = [];
-        }
-
-        if (!this.bounds.intersects(range)) {
-            return found;
-        }
-
-        for (const point of this.points) {
-            if (range.contains(point)) {
-                found.push(point);
-            }
-        }
-
-        for (const child of this.children) {
-            child.queryRange(range, found);
-        }
-
-        return found;
-    }
-}
-
-class BBounds {
-    constructor(x, y, width, height) {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-    }
-
-    contains(point) {
-        return (
-            point[0] >= this.x &&
-            point[0] <= this.x + this.width &&
-            point[1] >= this.y &&
-            point[1] <= this.y + this.height
-        );
-    }
-
-    intersects(otherBounds) {
-        return !(
-            otherBounds.x > this.x + this.width ||
-            otherBounds.x + otherBounds.width < this.x ||
-            otherBounds.y > this.y + this.height ||
-            otherBounds.y + otherBounds.height < this.y
-        );
-    }
-}
-
-function pointsWithinRadius(center, points, radius) {
-    const quadtreeBounds = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
-    const quadtree = new Quadtree(quadtreeBounds, 4);
-
-    for (const point of points) {
-        quadtree.insert(point);
-    }
-
-    const range = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
-
-    return quadtree.queryRange(range);
-}
-
 class QuadEntityTree {
     constructor(bounds, capacity) {
         this.bounds = bounds;
@@ -220,17 +102,20 @@ class QuadEntityTree {
         }
 
         for (const entity of this.entities) {
-            if (entity.type == EntityTypes.Player) {
-                for (const point of entity.points) {
-                    if (range.contains([point.x, point.y])) {
+            let alreadyAdded = false;
+            if (entity.type === EntityTypes.Player) {
+                for (let i = 0; i < entity.points.length - 1; i++) {
+                    const point = entity.points[i];
+                    const nextPoint = entity.points[i + 1];
+                    if (this.intersectsCircle(point, nextPoint, range)) {
                         found.push(entity);
+                        alreadyAdded = true;
                         break;
                     }
                 }
-            } else {
-                if (range.contains([entity.position.x, entity.position.y])) {
-                    found.push(entity);
-                }
+            }
+            if (!alreadyAdded && range.contains([entity.position.x, entity.position.y])) {
+                found.push(entity);
             }
         }
 
@@ -239,6 +124,23 @@ class QuadEntityTree {
         }
 
         return found;
+    }
+
+    intersectsCircle(pointA, pointB, circle) {
+        const dx = pointB[0] - pointA[0];
+        const dy = pointB[1] - pointA[1];
+        const len2 = dx * dx + dy * dy;
+        const dot = ((circle.x - pointA[0]) * dx + (circle.y - pointA[1]) * dy) / len2;
+        const closestX = pointA[0] + dot * dx;
+        const closestY = pointA[1] + dot * dy;
+
+        if (closestX < Math.min(pointA[0], pointB[0]) || closestX > Math.max(pointA[0], pointB[0]) ||
+            closestY < Math.min(pointA[1], pointB[1]) || closestY > Math.max(pointA[1], pointB[1])) {
+            return false;
+        }
+
+        const distanceSquared = (circle.x - closestX) * (circle.x - closestX) + (circle.y - closestY) * (circle.y - closestY);
+        return distanceSquared <= circle.radius * circle.radius;
     }
 
 }
@@ -268,19 +170,6 @@ class Bounds {
             otherBounds.y + otherBounds.height < this.y
         );
     }
-}
-
-function pointsWithinRadius(center, points, radius) {
-    const quadtreeBounds = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
-    const quadtree = new QuadEntityTree(quadtreeBounds, 4);
-
-    for (const point of points) {
-        quadtree.insert(point);
-    }
-
-    const range = new Bounds(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
-
-    return quadtree.queryRange(range);
 }
 
 function entitiesWithinRadius(center, entities, radius) {
@@ -1574,8 +1463,8 @@ async function main() {
             let nearbyEntities = entQuery.entitiesToAdd;
             let removeEntities = entQuery.entitiesToRemove;
 
-            if (snake && !snake.loadedEntities[snake.id])
-                nearbyEntities.unshift(snake)
+            //if (snake && !snake.loadedEntities[snake.id])
+                //nearbyEntities.unshift(snake)
             snake.update(UpdateTypes.OnRender, nearbyEntities);
             snake.update(UpdateTypes.OnRemove, removeEntities)
 
