@@ -1448,7 +1448,7 @@ async function main() {
                         Math.pow(snake.position.x - food.position.x, 2) +
                         Math.pow(snake.position.y - food.position.y, 2)
                     );
-                    if (distance < 4) {
+                    if (distance < 3) {
                         food.eat(snake);
                     }
                 }
