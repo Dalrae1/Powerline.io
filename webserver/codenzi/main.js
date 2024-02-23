@@ -264,6 +264,7 @@ updateCountryCode();
 let button = document.getElementsByClassName(`${countryCode}`)[0]
 if (!button)
 	countryCode = "CU"
+button = document.getElementsByClassName(`${countryCode}`)[0]
 button.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
 
 var runLoop = function() {
