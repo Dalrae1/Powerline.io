@@ -123,7 +123,7 @@ var Network = function() {
 			network.remoteHost = `${actualDomain}`
 			let fullhost
 			if (isSecure)
-				fullhost = `wss://${network.remoteHost}:${port+1}`;
+				fullhost = `wss://${network.remoteHost}:${Number(port)+1}`;
 			else
 				fullhost = `ws://${network.remoteHost}:${port}`;
 			console.log('Connecting to ' + fullhost + '...');
