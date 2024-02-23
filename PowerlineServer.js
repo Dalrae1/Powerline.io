@@ -645,7 +645,6 @@ class Snake {
             offset = getNick(Bit8, offset).offset;
             this.network.send(Bit8);
         }
-        delete this.loadedEntities[this.id]
         // Update other snakes
         
         if (!this.spawned) {
