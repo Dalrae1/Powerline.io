@@ -1003,7 +1003,7 @@ class Snake {
 
                         break;
                     case UpdateTypes.OnRemove:
-                        Bit8.setUint16(offset, entity.id, true);
+                        Bit8.setUint16(offset, 0, true); // Set to 0 to disable sounds
                         offset += 2;
                         Bit8.setUint8(offset, KillReasons.LeftScreen, true);
                         offset += 1;
