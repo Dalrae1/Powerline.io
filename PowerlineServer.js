@@ -114,7 +114,6 @@ class QuadEntityTree {
                 alreadyAdded = true;
             }
             if (entity.type == EntityTypes.Player)
-                console.log(`CheckID: ${checksnake.id} Type: ${entity.type} AlreadyAdded: ${alreadyAdded} ID: ${entity.id}`)
             if (entity.type === EntityTypes.Player && !alreadyAdded) {
                 for (let i = -1; i < entity.points.length - 1; i++) {
                     let point;
