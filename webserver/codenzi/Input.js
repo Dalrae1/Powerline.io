@@ -108,7 +108,7 @@ var Input = function () {
       }
     }
 
-    if (false) {
+    if (true) {
       if (e.keyCode == 73) {
         // i
         console.log("AL: " + antiLagEnabled);
@@ -288,9 +288,9 @@ var Input = function () {
       toggleSound();
     } else if (e.keyCode == 90 && debug) {
       // 'z'
-      //if(isInGame){
-      //zoomOut = !zoomOut;
-      //}
+      if(isInGame){
+         zoomOut = !zoomOut;
+      }
     }
     if (directionPresses > 2) {
       arrows = 1;
