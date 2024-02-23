@@ -330,18 +330,15 @@ class Food {
           this.eat();
       }, 5000+Math.random() * 60000);
     return this;
-  }
+    }
+    
     eat(snake) {
         this.spawned = false
         if (snake && this.origin == snake.id) {
             return;
         }
         if (snake) {
-            snakes[snake.id].extraSpeed += 2;
-            if (snake.extraSpeed > maxBoostSpeed && !snake.speedBypass)
-                snakes[snake.id].extraSpeed = maxBoostSpeed;
-            snakes[snake.id].speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
-
+            snake.setExtraSpeed(snake.extraSpeed + 5)
         }
         
         Object.values(clients).forEach((snakee) => {
@@ -411,6 +408,22 @@ class Snake {
     }
     windowSizeX = 128;
     windowSizeY = 64;
+
+    setExtraSpeed(speed) {
+        this.speeding = true
+        this.extraSpeed += 1
+        this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+        if (this.extraSpeed > maxBoostSpeed && !this.speedBypass)
+                this.extraSpeed = maxBoostSpeed;
+        if (this.extraSpeed < speed) {
+            setTimeout(() => {
+                this.setExtraSpeed(speed)
+            }, updateDuration * 2)
+        } else {
+            this.speeding = false
+        }
+        
+    }
     sendConfig() {
         var Bit8 = new DataView(new ArrayBuffer(49));
         let cfgType = MessageTypes.SendConfig;
@@ -538,6 +551,7 @@ class Snake {
     }
     rubAgainst(snake, distance) {
         this.flags |= EntityFlags.IsRubbing;
+        this.speeding = true
         this.RubSnake = snake.id;
 
         let rubSpeed = 4/distance
@@ -550,12 +564,13 @@ class Snake {
     }
     stopRubbing() {
         this.flags &= ~EntityFlags.IsRubbing;
-        this.RubSnake = null;
+        this.speeding = false
+        /*this.RubSnake = null;
         if (this.extraSpeed > 0)
             this.extraSpeed -= 1
         if (this.speedBypass && this.extraSpeed < maxBoostSpeed)
             this.speedBypass = false;
-        this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+        this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);*/
     }
     kill(reason, killedByID) {
         if (this.invincible)
@@ -1432,6 +1447,14 @@ function UpdateArena() { // Main update loop
         })
         if (!shouldRub) {
           snake.stopRubbing();
+        }
+
+        if (!snake.speeding) {
+            if (snake.extraSpeed > 0) {
+                snake.extraSpeed -= 1;
+                snake.speed = 0.25 + snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+            }
+
         }
         queuedEntityUpdates[snake.id] = snake;
     });
