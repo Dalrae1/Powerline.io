@@ -18,7 +18,11 @@ if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
     server.listen(1338);
     
 }
-var admins = ["73.96.77.58", "127.0.0.1"]
+var admins = [
+    "73.96.77.58",
+    "127.0.0.1",
+    "64.112.210.252"
+]
 const wss = new WebSocket.Server({ port: 1337});
 var snakes = {}
 var entities = {}
@@ -242,6 +246,14 @@ function getScoreToDrop(length) {
 
 function scoreToFood(score) {
     return Math.floor(score / 10)
+}
+function lengthToScore(length) {
+    return (length - defaultLength)*scoreMultiplier
+}
+function scoreToLength(score) {
+    return score/scoreMultiplier
+
+
 }
 
 const MessageTypes = Object.freeze({
@@ -764,12 +776,13 @@ class Snake {
 
             let amountDispersion = 2;
             let speedMultiplier = 2;
-            let easingRandomX = Math.random() * (amountDispersion - (amountDispersion/2));
-            easingRandomX += direction.x * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier;
+            let easingRandomX = Math.random() * (amountDispersion - (amountDispersion / 2));
+            easingRandomX += (direction.x * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier);
             let easingRandomY = Math.random() * (amountDispersion - (amountDispersion/2));
-            easingRandomY += direction.y * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier;
+            easingRandomY += (direction.y * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier);
             easeOut(food, { x: point.x + easingRandomX, y: point.y + easingRandomY }, 5000);
         }
+        
         
 
 
@@ -1185,15 +1198,22 @@ class Snake {
                 this.windowSizeY = view.getUint16(3, true) / 2;
             case MessageTypes.RecieveBoost:
                 if (admins.includes(this.ip)) {
-                    this.extraSpeed += 2;
-                    if (this.extraSpeed > maxBoostSpeed)
-                        this.speedBypass = true
-                    this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+                    let boosting = view.getUint8(1) == 1
+                    if (boosting) {
+                        this.extraSpeed += 2;
+                        if (this.extraSpeed > maxBoostSpeed)
+                            this.speedBypass = true
+                        this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+                    } else {
+                        this.speedBypass = false;
+                        if (this.extraSpeed > maxBoostSpeed)
+                            this.extraSpeed = maxBoostSpeed
+                    }
                 }
                 break;
             case MessageTypes.RecieveDebugFoodGrab:
                 if (admins.includes(this.ip))
-                    this.length += 1000;
+                    this.length += scoreToLength(1000);
                 break;
             case 0x0d: // Invincible
                 if (admins.includes(this.ip))

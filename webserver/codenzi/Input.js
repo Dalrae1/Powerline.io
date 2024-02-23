@@ -7,6 +7,8 @@ var Input = function() {
 	var lastDirection;
 	var directionPresses = 0;
 	var mouseMoveEvents = 0;
+	var boosting = false
+	var invincible = false;
 
 	input.mousedown = function(e) {
 		if(UIVisible)
@@ -68,8 +70,19 @@ var Input = function() {
 		if(UIVisible)
 			return;
 
-		if(e.keyCode == 32 /* Space */ ) {
+		if (e.keyCode == 32 /* Space */) {
+			boosting = false
 			// Boost
+			boosting = true
+			function boostLoop() {
+				if (boosting) {
+					network.sendBoost(true);
+					setTimeout(boostLoop, 100);
+				}
+				else
+					network.sendBoost(false);
+			}
+			boostLoop()
 			//network.sendBoost(true);
 			if(arrows != undefined && arrows != 0)
 				spacePressedShowTutorialTime = 1000;
@@ -161,6 +174,15 @@ var Input = function() {
 					network.sendDirection();
 				}
 			}
+		}
+		if (e.keyCode == 71) { // G
+			network.debugFoodGrab();
+		} else if (e.keyCode == 80) { // P
+			
+			invincible = !invincible;
+			network.sendInvincible(invincible);
+			
+			hud.showTip(invincible && "Invincible" || "Not Invincible");
 		}
 		
 		if(debug)
@@ -278,7 +300,8 @@ var Input = function() {
 
 		if(e.keyCode == 32) // Space
 		{
-			//network.sendBoost(false);
+			boosting = false
+			network.sendBoost(false);
 		}else if(e.keyCode == 38){ // Up
 		}else if(e.keyCode == 37){ // Left
 		}else if(e.keyCode == 40){ // Down

@@ -811,6 +811,15 @@ var Network = function() {
 
 		webSocket.send(buf);
 	}
+	this.sendInvincible = function (invincible) {
+		var buf = new ArrayBuffer(1 + 1);
+		var view = new DataView(buf);
+		view.setUint8(0, 0x0d);
+		if (invincible) view.setUint8(1, 0x1);
+		else view.setUint8(1, 0x0);
+
+		webSocket.send(buf);
+	}
 	/*
 	this.sendClick = function(shooting) {
 		var buf = new ArrayBuffer(1 + 1);
