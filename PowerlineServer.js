@@ -233,6 +233,16 @@ function entitiesWithinRadius(center, entities, checksnake) {
     return entitiesFound;
 }
 
+function getScoreToDrop(length) {
+    let score = (length - defaultLength)*scoreMultiplier
+    let x = Math.ceil(Math.random() * 30 * 10) / 10
+    return Math.floor(((score - (score - x) / 6) + 70) / 10) * 10
+}
+
+function scoreToFood(score) {
+    return Math.floor(score / 10)
+}
+
 const MessageTypes = Object.freeze({
     // Server Messages
     SendPingInfo: 0,
@@ -676,6 +686,8 @@ class Snake {
 
 
         // Every 5 unit convert to 1 food
+        
+        
 
         let actualLength = 0
         for (let i = -1; i < this.points.length - 1; i++) {
@@ -687,12 +699,12 @@ class Snake {
           let segmentLength = getSegmentLength(point, nextPoint);
           actualLength += segmentLength;
         }
-
-        for (let i = 0; i < actualLength; i+=2) {
+        let scoreToDrop = getScoreToDrop(actualLength);
+        let foodToDrop = scoreToFood(scoreToDrop);
+        let dropAtInterval = actualLength / (foodToDrop);
+        for (let i = 0; i < actualLength; i += dropAtInterval) {
             let point = getPointAtDistance(this, i);
-
-            new Food(point.x, point.y, this.color - 25 +Math.random()*50, this);
-
+            new Food(point.x, point.y, this.color - 25 + Math.random() * 50, this);
         }
 
 
