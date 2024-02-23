@@ -364,7 +364,13 @@ class Food {
             return;
         }
         if (snake) {
-            snake.setExtraSpeed(snake.extraSpeed + 5)
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    snake.extraSpeed += 2;
+                    if (snake.extraSpeed > maxBoostSpeed)
+                        snake.extraSpeed = maxBoostSpeed;
+                }, updateDuration * 2 * i)
+            }
         }
         
         Object.values(clients).forEach((snakee) => {
@@ -433,19 +439,6 @@ class Snake {
     }
     windowSizeX = 128;
     windowSizeY = 64;
-
-    setExtraSpeed(speed) {
-        if (this.extraSpeed + 1 <= maxBoostSpeed || this.speedBypass) {
-            this.extraSpeed += 2
-            this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
-        }
-        if (this.extraSpeed < speed) {
-            setTimeout(() => {
-                this.setExtraSpeed(speed)
-            }, updateDuration * 2)
-        }
-        
-    }
     sendConfig() {
         var Bit8 = new DataView(new ArrayBuffer(49));
         let cfgType = MessageTypes.SendConfig;
