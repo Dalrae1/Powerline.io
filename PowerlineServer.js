@@ -1109,11 +1109,11 @@ class Snake {
                 this.windowSizeY = view.getUint16(3, true)/2;
                 break;
             case MessageTypes.RecieveHello:
-                this.windowSizeX = view.getUint16(1, true);
-                this.windowSizeY = view.getUint16(3, true);
+                this.windowSizeX = view.getUint16(1, true)/2;
+                this.windowSizeY = view.getUint16(3, true)/2;
             case MessageTypes.RecieveDebugHello:
-                this.windowSizeX = view.getUint16(1, true);
-                this.windowSizeY = view.getUint16(3, true);
+                this.windowSizeX = view.getUint16(1, true)/2;
+                this.windowSizeY = view.getUint16(3, true)/2;
 
         }
     }
