@@ -327,9 +327,7 @@ class Food {
         this.origin = origin.id;
     lastEntityId++;
       setTimeout(() => {
-          //this.eat();
-          
-        
+          this.eat();
       }, 5000+Math.random() * 60000);
     return this;
   }
@@ -682,8 +680,7 @@ class Snake {
           actualLength += segmentLength;
         }
 
-        //for (let i = 0; i < actualLength; i+=2) {
-        for (let i = 0; i < actualLength; i+=1) {
+        for (let i = 0; i < actualLength; i+=2) {
             let point = getPointAtDistance(this, i);
 
             new Food(point.x, point.y, this.color - 25 +Math.random()*50, this);
