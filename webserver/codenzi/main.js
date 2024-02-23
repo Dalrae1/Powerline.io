@@ -261,6 +261,7 @@ var updateCountryCode = function(){
 }
 
 updateCountryCode();
+document.querySelector(`.${countryCode || "US"}`).style.backgroundColor = "rgba(0, 0, 0, 0.5)";
 
 var runLoop = function() {
 	now = +new Date();
