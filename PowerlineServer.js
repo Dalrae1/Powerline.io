@@ -122,7 +122,7 @@ class QuadEntityTree {
                     else
                         point = entity.points[i];
                     let nextPoint = entity.points[i + 1];
-                    if (this.intersectsCircle(point, nextPoint, {x: range.centerX, y: range.centerY}, range.radius)) {
+                    if (this.lineInsideOrIntersectsRectangle(point, nextPoint, {x: range.centerX, y: range.centerY}, range.width, range.height)) {
                         found.push(entity);
                         break;
                     }
@@ -137,42 +137,54 @@ class QuadEntityTree {
 
         return found;
     }
-    intersectsCircle(lineStart, lineEnd, circleCenter, circleRadius) {
-        // Calculate the vector representing the line
-        const lineVector = [lineEnd.x - lineStart.x, lineEnd.y - lineStart.y];
-
-        // Vector from one endpoint of the line to the circle's center
-        const lineToCircle = [circleCenter.x - lineStart.x, circleCenter.y - lineStart.y];
-
-        // Calculate the length of the line segment
-        const lineLength = Math.sqrt(lineVector[0] * lineVector[0] + lineVector[1] * lineVector[1]);
-
-        // Normalize the line vector
-        const normalizedLineVector = [lineVector[0] / lineLength, lineVector[1] / lineLength];
-
-        // Calculate the projection of the vector from one endpoint of the line to the circle's center onto the line
-        const projection = normalizedLineVector[0] * lineToCircle[0] + normalizedLineVector[1] * lineToCircle[1];
-
-        // If the projection is less than 0 or greater than the length of the line segment,
-        // then the closest point on the line to the circle is outside the line segment
-        if (projection < 0 || projection > lineLength) {
-            return false;
-        }
-
-        // Calculate the closest point on the line to the circle's center
-        const closestPoint = {
-            x: lineStart.x + normalizedLineVector[0] * projection,
-            y: lineStart.y + normalizedLineVector[1] * projection
+    lineInsideOrIntersectsRectangle(lineStart, lineEnd, center, width, height) {
+        const rectangle = {
+            x: center.x - width / 2,
+            y: center.y - height / 2,
+            width: width,
+            height: height
         };
 
-        // Calculate the distance between the closest point and the circle's center
-        const distanceToCircleCenter = Math.sqrt(
-            (circleCenter.x - closestPoint.x) ** 2 + (circleCenter.y - closestPoint.y) ** 2
-        );
+        // Check if either endpoint of the line segment is inside the rectangle
+        if (this.pointInsideRectangle(lineStart, rectangle) || this.pointInsideRectangle(lineEnd, rectangle)) {
+            return true;
+        }
 
-        // If the distance to the circle's center is less than or equal to the circle's radius,
-        // then there is an intersection
-        return distanceToCircleCenter <= circleRadius;
+        // Check if the line segment intersects any of the sides of the rectangle
+        const rectangleEdges = [
+            [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y }], // Top edge
+            [{ x: rectangle.x + rectangle.width, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }], // Right edge
+            [{ x: rectangle.x, y: rectangle.y + rectangle.height }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }], // Bottom edge
+            [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x, y: rectangle.y + rectangle.height }] // Left edge
+        ];
+
+        for (const edge of rectangleEdges) {
+            if (this.lineSegmentsIntersect(lineStart, lineEnd, edge[0], edge[1])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Function to check if a point is inside a rectangle
+    pointInsideRectangle(point, rectangle) {
+        return point.x >= rectangle.x &&
+            point.x <= rectangle.x + rectangle.width &&
+            point.y >= rectangle.y &&
+            point.y <= rectangle.y + rectangle.height;
+    }
+
+    // Function to check if two line segments intersect
+    lineSegmentsIntersect(line1Start, line1End, line2Start, line2End) {
+        const det = (line1End.x - line1Start.x) * (line2End.y - line2Start.y) - (line2End.x - line2Start.x) * (line1End.y - line1Start.y);
+        if (det === 0) {
+            return false;
+        } else {
+            const lambda = ((line2End.y - line2Start.y) * (line2End.x - line1Start.x) + (line2Start.x - line2End.x) * (line2End.y - line1Start.y)) / det;
+            const gamma = ((line1Start.y - line1End.y) * (line2End.x - line1Start.x) + (line1End.x - line1Start.x) * (line2End.y - line1Start.y)) / det;
+            return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+        }
     }
 
 }
