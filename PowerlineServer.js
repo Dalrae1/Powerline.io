@@ -729,7 +729,7 @@ class Snake {
         Object.values(entities).forEach((entity) => {
             if (
                 entity.position && entity.spawned &&
-                (((updateType == UpdateTypes.OnUpdate || updateType == UpdateTypes.OnRender) && this.loadedEntities[entity.id]) || updateType == UpdateTypes.OnRender) // Make sure that entity is rendered before making updates
+                (((updateType == UpdateTypes.OnUpdate || updateType == UpdateTypes.OnRemove) && this.loadedEntities[entity.id]) || updateType == UpdateTypes.OnRender) // Make sure that entity is rendered before making updates
             ) {
                 calculatedTotalBits += 2 + 1;
                 switch (updateType) {
@@ -763,7 +763,6 @@ class Snake {
                         }
                         break
                     case UpdateTypes.OnRender:
-                        this.loadedEntities[entity.id] = entity;
                         calculatedTotalBits += 1 + 1
                         if (entity.type == EntityTypes.Player)
                             calculatedTotalBits += (1 + entity.nick.length) * 2;
@@ -824,7 +823,7 @@ class Snake {
         Object.values(entities).forEach((entity) => {
             if (
                 entity.position && entity.spawned &&
-                (((updateType == UpdateTypes.OnUpdate || updateType == UpdateTypes.OnRender) && this.loadedEntities[entity.id]) || updateType == UpdateTypes.OnRender) // Make sure that entity is rendered before making updates
+                (((updateType == UpdateTypes.OnUpdate || updateType == UpdateTypes.OnRemove) && this.loadedEntities[entity.id]) || updateType == UpdateTypes.OnRender) // Make sure that entity is rendered before making updates
             ) {
                 Bit8.setUint16(offset, entity.id, true);
                 offset += 2;
@@ -1018,7 +1017,7 @@ class Snake {
                                 break;
 
                         }
-
+                        this.loadedEntities[entity.id] = entity;
 
                         break;
                     case UpdateTypes.OnRemove:
@@ -1514,6 +1513,7 @@ async function main() {
             let entQuery = entitiesNearSnake(snake, 40);
             let nearbyEntities = entQuery.entitiesToAdd;
             let removeEntities = entQuery.entitiesToRemove;
+            console.log(nearbyEntities.length, removeEntities.length)
 
             //if (snake && !snake.loadedEntities[snake.id])
                 //nearbyEntities.unshift(snake)
