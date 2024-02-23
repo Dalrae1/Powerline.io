@@ -34,7 +34,7 @@ var updateDuration = 100
 var UPDATE_EVERY_N_TICKS = 3;
 let maxBoostSpeed = 255;
 let maxRubSpeed = 200;
-var foodValue = 1.5*3//1.5;
+var foodValue = 1.5;
 var scoreMultiplier = 10/foodValue;
 var defaultLength = 10;
 var king = null;
@@ -336,7 +336,7 @@ class Food {
     subtype = EntitySubtypes.Food;
     position = { x: 0, y: 0 };
     spawned = true
-    value = foodValue;
+    value = foodValue*3;
     lastUpdate = Date.now();
   constructor(x, y, color, origin, timeToLive = 5000+(Math.random()*60*1000*5)) {
     entities[lastEntityId] = this;
