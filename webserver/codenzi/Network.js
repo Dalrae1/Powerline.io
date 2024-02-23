@@ -116,6 +116,22 @@ var Network = function() {
 			setTimeout(network.getServerAndConnect, 200);
 			return;
 		}
+		if (cc == "CU") {
+			let actualDomain = window.location.href.split('/')[2].split(":")[0];
+			network.remoteHost = `${actualDomain}`
+			let fullhost
+			if (isSecure)
+				fullhost = `wss://${network.remoteHost}:1338`;
+			else
+				fullhost = `ws://${network.remoteHost}:1337`;
+			webSocket = new WebSocket(fullhost);
+			webSocket.binaryType 	= "arraybuffer";
+			webSocket.onopen 		= network.onSocketOpen;
+			webSocket.onclose		= network.onSocketClose;
+			webSocket.onmessage 	= network.onSocketMessage;
+			webSocket.onerror = network.onError;
+			return
+		}
 
 		var s = '';
 		if(isSecure)
