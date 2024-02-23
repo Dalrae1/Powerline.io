@@ -34,6 +34,7 @@ var Network = function () {
   var OPCODE_DEBUG_GRAB = 0x09;
   var OPCODE_BIG_PICTURE = 0x0b;
   var OPCODE_TALK = 0x0c;
+  var OPCODE_INVINCIBLE = 0x0d;
 
   // Server -> Client
   var OPCODE_SC_PONG = 0x01;
@@ -730,6 +731,16 @@ var Network = function () {
     view.setUint8(offset, flags, true);
     webSocket.send(buf);
   };
+
+  this.sendInvincible = function (invincible) {
+    var buf = new ArrayBuffer(1 + 1);
+    var view = new DataView(buf);
+    view.setUint8(0, OPCODE_INVINCIBLE);
+    if (invincible) view.setUint8(1, 0x1);
+    else view.setUint8(1, 0x0);
+
+    webSocket.send(buf);
+  }
 
   this.sendDirection = function () {
     var buf = new ArrayBuffer(1 + 1 + 1);

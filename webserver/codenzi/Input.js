@@ -7,6 +7,7 @@ var Input = function () {
   var lastDirection;
   var directionPresses = 0;
   var mouseMoveEvents = 0;
+  var invincible = false;
 
   input.mousedown = function (e) {
     if (UIVisible) return;
@@ -173,14 +174,10 @@ var Input = function () {
         network.debugFoodGrab();
       } else if (e.keyCode == 80) {
         // P
-        if (input.direction == DIRECTION_NONE) {
-          input.direction = lastDirection;
-          network.sendDirection();
-        } else {
-          lastDirection = input.direction;
-          input.direction = DIRECTION_NONE;
-          network.sendDirection();
-        }
+        invincible = !invincible;
+        network.sendInvincible(invincible);
+        
+        hud.showTip(invincible && "Invincible" || "Not Invincible");
       }
     }
 

@@ -558,6 +558,8 @@ class Snake {
         this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
     }
     kill(reason, killedByID) {
+        if (this.invincible)
+            return;
         if (killedByID != this.id) {
             if (!snakes[killedByID])
                 return
@@ -1106,6 +1108,11 @@ class Snake {
             case MessageTypes.RecieveDebugFoodGrab:
                 this.length += 1000;
                 break;
+            case 0x0d: // Invincible
+                this.invincible = view.getUint8(1, true) == 1;
+            
+                break;
+                
 
         }
     }
