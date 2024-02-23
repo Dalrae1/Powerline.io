@@ -34,6 +34,7 @@ var foodValue = 1.5;
 var scoreMultiplier = 10/foodValue;
 var defaultLength = 10;
 var king = null;
+var lastUpdate = 0;
 let maxFood = arenaSize * 5;
 let foodSpawnPercent = (arenaSize ^ 2) / 10;
 
@@ -319,11 +320,12 @@ const Directions = Object.freeze({
 })
 
 class Food {
-  type = EntityTypes.Item;
-  subtype = EntitySubtypes.Food;
+    type = EntityTypes.Item;
+    subtype = EntitySubtypes.Food;
     position = { x: 0, y: 0 };
     spawned = true
-  value = foodValue;
+    value = foodValue;
+    lastUpdate = Date.now();
   constructor(x, y, color, origin) {
     entities[lastEntityId] = this;
     if (x == undefined) 
@@ -344,6 +346,7 @@ class Food {
     }
     
     eat(snake) {
+        this.lastUpdate = Date.now();
         this.spawned = false
         if (snake && this.origin == snake.id) {
             return;
@@ -386,9 +389,8 @@ class Food {
             snake.length += this.value;
             snake.lastAte = Date.now();
         }
-        delete entities[this.id];
-        
-  }
+        delete entities[this.id]; 
+    }
 }
 
 for (let i = 0; i < maxFood; i++) {
@@ -685,7 +687,7 @@ class Snake {
         });
 
 
-        // Every 5 unit convert to 1 food
+        // Convert snake to food
         
         
 
@@ -699,13 +701,66 @@ class Snake {
           let segmentLength = getSegmentLength(point, nextPoint);
           actualLength += segmentLength;
         }
+
+        const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+
+        function easeOut(entity, targetPosition, duration) {
+            let startTime = null;
+            const startX = entity.position.x;
+            const startY = entity.position.y;
+            const deltaX = targetPosition.x - startX;
+            const deltaY = targetPosition.y - startY;
+
+            const fps = 60; // frames per second
+            const frameDuration = 1000 / fps;
+
+            const animate = (timestamp) => {
+                if (!startTime) startTime = timestamp;
+                const elapsed = timestamp - startTime;
+                const progress = Math.min(elapsed / duration, 1); // Ensure progress doesn't exceed 1
+
+                // Apply easing function to progress
+                const easedProgress = easeOutCubic(progress);
+
+                // Calculate eased position
+                entity.position.x = startX + deltaX * easedProgress;
+                entity.position.y = startY + deltaY * easedProgress;
+
+                if (progress < 1) {
+                    // Continue animation until duration is reached
+                    setTimeout(() => animate(performance.now()), frameDuration);
+                }
+            };
+
+            // Start animation
+            animate(performance.now());
+        }
+
+
+
         let scoreToDrop = getScoreToDrop(actualLength);
         let foodToDrop = scoreToFood(scoreToDrop);
         let dropAtInterval = actualLength / (foodToDrop);
         for (let i = 0; i < actualLength; i += dropAtInterval) {
             let point = getPointAtDistance(this, i);
-            new Food(point.x, point.y, this.color - 25 + Math.random() * 50, this);
+            if (i < actualLength - 1) {
+                let nextPoint = getPointAtDistance(this, i + 1);
+                let food = new Food(point.x, point.y, this.color - 25 + Math.random() * 50, this);
+                
+                // Move food forward the direction that the line was going
+                
+                let direction = getNormalizedDirection(nextPoint, point);
+
+                let amountDispersion = 2;
+                let speedMultiplier = 2;
+                let easingRandomX = Math.random() * (amountDispersion - (amountDispersion/2));
+                easingRandomX += direction.x * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier;
+                let easingRandomY = Math.random() * (amountDispersion - (amountDispersion/2));
+                easingRandomY += direction.y * this.speed * UPDATE_EVERY_N_TICKS * speedMultiplier;
+                easeOut(food, { x: point.x + easingRandomX, y: point.y + easingRandomY }, 1000);
+            }
         }
+        
 
 
         this.spawned = false;
@@ -1558,9 +1613,13 @@ async function main() {
             Object.values(snake.loadedEntities).forEach(function (entity) {
                 if (entity.type == EntityTypes.Player)
                     snake.update(UpdateTypes.OnUpdate, [entity]);
+                if (entity.type == EntityTypes.Item)
+                    if (entity.lastUpdate < lastUpdate)
+                        snake.update(UpdateTypes.OnUpdate, [entity]);
             })
         }
     })
+    lastUpdate = Date.now();
     Object.values(snakes).forEach(function (snake) {
         snake.updateLeaderboard();
         snake.newPoints = []
