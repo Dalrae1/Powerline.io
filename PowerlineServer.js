@@ -1488,67 +1488,6 @@ function entitiesNearSnake(snake) { // Returns entities near snake and loaded en
 async function main() {
     UpdateArena()
 
-    Object.values(clients).forEach(function (snake) {
-        
-        if (snake.spawned) {
-            Object.values(entities).forEach(function (food) {
-                if (food.type == EntityTypes.Item) {
-                    // Check if snake is near food
-                    let distance = Math.sqrt(
-                        Math.pow(snake.position.x - food.position.x, 2) +
-                        Math.pow(snake.position.y - food.position.y, 2)
-                    );
-                    if (distance < 3) {
-                        food.eat(snake);
-                    }
-                }
-            });
-            if (snake.talkStamina < 255) {
-                snakes[snake.id].talkStamina += 5;
-                if (snake.talkStamina > 255)
-                    snakes[snake.id].talkStamina = 255;
-            }
-        }
-    })
-    
-    
-    
-    Object.values(snakes).forEach(function (snake) {
-
-        /* CALCULATE TAIL LENGTH */
-        let totalPointLength = 0;
-        for (let i = -1; i < snake.points.length - 1; i++) {
-            let point;
-            if (i == -1)
-                point = snake.position;
-            else
-                point = snake.points[i];
-            let nextPoint = snake.points[i + 1];
-
-            let segmentLength = getSegmentLength(point, nextPoint);
-            totalPointLength += segmentLength;
-        }
-        if (totalPointLength > snake.length) {
-            let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
-            let lastPoint = snake.points[snake.points.length - 1] || snake.position;
-            let direction = getNormalizedDirection(secondToLastPoint, lastPoint);
-
-            let amountOverLength = totalPointLength - snake.length;
-            let lastSegmentLength = getSegmentLength(secondToLastPoint, lastPoint);
-
-            if (lastSegmentLength > amountOverLength) { // Last segment can be decreased to fit length
-                let newPoint = {
-                    x: lastPoint.x - direction.x * amountOverLength,
-                    y: lastPoint.y - direction.y * amountOverLength
-                }
-                snake.points[snake.points.length - 1] = newPoint;
-            } else { // Last segment is too short, remove it and decrease the next one
-                snake.points.pop();
-            }
-        }
-        //
-    })
-
     // Add random food spawns
     
     
@@ -1560,6 +1499,7 @@ async function main() {
     }
 
     Object.values(clients).forEach(function (snake) {
+        let isSpawned = snake.spawned;
         if (snake.id) {
             let entQuery = entitiesNearSnake(snake);
             let nearbyEntities = entQuery.entitiesToAdd;
@@ -1568,21 +1508,80 @@ async function main() {
             snake.update(UpdateTypes.OnRemove, removeEntities)
 
             Object.values(snake.loadedEntities).forEach(function (entity) {
-                if (entity.type == EntityTypes.Player)
-                    snake.update(UpdateTypes.OnUpdate, [entity]);
-                if (entity.type == EntityTypes.Item)
-                    if (entity.lastUpdate < lastUpdate)
+                switch (entity.type) {
+                    case EntityTypes.Player:
                         snake.update(UpdateTypes.OnUpdate, [entity]);
+                        break
+                    case EntityTypes.Item:
+                        if (entity.lastUpdate < lastUpdate)
+                            snake.update(UpdateTypes.OnUpdate, [entity]);
+
+                        if (entity.subtype == EntitySubtypes.Food && isSpawned) {
+                            let distance = Math.sqrt(
+                                Math.pow(snake.position.x - entity.position.x, 2) +
+                                Math.pow(snake.position.y - entity.position.y, 2)
+                            );
+                            if (distance < 3) {
+                                entity.eat(snake);
+                            }
+                        }
+                        break
+
+                }
             })
+
+
+            if (snake.spawned) {
+
+                /* HANDLE TALK STAMINA */
+                if (snake.talkStamina < 255) {
+                    snakes[snake.id].talkStamina += 5;
+                    if (snake.talkStamina > 255)
+                        snakes[snake.id].talkStamina = 255;
+                }
+
+
+
+
+                /* CALCULATE TAIL LENGTH */
+                let totalPointLength = 0;
+                for (let i = -1; i < snake.points.length - 1; i++) {
+                    let point;
+                    if (i == -1)
+                        point = snake.position;
+                    else
+                        point = snake.points[i];
+                    let nextPoint = snake.points[i + 1];
+
+                    let segmentLength = getSegmentLength(point, nextPoint);
+                    totalPointLength += segmentLength;
+                }
+                if (totalPointLength > snake.length) {
+                    let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
+                    let lastPoint = snake.points[snake.points.length - 1] || snake.position;
+                    let direction = getNormalizedDirection(secondToLastPoint, lastPoint);
+
+                    let amountOverLength = totalPointLength - snake.length;
+                    let lastSegmentLength = getSegmentLength(secondToLastPoint, lastPoint);
+
+                    if (lastSegmentLength > amountOverLength) { // Last segment can be decreased to fit length
+                        let newPoint = {
+                            x: lastPoint.x - direction.x * amountOverLength,
+                            y: lastPoint.y - direction.y * amountOverLength
+                        }
+                        snake.points[snake.points.length - 1] = newPoint;
+                    } else { // Last segment is too short, remove it and decrease the next one
+                        snake.points.pop();
+                    }
+                }
+
+                /* HANDLE LEADERBOARD */
+                snake.updateLeaderboard();
+                snake.newPoints = []
+            }
         }
     })
     lastUpdate = Date.now();
-    Object.values(snakes).forEach(function (snake) {
-        snake.updateLeaderboard();
-        snake.newPoints = []
-    })
-    queuedEntityRenders = {};
-    queuedEntityUpdates = {};
 
 }
 
