@@ -1588,16 +1588,14 @@ function UpdateArena() { // Main update loop
 
             let closestRubLine
 
-            let points = pointsNearSnake(snake, otherSnake, 10)
-            for (let i = 0; i < points.length-1; i++) {
-            /*for (let i = -1; i < points.length - 1; i++) {*/
+            for (let i = -1; i < otherSnake.points.length - 1; i++) {
                 numPoints++
                 let point, nextPoint;
                 if (i == -1)
                     point = otherSnake.position;
                 else
-                    point = points[i];
-                nextPoint = points[i + 1];
+                    point = otherSnake.points[i];
+                nextPoint = otherSnake.points[i + 1];
 
                 // Rubbing Mechanics
                 if (otherSnake.id != snake.id) {
