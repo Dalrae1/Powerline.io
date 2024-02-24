@@ -1553,22 +1553,30 @@ async function main() {
     }
 
     Object.values(clients).forEach(function (snake) {
+        //let numUpdatedEntities = 0
+        //let numCreatedEntities = 0
+        //let numRemovedEntities = 0
         let isSpawned = snake.spawned;
         if (snake.id) {
             let entQuery = entitiesNearSnake(snake);
             let nearbyEntities = entQuery.entitiesToAdd;
             let removeEntities = entQuery.entitiesToRemove;
+            //numCreatedEntities += Object.values(nearbyEntities).length
+            //numRemovedEntities += Object.values(removeEntities).length
             snake.update(UpdateTypes.OnRender, nearbyEntities);
             snake.update(UpdateTypes.OnRemove, removeEntities)
 
             Object.values(snake.loadedEntities).forEach(function (entity) {
                 switch (entity.type) {
                     case EntityTypes.Player:
+                        //numUpdatedEntities++
                         snake.update(UpdateTypes.OnUpdate, [entity]);
                         break
                     case EntityTypes.Item:
-                        if (entity.lastUpdate < lastUpdate)
+                        if (entity.lastUpdate > lastUpdate) {
+                            //numUpdatedEntities++
                             snake.update(UpdateTypes.OnUpdate, [entity]);
+                        }
 
                         if (entity.subtype == EntitySubtypes.Food && isSpawned) {
                             let distance = Math.sqrt(
@@ -1583,7 +1591,7 @@ async function main() {
 
                 }
             })
-
+            //console.log(`Updated ${numUpdatedEntities} entities, created ${numCreatedEntities} entities, removed ${numRemovedEntities} entities for snake ${snake.id}`)
 
             if (snake.spawned) {
 
