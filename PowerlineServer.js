@@ -42,82 +42,67 @@ var lastUpdate = 0;
 let maxFood = arenaSize * 5;
 let foodSpawnPercent = (arenaSize ^ 2) / 10;
 
-class QuadEntityTree {
-    constructor(bounds, capacity) {
-        this.bounds = bounds;
-        this.capacity = capacity;
-        this.entities = [];
-        this.children = [];
+function lineSegmentsIntersect(line1Start, line1End, line2Start, line2End) {
+    const det = (line1End.x - line1Start.x) * (line2End.y - line2Start.y) - (line2End.x - line2Start.x) * (line1End.y - line1Start.y);
+    if (det === 0) {
+        return false;
+    } else {
+        const lambda = ((line2End.y - line2Start.y) * (line2End.x - line1Start.x) + (line2Start.x - line2End.x) * (line2End.y - line1Start.y)) / det;
+        const gamma = ((line1Start.y - line1End.y) * (line2End.x - line1Start.x) + (line1End.x - line1Start.x) * (line2End.y - line1Start.y)) / det;
+        return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+    }
+}
+
+function pointInsideRectangle(point, rectangle) {
+    return point.x >= rectangle.x &&
+        point.x <= rectangle.x + rectangle.width &&
+        point.y >= rectangle.y &&
+        point.y <= rectangle.y + rectangle.height;
+}
+
+function lineInsideOrIntersectsRectangle(lineStart, lineEnd, center, width, height) {
+    const rectangle = {
+        x: center.x - width / 2,
+        y: center.y - height / 2,
+        width: width,
+        height: height
+    };
+
+    // Check if either endpoint of the line segment is inside the rectangle
+    if (pointInsideRectangle(lineStart, rectangle) || pointInsideRectangle(lineEnd, rectangle)) {
+        return true;
     }
 
-    insert(entity) {
-        let isPlayer = false
-        if (entity.type == EntityTypes.Player) {
-            isPlayer = true
-        }
-        if (!this.bounds.contains([entity.position.x, entity.position.y]) && !isPlayer) {
-            return false;
-        }
+    // Check if the line segment intersects any of the sides of the rectangle
+    const rectangleEdges = [
+        [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y }], // Top edge
+        [{ x: rectangle.x + rectangle.width, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }], // Right edge
+        [{ x: rectangle.x, y: rectangle.y + rectangle.height }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }], // Bottom edge
+        [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x, y: rectangle.y + rectangle.height }] // Left edge
+    ];
 
-        if (this.entities.length < this.capacity) {
-            this.entities.push(entity);
+    for (const edge of rectangleEdges) {
+        if (lineSegmentsIntersect(lineStart, lineEnd, edge[0], edge[1])) {
             return true;
         }
-
-        if (!this.children.length) {
-            this.subdivide();
-        }
-
-        for (const child of this.children) {
-            if (child.insert(entity)) {
-                return true;
-            }
-        }
-
-        // Point cannot be inserted (should never happen in this example)
-        return false;
     }
 
-    subdivide() {
-        const { x, y, width, height } = this.bounds;
-        const halfWidth = width / 2;
-        const halfHeight = height / 2;
+    return false;
+}
 
-        this.children.push(
-            new QuadEntityTree(new Bounds(x, y, halfWidth, halfHeight), this.capacity),
-            new QuadEntityTree(new Bounds(x + halfWidth, y, halfWidth, halfHeight), this.capacity),
-            new QuadEntityTree(new Bounds(x, y + halfHeight, halfWidth, halfHeight), this.capacity),
-            new QuadEntityTree(new Bounds(x + halfWidth, y + halfHeight, halfWidth, halfHeight), this.capacity)
-        )
 
-        for (const entity of this.entities) {
-            for (const child of this.children) {
-                if (child.insert(entity)) {
-                    break;
-                }
-            }
-        }
 
-        this.entities = [];
-    }
-
-    queryRange(range, found, checksnake) {
-        if (!found) {
-            found = [];
-        }
-
-        if (!this.bounds.intersects(range)) {
-            return found;
-        }
-
-        for (const entity of this.entities) {
-            let alreadyAdded = false;
-            if (!alreadyAdded && range.contains([entity.position.x, entity.position.y])) {
-                found.push(entity);
-                alreadyAdded = true;
-            }
-            if (entity.type == EntityTypes.Player)
-            if (entity.type === EntityTypes.Player && !alreadyAdded) {
+function entitiesWithinRadius(center, entities, checksnake) {
+    let windowSizeX = checksnake.windowSizeX;
+    let windowSizeY = checksnake.windowSizeY;
+    let xMin = center.x - windowSizeX / 2;
+    let xMax = center.x + windowSizeX / 2;
+    let yMin = center.y - windowSizeY / 2;
+    let yMax = center.y + windowSizeY / 2;
+    let foundEntities = [];
+    entities.forEach((entity) => {
+        switch (entity.type) {
+            case EntityTypes.Player:
                 for (let i = -1; i < entity.points.length - 1; i++) {
                     let point;
                     if (i == -1)
@@ -125,105 +110,22 @@ class QuadEntityTree {
                     else
                         point = entity.points[i];
                     let nextPoint = entity.points[i + 1];
-                    if (this.lineInsideOrIntersectsRectangle(point, nextPoint, {x: range.centerX, y: range.centerY}, range.width, range.height)) {
-                        found.push(entity);
-                        break;
+                    if (lineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
+                        foundEntities.push(entity);
                     }
+                    
                 }
-            }
-            
+                break
+            case EntityTypes.Item:
+                if (entity.position.x >= xMin && entity.position.x <= xMax && entity.position.y >= yMin && entity.position.y <= yMax) {
+                    foundEntities.push(entity);
+                    break;
+                }
+                break
         }
-
-        for (const child of this.children) {
-            child.queryRange(range, found, checksnake);
-        }
-
-        return found;
-    }
-    lineInsideOrIntersectsRectangle(lineStart, lineEnd, center, width, height) {
-        const rectangle = {
-            x: center.x - width / 2,
-            y: center.y - height / 2,
-            width: width,
-            height: height
-        };
-
-        // Check if either endpoint of the line segment is inside the rectangle
-        if (this.pointInsideRectangle(lineStart, rectangle) || this.pointInsideRectangle(lineEnd, rectangle)) {
-            return true;
-        }
-
-        // Check if the line segment intersects any of the sides of the rectangle
-        const rectangleEdges = [
-            [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y }], // Top edge
-            [{ x: rectangle.x + rectangle.width, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }], // Right edge
-            [{ x: rectangle.x, y: rectangle.y + rectangle.height }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }], // Bottom edge
-            [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x, y: rectangle.y + rectangle.height }] // Left edge
-        ];
-
-        for (const edge of rectangleEdges) {
-            if (this.lineSegmentsIntersect(lineStart, lineEnd, edge[0], edge[1])) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // Function to check if a point is inside a rectangle
-    pointInsideRectangle(point, rectangle) {
-        return point.x >= rectangle.x &&
-            point.x <= rectangle.x + rectangle.width &&
-            point.y >= rectangle.y &&
-            point.y <= rectangle.y + rectangle.height;
-    }
-
-    // Function to check if two line segments intersect
-    lineSegmentsIntersect(line1Start, line1End, line2Start, line2End) {
-        const det = (line1End.x - line1Start.x) * (line2End.y - line2Start.y) - (line2End.x - line2Start.x) * (line1End.y - line1Start.y);
-        if (det === 0) {
-            return false;
-        } else {
-            const lambda = ((line2End.y - line2Start.y) * (line2End.x - line1Start.x) + (line2Start.x - line2End.x) * (line2End.y - line1Start.y)) / det;
-            const gamma = ((line1Start.y - line1End.y) * (line2End.x - line1Start.x) + (line1End.x - line1Start.x) * (line2End.y - line1Start.y)) / det;
-            return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
-        }
-    }
-
-}
-
-class Bounds {
-    constructor(x, y, width, height, centerX, centerY) {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-        this.centerX = centerX;
-        this.centerY = centerY;
-    }
-
-    contains(point) {
-        return (
-            point[0] >= this.x &&
-            point[0] <= this.x + this.width &&
-            point[1] >= this.y &&
-            point[1] <= this.y + this.height
-        );
-    }
-
-    intersects(otherBounds) {
-        return !(
-            otherBounds.x > this.x + this.width ||
-            otherBounds.x + otherBounds.width < this.x ||
-            otherBounds.y > this.y + this.height ||
-            otherBounds.y + otherBounds.height < this.y
-        );
-    }
-}
-
-function entitiesWithinRadius(center, entities, checksnake) {
-    let windowSizeX = checksnake.windowSizeX;
-    let windowSizeY = checksnake.windowSizeY;
+    })
+    return foundEntities
+    /*
     const quadtreeBounds = new Bounds(center[0] - windowSizeX/2, center[1] - windowSizeY/2, windowSizeX, windowSizeY, center[0], center[1]);
     const quadtree = new QuadEntityTree(quadtreeBounds, 4);
 
@@ -235,7 +137,7 @@ function entitiesWithinRadius(center, entities, checksnake) {
 
     let entitiesFound = quadtree.queryRange(range, [], checksnake);
 
-    return entitiesFound;
+    return entitiesFound;*/
 }
 
 function getScoreToDrop(length) {
@@ -412,9 +314,10 @@ class Food {
 }
 
 for (let i = 0; i < maxFood; i++) {
-//for (let i = 0; i < 30; i++) {
+//for (let i = 0; i < 1000; i++) {
     new Food();
 }
+
 
 function GetRandomPosition() {
     return { x: Math.random() * arenaSize - arenaSize / 2, y: Math.random() * arenaSize - arenaSize / 2 };
@@ -1546,7 +1449,7 @@ function UpdateArena() { // Main update loop
 }
 
 function entitiesNearSnake(snake) { // Returns entities near snake and loaded entities that are not in radius
-    let entitiesInRadius = entitiesWithinRadius([snake.position.x, snake.position.y], Object.values(entities), snake);
+    let entitiesInRadius = entitiesWithinRadius({ x: snake.position.x, y: snake.position.y }, Object.values(entities), snake);
     let loadedEntities = Object.values(snake.loadedEntities);
     let entitiesToAdd = entitiesInRadius.filter(entity => !loadedEntities.includes(entity));
     let entitiesToRemove = loadedEntities.filter(entity => !entitiesInRadius.includes(entity));
