@@ -460,9 +460,18 @@ class Snake {
             whatVector = "y";
             oppositeVector = "x";
         }
-        if (this.direction == direction) {
+        if (this.direction == direction || this.direction + 2 == direction || this.direction - 2 == direction) { // If the direction is the same or opposite
             return;
         }
+        if (this.position[whatVector] == vector) { // Attempting to turn in place
+            let goingUp = this.direction = Directions.Up || this.direction == Directions.Right;
+            if (goingUp)
+                vector += 3;
+            else
+                vector -= 3;
+        }
+
+
         this.position[whatVector] = vector;
         this.direction = direction;
         this.addPoint(this.position.x, this.position.y);
