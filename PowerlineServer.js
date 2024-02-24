@@ -1575,9 +1575,13 @@ async function main() {
 
                 /* HANDLE LEADERBOARD */
                 snake.updateLeaderboard();
-                snake.newPoints = []
+                
             }
         }
+    })
+
+    Object.values(clients).forEach(function (snake) {
+        snake.newPoints = []
     })
     lastUpdate = Date.now();
 
