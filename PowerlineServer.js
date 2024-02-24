@@ -487,6 +487,46 @@ class Snake {
                 this.position[whatVector] = vector;
 
         }
+
+        
+
+        let secondPoint = this.points[0];
+        
+
+        if (secondPoint)
+            Object.values(clients).forEach((snake) => {
+                if (this.loadedEntities[snake.id]) {
+                    for (let i = -1; i < snake.points.length - 1; i++) {
+                        let point;
+                        if (i == -1)
+                            point = snake.position;
+                        else
+                            point = snake.points[i];
+                        let nextPoint = snake.points[i + 1];
+                        
+                        // Make sure that the last point did not intersect with another snake
+                        if (this.position != nextPoint && secondPoint != point && secondPoint != nextPoint &&
+                            this.position != secondPoint && this.position != point) {
+                            
+                            if (doIntersect(this.position, secondPoint, point, nextPoint)) {
+                                /*this.DrawDebugCircle(this.position.x, this.position.y, 50, 4); // Yellow
+                                this.DrawDebugCircle(secondPoint.x, secondPoint.y, 50, 4); // Yellow
+                                this.DrawDebugCircle(point.x, point.y, 100, 3); // Green
+                                this.DrawDebugCircle(nextPoint.x, nextPoint.y, 100, 3); // Green*/
+                                setTimeout(() => { // Make sure they didn't move out of the way
+                                    if (doIntersect(this.position, secondPoint, point, nextPoint)) {
+                                        if (this == snake) {
+                                            this.kill(KillReasons.Self, this.id);
+                                        } else {
+                                            this.kill(KillReasons.Killed, snake.id);
+                                        }
+                                    }
+                                }, snake.ping || 50)
+                            }
+                        }
+                    }
+                }
+        })
         
             
 
@@ -1057,20 +1097,36 @@ class Snake {
         
       this.network.send(Bit8);
     }
-    DrawDebugCircle(x, y, color) {
+    numDebugCircle = 0
+    DrawDebugCircle(x, y, color = 100, size = 4) {
+        this.numDebugCircle++
+        let id = this.numDebugCircle;
         var Bit8 = new DataView(new ArrayBuffer(49));
         var offset = 0;
         Bit8.setUint8(offset, 0xa7);
         offset += 1;
-        Bit8.setUint16(offset, 1, true);
+        Bit8.setUint16(offset, id, true);
         offset += 2;
+        Bit8.setUint8(offset, 1, true);
+        offset += 1;
         Bit8.setFloat32(offset, x, true);
         offset += 4;
         Bit8.setFloat32(offset, y, true);
         offset += 4;
         Bit8.setUint16(offset, color, true);
+        offset += 2;
+        Bit8.setUint8(offset, size, true);
         this.network.send(Bit8);
-
+        return id
+    }
+    DeleteDebugCircle(circle) {
+        var Bit8 = new DataView(new ArrayBuffer(49));
+        var offset = 0;
+        Bit8.setUint8(offset, 0xa7);
+        offset += 1;
+        Bit8.setUint8(offset, circle, true);
+        offset += 1;
+        Bit8.setUint16(offset, 0, true);
     }
     Talk(id) {
         this.flags |= EntityFlags.ShowTalking;
