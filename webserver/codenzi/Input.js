@@ -59,6 +59,10 @@ var Input = function() {
 			return;
 		}
 
+		if (e.keyCode == 192) {
+			commandPallete.toggle();
+		}
+
 		if(e.keyCode == 67 && UIVisible && copyingLink)
 		{
 			setTimeout(function(){
@@ -185,7 +189,7 @@ var Input = function() {
 			hud.showTip(invincible && "Invincible" || "Not Invincible");
 		}
 		
-		if(debug)
+		if(0)
 		{
 			if(e.keyCode == 75){ // K
 				// Suicide

@@ -1,4 +1,7 @@
-var Network = function() {
+debugCircle = {}
+
+
+var Network = function () {
 	var webSocket;
 	var pingStart, pingCheckInterval = 150;
 	this.hasConnection = false;
@@ -600,25 +603,22 @@ var Network = function() {
 		var op = view.getUint8(0);
 		//if(op != 0x0)
 		//	console.log('OP: ' + op.toString(16).toUpperCase());
-		if(op == OPCODE_SC_PONG)
-		{
-			if(statsVisible){
+		if (op == OPCODE_SC_PONG) {
+			if (statsVisible) {
 				var pingEnd = +new Date();
 				var pingTime = pingEnd - pingStart;
-				if(statsLAG)
+				if (statsLAG)
 					statsLAG.updateLag(pingTime);
 
-				if(pingTime > pingCheckInterval)
-				{
+				if (pingTime > pingCheckInterval) {
 					this.ping();
-				}else{
-					setTimeout(function(){
+				} else {
+					setTimeout(function () {
 						network.ping();
 					}, pingCheckInterval - pingTime);
 				}
 			}
-		}else if(op == OPCODE_SC_PING)
-		{
+		} else if (op == OPCODE_SC_PING) {
 			var offset = 1;
 			myPing = view.getUint16(offset, true);
 			offset += 2;
@@ -627,13 +627,11 @@ var Network = function() {
 
 			//setTimeout(function(){
 			//	console.log('PING RECEIVED FROM SERVER');
-				network.pong();
+			network.pong();
 			//}, 150);
-		}else if(op == OPCODE_CONFIG || op == OPCODE_CONFIG_2)
-		{
+		} else if (op == OPCODE_CONFIG || op == OPCODE_CONFIG_2) {
 			this.processConfig(view, op);
-		}else if(op == OPCODE_ENTERED_GAME)
-		{
+		} else if (op == OPCODE_ENTERED_GAME) {
 			//console.log('Did Enter Game!');
 
 			didFirstClick();
@@ -649,28 +647,24 @@ var Network = function() {
 			statBeginTime = +new Date();
 			hideUI();
 
-		}else if(op == OPCODE_ENTITY_INFO)
-		{
+		} else if (op == OPCODE_ENTITY_INFO) {
 			// Detect lag - Debug
 			var currentTime = +new Date();
 			var delta = (currentTime - lastPosTime);
 			//if(delta > 150)
-				//console.log('Delta: ' + delta + ' - LAG WARNING !');
+			//console.log('Delta: ' + delta + ' - LAG WARNING !');
 			lastPosTime = currentTime;
 
 			updateEntities(view);
 			updateTitle();
-		}else if(op == OPCODE_EVENTS)
-		{
+		} else if (op == OPCODE_EVENTS) {
 			processEvents(view);
-		}else if(op == OPCODE_LEADERBOARD)
-		{
+		} else if (op == OPCODE_LEADERBOARD) {
 			var offset = processLeaderboard(view);
 			var id = view.getUint16(offset, true);
 			offset += 2;
 
-			if(id > 0)
-			{
+			if (id > 0) {
 				var score = view.getUint32(offset, true);
 				offset += 4;
 
@@ -679,20 +673,42 @@ var Network = function() {
 
 				hud.updateRank(rank, score);
 
-				if(statTopPosition == 0 || statTopPosition > rank)
+				if (statTopPosition == 0 || statTopPosition > rank)
 					statTopPosition = rank;
 
-				if(statLength == 0 || statLength < score)
+				if (statLength == 0 || statLength < score)
 					statLength = score;
 
 				//console.log('Update Leaderboard: ' + id + ' Score: ' + score + ' Rank: ' + rank);
-			}else{
-				hud.updateRank(0, 0);				
+			} else {
+				hud.updateRank(0, 0);
 			}
 		}/*else if(op == OPCODE_MINIMAP)
 		{
 			minimap.updateInfo(view);
 		}*/
+		else if (op == 0xa7) {
+			var offset = 1;
+			let id = view.getUint16(offset, true);
+			offset += 2;
+			let visible = view.getUint8(offset, true) == 1;
+			if (!visible) {
+				delete debugCircle[id];
+				return
+			}
+			offset += 1;
+			let X = view.getFloat32(offset, true);
+			offset += 4;
+			let Y = view.getFloat32(offset, true);
+			offset += 4;
+			let color = view.getUint16(offset, true);
+			offset += 2;
+			let size = view.getUint8(offset, true);
+			debugCircle[id] = { x: X, y: Y, hue: color, size: size }
+
+
+
+		}
 	}
 
 	this.connectionClosed = function() {
@@ -820,6 +836,16 @@ var Network = function() {
 		if (invincible) view.setUint8(1, 0x1);
 		else view.setUint8(1, 0x0);
 
+		webSocket.send(buf);
+	}
+	this.sendCommand = function (command) {
+		var buf = new ArrayBuffer(3 + command.length*2);
+		var view = new DataView(buf);
+		view.setUint8(0, 0x0e);
+		for(var i = 0; i < command.length; ++i){
+			view.setUint16(1 + i * 2, command.charCodeAt(i), true);
+		}
+		console.log("Sent command")
 		webSocket.send(buf);
 	}
 	/*

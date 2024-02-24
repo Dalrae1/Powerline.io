@@ -17,6 +17,9 @@ var isSecure = (protocol == 'https:');
 // Performance Stats
 var statsFPS, statsLAG;
 
+// Admin
+var commandPallete = false;
+
 // Game Stats
 var statTopPosition = 0;
 var statLength = 0;
@@ -319,6 +322,7 @@ var initApp = function() {
 var init = function() {
 	//if(debug)
 	addStats();
+	addCommandPallete()
 	if(Modernizr.canvas && Modernizr.websockets) {
 		initApp();
 		app.resize();
@@ -329,6 +333,23 @@ var init = function() {
 			console.log('unsupported-browser!');
 		}
 	}
+}
+
+var addCommandPallete = function () {
+	if (commandPallete) { return; }
+	commandPallete = new CommandPallete();
+	var canvas = document.getElementById('canvas');
+	var offsetY = 30;
+	var percPosX = 0.0;
+	// align bottom right
+	commandPallete.domElement.style.position = 'absolute';
+	commandPallete.domElement.style.left = (canvas.width*percPosX)+'px';
+	commandPallete.domElement.style.top = (canvas.height - 18 - offsetY)+'px';
+
+	document.getElementById('commandpallete').appendChild(commandPallete.domElement);
+
+
+	
 }
 
 var addStats = function() {

@@ -41,6 +41,7 @@ var king = null;
 var lastUpdate = 0;
 let maxFood = arenaSize * 5;
 let foodSpawnPercent = (arenaSize ^ 2) / 10;
+var foodMultiplier = 1;
 
 function lineSegmentsIntersect(line1Start, line1End, line2Start, line2End) {
     const det = (line1End.x - line1Start.x) * (line2End.y - line2Start.y) - (line2End.x - line2Start.x) * (line1End.y - line1Start.y);
@@ -431,7 +432,7 @@ class Snake {
             for (var characterIndex = 0; characterIndex < snake.nick.length; characterIndex++) {
                 Bit8.setUint16(offset + characterIndex * 2, snake.nick.charCodeAt(characterIndex), true);
             }
-            offset = getNick(Bit8, offset).offset;
+            offset = getString(Bit8, offset).offset;
         })
         Bit8.setUint16(offset, 0, true);
         offset += 2;
@@ -600,7 +601,7 @@ class Snake {
               );
             }
 
-            offset = getNick(Bit8, offset).offset;
+            offset = getString(Bit8, offset).offset;
             snakes[killedByID].network.send(Bit8);
             // Send "Killed By"
             var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
@@ -621,7 +622,7 @@ class Snake {
                 true
                 );
             }
-            offset = getNick(Bit8, offset).offset;
+            offset = getString(Bit8, offset).offset;
             this.network.send(Bit8);
         }
         // Update other snakes
@@ -723,7 +724,7 @@ class Snake {
 
 
         let scoreToDrop = getScoreToDrop(actualLength);
-        let foodToDrop = scoreToFood(scoreToDrop);
+        let foodToDrop = scoreToFood(scoreToDrop)*foodMultiplier;
         let dropAtInterval = actualLength / (foodToDrop);
         for (let i = 0; i < actualLength; i += dropAtInterval) {
             let point = getPointAtDistance(this, i);
@@ -1148,10 +1149,10 @@ class Snake {
                 this.doPing();
                 break;
             case MessageTypes.RecieveNick:
-                var nick = getNick(view, 1);
-                console.log("Spawning snake " + nick.nick);
+                var nick = getString(view, 1);
+                console.log("Spawning snake " + nick.string);
                 if (!this.spawned)
-                    this.spawn(nick.nick);
+                    this.spawn(nick.string);
                 break;
             case MessageTypes.RecieveTurnPoint:
                 let offset = 1;
@@ -1202,7 +1203,116 @@ class Snake {
                     this.invincible = view.getUint8(1, true) == 1;
             
                 break;
-                
+            case 0x0e: // Commands
+                if (admins.includes(this.ip)) {
+                    let command = getString(view, 1).string;
+                    if (!command)
+                        return
+                    command = command.toLowerCase()
+                    let commandArgs = command.split(" ");
+                    if (!commandArgs[0])
+                        return
+                    switch (commandArgs[0]) {
+                        case "arenasize":
+                            if (commandArgs[1]) {
+                                let size = parseInt(commandArgs[1]);
+                                if (size) {
+                                    arenaSize = size;
+                                    Object.values(clients).forEach((client) => {
+                                        client.sendConfig()
+                                    })
+                                }
+                            }
+                            break;
+                        case "maxboostspeed":
+                            if (commandArgs[1]) {
+                                let speed = parseInt(commandArgs[1]);
+                                if (speed) {
+                                    maxBoostSpeed = speed;
+                                }
+                            }
+                            break;
+                        case "maxrubspeed":
+                            if (commandArgs[1]) {
+                                let speed = parseInt(commandArgs[1]);
+                                if (speed) {
+                                    maxRubSpeed = speed;
+                                }
+                            }
+                            break;
+                        case "updateduration":
+                            if (commandArgs[1]) {
+                                let duration = parseInt(commandArgs[1]);
+                                if (duration) {
+                                    updateDuration = duration;
+                                }
+                            }
+                            break;
+                        case "maxfood":
+                            if (commandArgs[1]) {
+                                let max = parseInt(commandArgs[1]);
+                                if (max) {
+                                    maxFood = max;
+                                }
+                            }
+                            break;
+                        case "foodspawnpercent":
+                            if (commandArgs[1]) {
+                                let rate = parseInt(commandArgs[1]);
+                                if (rate) {
+                                    foodSpawnPercent = rate;
+                                }
+                            }
+                            break;
+                        case "defaultlength":
+                            if (commandArgs[1]) {
+                                let length = parseInt(commandArgs[1]);
+                                if (length) {
+                                    defaultLength = length;
+                                }
+                            }
+                            break;
+                        case "randomfood":
+                            if (commandArgs[1]) {
+                                let num = parseInt(commandArgs[1]);
+                                if (num) {
+                                    for (let i = 0; i < num; i++) {
+                                        new Food();
+                                    }
+                                }
+                            }
+                            break;
+                        case "clearfood":
+                            Object.values(entities).forEach((entity) => {
+                                if (entity.type == EntityTypes.Item)
+                                    entity.eat();
+                            })
+                            break;
+                        case "foodmultiplier":
+                            if (commandArgs[1]) {
+                                let multiplier = parseInt(commandArgs[1]);
+                                if (multiplier) {
+                                    foodMultiplier = multiplier;
+                                }
+                            }
+                            break;
+                        case "foodvalue":
+                            if (commandArgs[1]) {
+                                let value = parseInt(commandArgs[1]);
+                                if (value) {
+                                    foodValue = value;
+                                    Object.values(entities).forEach((entity) => {
+                                        if (entity.type == EntityTypes.Item)
+                                            entity.value = foodValue;
+
+                                    })
+                                }
+                            }
+                            break;
+
+                    }
+                }
+                break;
 
         }
     }
@@ -1229,7 +1339,7 @@ class Client extends EventEmitter {
 
 
 
-function getNick(data, bitOffset) {
+function getString(data, bitOffset) {
     var nick = "";
     while (true) {
         var charCode = data.getUint16(bitOffset, true);
@@ -1237,7 +1347,7 @@ function getNick(data, bitOffset) {
         if (0 == charCode) break;
         nick += String.fromCharCode(charCode);
     }
-    return { nick: nick, offset: bitOffset };
+    return { string: nick, offset: bitOffset };
 }
 
 function sleep(ms) {

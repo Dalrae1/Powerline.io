@@ -177,6 +177,15 @@ var App = function(aCanvas) {
 			context.closePath();
 			context.restore();
 		}
+		if (localPlayer && debugCircle) {
+			Object.values(debugCircle).forEach((circle) => {
+				context.beginPath();
+				context.arc(circle.x*GAME_SCALE, -circle.y*GAME_SCALE, circle.size, 0, 2 * Math.PI, false);
+				context.fillStyle = 'hsl('+circle.hue+', 100%, 50%)';
+				context.fill();
+
+			})
+		}
 
 		// Draw Offscreen Info
 		if(kingID > 0)
