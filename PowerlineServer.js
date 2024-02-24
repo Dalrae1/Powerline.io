@@ -391,7 +391,6 @@ class Snake {
         this.killstreak = 0;
         this.points = [{x: this.position.x, y: this.position.y}];
         this.newPoints = [];
-        this.queuedPoints = [];
         this.talkStamina = 255;
         this.color = Math.random() * 360;
         this.length = defaultLength;
@@ -1473,7 +1472,6 @@ function UpdateArena() { // Main update loop
             }
 
         }
-        queuedEntityUpdates[snake.id] = snake;
     });
 }
 
