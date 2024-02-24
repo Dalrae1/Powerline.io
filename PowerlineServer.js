@@ -269,7 +269,7 @@ class Food {
             for (let i = 0; i < 3; i++) {
                 setTimeout(() => {
                     snake.extraSpeed += 2;
-                    if (snake.extraSpeed > maxBoostSpeed)
+                    if (snake.extraSpeed > maxBoostSpeed && !snake.speedBypass)
                         snake.extraSpeed = maxBoostSpeed;
                 }, updateDuration * 2 * i)
             }
