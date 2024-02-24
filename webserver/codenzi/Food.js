@@ -1,10 +1,5 @@
-let masterEntities = {}
-
-
-var Food = function () {
+var Food = function() {
 	var food = this;
-
-	this.creation = Date.now()
 
 	this.id = -1;
 	this.x = 0;
@@ -39,13 +34,8 @@ var Food = function () {
 	var bornValue = 0.0;
 	var alpha = 1.0;
 
-	this.hidden = false;
-	this.numInGroup = 0;
-
-
 	this.playSounds = true;
 	this.tutorial = false;
-	
 
 	this.update = function(dt) {
 		var dt_fix = dt*(60.0/1000.0);
@@ -97,14 +87,9 @@ var Food = function () {
 	this.drawAfter = function(context) {
 	};
 
-	this.draw = function (context) {
-		var baseScale = 0.2
+	this.draw = function(context) {
 		if(/*!this.canInterpolate || */!drawFood)
 			return;
-		if (this.hidden)
-			return
-		if (this.numInGroup > 0)
-			baseScale += (baseScale*(this.numInGroup/5))
 			
 		// Draw Food
 		var w = 3*GAME_SCALE;
@@ -125,6 +110,7 @@ var Food = function () {
 		}
 
 		t += 0.05;
+		var baseScale = 0.2;
 		var s1 = baseScale-Math.sin(t)*0.02;
 		var s2 = baseScale-Math.sin(t)*0.02;
 
@@ -166,34 +152,6 @@ var Food = function () {
 		curY = -view.getFloat32(offset, true);
 		//console.log('curY ' + curY);
 		offset += 4;
-
-		/*let toGroupInto = null
-		if (Date.now()-this.creation < 5 ) {
-			for (var entityId in entities) {
-				var entity = entities[entityId];
-				if (entity instanceof Food && entity.id !== this.id) {
-					var distanceSquared = (entity.x - curX*GAME_SCALE) ** 2 + (entity.y - curY*GAME_SCALE) ** 2;
-					if (distanceSquared < 100) {
-						this.hidden = true
-						if (masterEntities[entity.id]) {
-							toGroupInto = entity
-							break
-						}
-						toGroupInto = entity
-						
-							
-					}
-					
-				}
-			}
-		}
-		if (toGroupInto) {
-			if (!masterEntities[toGroupInto.id])
-				masterEntities[toGroupInto.id] = toGroupInto
-			toGroupInto.numInGroup++
-			if (!masterEntities[this.id])
-				this.hidden = true
-		}*/
 
 		this.origX = this.x;
 		this.origY = this.y;
