@@ -1584,14 +1584,14 @@ async function main() {
     queuedEntityRenders = {};
     queuedEntityUpdates = {};
 
-
-
-
-
-
-    setTimeout(() => {
-        main()
-    }, updateDuration);
 }
 
-main()
+function mainLooper() {
+    setTimeout(() => {
+        if (Date.now()-lastUpdate >= updateDuration)
+            main()
+        mainLooper()
+    }, 1)
+}
+
+mainLooper()
