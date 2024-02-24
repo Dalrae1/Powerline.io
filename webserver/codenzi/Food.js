@@ -167,7 +167,7 @@ var Food = function () {
 		//console.log('curY ' + curY);
 		offset += 4;
 
-		let toGroupInto = null
+		/*let toGroupInto = null
 		if (Date.now()-this.creation < 5 ) {
 			for (var entityId in entities) {
 				var entity = entities[entityId];
@@ -193,7 +193,7 @@ var Food = function () {
 			toGroupInto.numInGroup++
 			if (!masterEntities[this.id])
 				this.hidden = true
-		}
+		}*/
 
 		this.origX = this.x;
 		this.origY = this.y;
