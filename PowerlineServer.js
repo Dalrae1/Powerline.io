@@ -126,19 +126,34 @@ function entitiesWithinRadius(center, entities, checksnake) {
         }
     })
     return foundEntities
-    /*
-    const quadtreeBounds = new Bounds(center[0] - windowSizeX/2, center[1] - windowSizeY/2, windowSizeX, windowSizeY, center[0], center[1]);
-    const quadtree = new QuadEntityTree(quadtreeBounds, 4);
+}
 
-    for (const entity of entities) {
-        quadtree.insert(entity);
+function pointsNearSnake(player1, player2, distance) {
+    let width = distance;
+    let height = distance;
+    let foundPoints = [];
+    let lastPointFound = false
+    let center = player1.position
+    let points = player2.points
+    for (let i = -1; i < points.length - 1; i++) {
+        let point = points[i];
+        let nextPoint = points[i + 1];
+        if (i == -1)
+            point = player2.position
+        if (!nextPoint)
+            break
+        if (lineInsideOrIntersectsRectangle(point, nextPoint, center, width, height)) {
+            if (!lastPointFound) {
+                foundPoints.push(point);
+            }
+            foundPoints.push(nextPoint);
+            lastPointFound = true
+        }
+        else {
+            lastPointFound = false
+        }
     }
-
-    const range = new Bounds(center[0] - windowSizeX/2, center[1] - windowSizeY/2, windowSizeX, windowSizeY, center[0], center[1]);
-
-    let entitiesFound = quadtree.queryRange(range, [], checksnake);
-
-    return entitiesFound;*/
+    return foundPoints
 }
 
 function getScoreToDrop(length) {
@@ -233,6 +248,7 @@ const Directions = Object.freeze({
     Down: 3,
     Right: 4
 })
+
 
 class Food {
     type = EntityTypes.Item;
@@ -331,9 +347,10 @@ class Snake {
     type = EntityTypes.Player;
     loadedEntities = {};
     
-    constructor(network) {
+    constructor(network, simulated) {
         this.network = network.socket;
         this.ip = network.ip;
+        this.simulated = simulated;
         this.sendConfig();
 
         if (!this.id) {
@@ -408,7 +425,12 @@ class Snake {
         
     }
     updateLeaderboard() {
-        var Bit8 = new DataView(new ArrayBuffer(1000));
+        let calculatedTotalBits = 1;
+        Object.values(snakes).forEach((snake) => {
+            calculatedTotalBits += 2 + 4 + ((snake.nick.length+1) * 2);
+        })
+        calculatedTotalBits += 2 + 2 + 4 + 2;
+        var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
         var offset = 0
         Bit8.setUint8(offset, MessageTypes.SendLeaderboard);
         offset += 1;
@@ -465,7 +487,7 @@ class Snake {
         }
         let goingUp = this.direction = Directions.Up || this.direction == Directions.Right;
         if (this.position[whatVector] == vector) { // Attempting to turn in place
-            console.log("Attempting to turn in place")
+            //console.log("Attempting to turn in place")
             if (goingUp) {
                 this.position[whatVector] += 0.1;
             }
@@ -475,7 +497,7 @@ class Snake {
         } else {
             let dist = Math.abs(this.position[whatVector] - vector);
             if (dist > 5) {
-                console.log("Attempting to turn "+dist+" units away")
+                //console.log("Attempting to turn "+dist+" units away")
                 
                 let goingUp = this.direction = Directions.Up || this.direction == Directions.Right;
                 if (goingUp) {
@@ -1331,6 +1353,9 @@ class Client extends EventEmitter {
         this.socket = websocket;
         this.nick = "";
         this.id = 0;
+        if (ip.toString() == "::1") // Set IP to local
+            ip = "::ffff:127.0.0.1"
+            
         this.ip = (ip.toString()).split(":")[3];
         console.log(`Client connected from "${this.ip}"`);
     }
@@ -1519,11 +1544,10 @@ function getPointAtDistance(snake, distance) // Returns point that is distance a
 
 
 function UpdateArena() { // Main update loop
+    let numSnak = 0;
+    let numPoints = 0;
     Object.values(snakes).forEach(function (snake) {
-        let Bit8 = new DataView(new ArrayBuffer(1));
-        Bit8.setUint8(0, 0xa8);
-        snake.network.send(Bit8);
-        
+        numSnak++
         // Make snakes move
         let totalSpeed = snake.speed //+ (snake.extraSpeed/255);
         if (snake.direction == Directions.Up) {
@@ -1557,16 +1581,23 @@ function UpdateArena() { // Main update loop
         let shouldRub = false;
         let secondPoint = snake.points[0];
         // Other snake collision checks
-        Object.values(snakes).forEach(function (otherSnake) {
+        Object.values(snake.loadedEntities).forEach(function (otherSnake) {
+            if (otherSnake.type != EntityTypes.Player)
+                return
             // Check if head of snake of near body of other snake
+
             let closestRubLine
-            for (let i = -1; i < otherSnake.points.length - 1; i++) {
+
+            let points = pointsNearSnake(snake, otherSnake, 10)
+            for (let i = 0; i < points.length-1; i++) {
+            /*for (let i = -1; i < points.length - 1; i++) {*/
+                numPoints++
                 let point, nextPoint;
                 if (i == -1)
                     point = otherSnake.position;
                 else
-                    point = otherSnake.points[i];
-                nextPoint = otherSnake.points[i + 1];
+                    point = points[i];
+                nextPoint = points[i + 1];
 
                 // Rubbing Mechanics
                 if (otherSnake.id != snake.id) {
@@ -1639,6 +1670,7 @@ function UpdateArena() { // Main update loop
 
         }
     });
+    //console.log(`Updated ${numSnak} snakes and ${numPoints} points`)
 }
 
 function entitiesNearSnake(snake) { // Returns entities near snake and loaded entities that are not in radius
@@ -1650,7 +1682,9 @@ function entitiesNearSnake(snake) { // Returns entities near snake and loaded en
 }
 
 async function main() {
+    let timeStart = Date.now();
     UpdateArena()
+    //console.log(`UpdateArena took ${Date.now() - timeStart}ms`)
 
     // Add random food spawns
     
@@ -1662,7 +1696,7 @@ async function main() {
         
     }
 
-    Object.values(clients).forEach(function (snake) {
+    Object.values(snakes).forEach(function (snake) {
         //let numUpdatedEntities = 0
         //let numCreatedEntities = 0
         //let numRemovedEntities = 0
@@ -1748,7 +1782,7 @@ async function main() {
                 }
 
                 /* HANDLE LEADERBOARD */
-                snake.updateLeaderboard();
+                //snake.updateLeaderboard();
                 
             }
         }
@@ -1768,5 +1802,49 @@ function mainLooper() {
         mainLooper()
     }, 1)
 }
+
+
+function SimulateGame(first) { // Simulate as if there is a ton of players
+    if (first)
+        for (let i = 0; i < 100; i++) {
+            let snake = new Snake({ socket: { send: () => { } } }, true)
+            snake.spawn("Simulated")
+        }
+    
+    Object.values(snakes).forEach(function (snake) {
+        if (snake.simulated) {
+            let shouldTurn = Math.random() * 100 < 1;
+            if (shouldTurn) {
+                let direction = Math.floor(Math.random() * 4);
+                let vector;
+
+                switch (direction) {
+                    case Directions.Up:
+                        vector = snake.position.y;
+                        break
+                    case Directions.Left:
+                        vector = snake.position.x;
+                        break
+                    case Directions.Down:
+                        vector = snake.position.y;
+                        break
+                    case Directions.Right:
+                        vector = snake.position.x;
+                        break
+                }
+                snake.turn(direction, vector);
+            }
+        }
+
+        
+
+    })
+
+    setTimeout(() => {
+        SimulateGame()
+    }, 10)
+
+}
+//SimulateGame(true)
 
 mainLooper()
