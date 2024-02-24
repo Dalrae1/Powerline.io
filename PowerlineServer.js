@@ -1782,7 +1782,7 @@ async function main() {
                 }
 
                 /* HANDLE LEADERBOARD */
-                //snake.updateLeaderboard();
+                snake.updateLeaderboard();
                 
             }
         }
