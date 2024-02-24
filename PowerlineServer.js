@@ -464,11 +464,12 @@ class Snake {
             return;
         }
         if (this.position[whatVector] == vector) { // Attempting to turn in place
-            let goingUp = this.direction = Directions.Up || this.direction == Directions.Right;
+            return
+            /*let goingUp = this.direction = Directions.Up || this.direction == Directions.Right;
             if (goingUp)
                 vector += 3;
             else
-                vector -= 3;
+                vector -= 3;*/
         }
 
 
