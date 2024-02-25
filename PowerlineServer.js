@@ -45,13 +45,12 @@ var foodMultiplier = 1;
 
 function lineSegmentsIntersect(line1Start, line1End, line2Start, line2End) {
     const det = (line1End.x - line1Start.x) * (line2End.y - line2Start.y) - (line2End.x - line2Start.x) * (line1End.y - line1Start.y);
-    if (det === 0) {
-        return false;
-    } else {
-        const lambda = ((line2End.y - line2Start.y) * (line2End.x - line1Start.x) + (line2Start.x - line2End.x) * (line2End.y - line1Start.y)) / det;
-        const gamma = ((line1Start.y - line1End.y) * (line2End.x - line1Start.x) + (line1End.x - line1Start.x) * (line2End.y - line1Start.y)) / det;
-        return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
-    }
+    if (det === 0) return false;
+
+    const lambda = ((line2End.y - line2Start.y) * (line2End.x - line1Start.x) + (line2Start.x - line2End.x) * (line2End.y - line1Start.y)) / det;
+    const gamma = ((line1Start.y - line1End.y) * (line2End.x - line1Start.x) + (line1End.x - line1Start.x) * (line2End.y - line1Start.y)) / det;
+
+    return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
 }
 
 function pointInsideRectangle(point, rectangle) {
@@ -69,63 +68,51 @@ function lineInsideOrIntersectsRectangle(lineStart, lineEnd, center, width, heig
         height: height
     };
 
-    // Check if either endpoint of the line segment is inside the rectangle
-    if (pointInsideRectangle(lineStart, rectangle) || pointInsideRectangle(lineEnd, rectangle)) {
-        return true;
-    }
+    if (pointInsideRectangle(lineStart, rectangle) || pointInsideRectangle(lineEnd, rectangle)) return true;
 
-    // Check if the line segment intersects any of the sides of the rectangle
     const rectangleEdges = [
-        [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y }], // Top edge
-        [{ x: rectangle.x + rectangle.width, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }], // Right edge
-        [{ x: rectangle.x, y: rectangle.y + rectangle.height }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }], // Bottom edge
-        [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x, y: rectangle.y + rectangle.height }] // Left edge
+        [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y }],
+        [{ x: rectangle.x + rectangle.width, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }],
+        [{ x: rectangle.x, y: rectangle.y + rectangle.height }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }],
+        [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x, y: rectangle.y + rectangle.height }]
     ];
 
     for (const edge of rectangleEdges) {
-        if (lineSegmentsIntersect(lineStart, lineEnd, edge[0], edge[1])) {
-            return true;
-        }
+        if (lineSegmentsIntersect(lineStart, lineEnd, edge[0], edge[1])) return true;
     }
 
     return false;
 }
 
-
-
 function entitiesWithinRadius(center, entities, checksnake) {
-    let windowSizeX = checksnake.windowSizeX;
-    let windowSizeY = checksnake.windowSizeY;
-    let xMin = center.x - windowSizeX / 2;
-    let xMax = center.x + windowSizeX / 2;
-    let yMin = center.y - windowSizeY / 2;
-    let yMax = center.y + windowSizeY / 2;
-    let foundEntities = [];
+    const windowSizeX = checksnake.windowSizeX;
+    const windowSizeY = checksnake.windowSizeY;
+    const xMin = center.x - windowSizeX / 2;
+    const xMax = center.x + windowSizeX / 2;
+    const yMin = center.y - windowSizeY / 2;
+    const yMax = center.y + windowSizeY / 2;
+
+    const foundEntities = [];
     entities.forEach((entity) => {
         switch (entity.type) {
             case EntityTypes.Player:
                 for (let i = -1; i < entity.points.length - 1; i++) {
-                    let point;
-                    if (i == -1)
-                        point = entity.position;
-                    else
-                        point = entity.points[i];
-                    let nextPoint = entity.points[i + 1];
+                    const point = (i === -1) ? entity.position : entity.points[i];
+                    const nextPoint = entity.points[i + 1];
                     if (lineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
                         foundEntities.push(entity);
+                        break;
                     }
-                    
                 }
-                break
+                break;
             case EntityTypes.Item:
                 if (entity.position.x >= xMin && entity.position.x <= xMax && entity.position.y >= yMin && entity.position.y <= yMax) {
                     foundEntities.push(entity);
-                    break;
                 }
-                break
+                break;
         }
-    })
-    return foundEntities
+    });
+    return foundEntities;
 }
 
 function pointsNearSnake(player1, player2, distance) {
@@ -430,50 +417,63 @@ class Snake {
 
         
     }
-    updateLeaderboard() {
-        let calculatedTotalBits = 1;
-        Object.values(snakes).forEach((snake) => {
-            calculatedTotalBits += 2 + 4 + ((snake.nick.length+1) * 2);
-        })
-        calculatedTotalBits += 2 + 2 + 4 + 2;
-        var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
-        var offset = 0
-        Bit8.setUint8(offset, MessageTypes.SendLeaderboard);
-        offset += 1;
-        let sortedSnakes = Object.values(snakes).sort((a, b) => {
-            return b.length - a.length;
-        });
-        let myRank = 0;
-        let curRank = 0
-        Object.values(sortedSnakes).forEach((snake) => {
-            curRank++
-            snake.rank = curRank;
-            if (snake.id == this.id)
-                myRank = curRank;
-            if (curRank == 1) {
-                king = snake;
-            }
-            Bit8.setUint16(offset, snake.id, true);
-            offset += 2;
-            Bit8.setUint32(offset, (snake.length - defaultLength)*scoreMultiplier, true);
-            offset += 4;
-            for (var characterIndex = 0; characterIndex < snake.nick.length; characterIndex++) {
-                Bit8.setUint16(offset + characterIndex * 2, snake.nick.charCodeAt(characterIndex), true);
-            }
-            offset = getString(Bit8, offset).offset;
-        })
-        Bit8.setUint16(offset, 0, true);
-        offset += 2;
-        Bit8.setUint16(offset, this.id, true);
-        offset += 2;
-        Bit8.setUint32(offset, (this.length - defaultLength)*scoreMultiplier, true);
-        offset += 4;
-        // Set rank
-        // Sort snakes
-        Bit8.setUint16(offset, myRank, true);
-        offset += 2;
 
-        this.network.send(Bit8);
+    updateLeaderboard() {
+        const snakesArray = Object.values(snakes);
+        // Sort snakesArray based on length in descending order
+        snakesArray.sort((a, b) => b.length - a.length);
+        
+        const numSnakes = snakesArray.length;
+        const maxNickLength = Math.max(...snakesArray.map(snake => snake.nick.length));
+
+        // Calculate total bits needed
+        const totalBits = 7 + numSnakes * (8 + maxNickLength * 2); // Inline snakeDataSize calculation
+
+        // Create the bit buffer
+        const bitBuffer = new ArrayBuffer(totalBits);
+        const bitView = new DataView(bitBuffer);
+
+        // Write message type
+        bitView.setUint8(0, MessageTypes.SendLeaderboard);
+        let offset = 1;
+
+        // Write snake data
+        for (let i = 0; i < Math.min(numSnakes, 10); i++) {
+            const snake = snakesArray[i];
+            const rank = i + 1;
+            snake.rank = rank;
+
+            // Write snake data
+            bitView.setUint16(offset, snake.id, true);
+            bitView.setUint32(offset + 2, (snake.length - defaultLength) * scoreMultiplier, true);
+
+            // Write snake name
+            const nameBytes = new TextEncoder().encode(snake.nick);
+            for (let j = 0; j < nameBytes.length; j++) {
+                bitView.setUint16(offset + 6 + j * 2, nameBytes[j], true);
+            }
+
+            // Null-terminate snake name
+            bitView.setUint16(offset + 6 + nameBytes.length * 2, 0, true);
+
+            offset += 8 + nameBytes.length * 2; // Update offset
+        }
+
+        // Write current snake's data
+        bitView.setUint16(offset, 0, true); // Null-terminate snake data
+        offset += 2;
+        bitView.setUint16(offset, this.id, true);
+        offset += 2;
+        const mySnake = snakes[this.id];
+        if (mySnake) {
+            bitView.setUint32(offset, (mySnake.length - defaultLength) * scoreMultiplier, true);
+            offset += 4;
+            const myRank = mySnake.rank || 0;
+            bitView.setUint16(offset, myRank, true);
+        }
+
+        // Send the bit buffer
+        this.network.send(bitBuffer);
     }
     addPoint(x, y) {
         this.points.unshift({ x: x, y: y });
@@ -1693,7 +1693,11 @@ function entitiesNearSnake(snake) { // Returns entities near snake and loaded en
 async function main() {
     let timeStart = Date.now();
     UpdateArena()
-    //console.log(`UpdateArena took ${Date.now() - timeStart}ms`)
+    console.log(`UpdateArena took ${Date.now() - timeStart}ms`)
+
+    
+    
+    
 
     // Add random food spawns
     
@@ -1704,103 +1708,88 @@ async function main() {
         }
         
     }
+    timeStart = Date.now();
+    const clientSnakes = Object.values(clients);
 
-    Object.values(clients).forEach(function (snake) {
-        //let numUpdatedEntities = 0
-        //let numCreatedEntities = 0
-        //let numRemovedEntities = 0
-        let isSpawned = snake.spawned;
-        if (snake.id) {
-            let entQuery = entitiesNearSnake(snake);
-            let nearbyEntities = entQuery.entitiesToAdd;
-            let removeEntities = entQuery.entitiesToRemove;
-            //numCreatedEntities += Object.values(nearbyEntities).length
-            //numRemovedEntities += Object.values(removeEntities).length
+    clientSnakes.forEach(function (snake) {
+        if (snake.id && snake.spawned) {
+            const updatedEntities = [];
+            const loadedEntitiesValues = Object.values(snake.loadedEntities);
+            const { entitiesToAdd: nearbyEntities, entitiesToRemove: removeEntities } = entitiesNearSnake(snake);
+
+            // Combine entity updates
+            updatedEntities.push(...nearbyEntities, ...loadedEntitiesValues.filter(entity =>
+                entity.type === EntityTypes.Player || (entity.type === EntityTypes.Item && entity.lastUpdate > lastUpdate)
+            ));
+
+            // Update snake for rendering and removal
             snake.update(UpdateTypes.OnRender, nearbyEntities);
-            snake.update(UpdateTypes.OnRemove, removeEntities)
+            snake.update(UpdateTypes.OnRemove, removeEntities);
 
-            Object.values(snake.loadedEntities).forEach(function (entity) {
-                switch (entity.type) {
-                    case EntityTypes.Player:
-                        //numUpdatedEntities++
-                        snake.update(UpdateTypes.OnUpdate, [entity]);
-                        break
-                    case EntityTypes.Item:
-                        if (entity.lastUpdate > lastUpdate) {
-                            //numUpdatedEntities++
-                            snake.update(UpdateTypes.OnUpdate, [entity]);
-                        }
-
-                        if (entity.subtype == EntitySubtypes.Food && isSpawned) {
-                            let distance = Math.sqrt(
-                                Math.pow(snake.position.x - entity.position.x, 2) +
-                                Math.pow(snake.position.y - entity.position.y, 2)
-                            );
-                            if (distance < 3) {
-                                entity.eat(snake);
-                            }
-                        }
-                        break
-
-                }
-            })
-            //console.log(`Updated ${numUpdatedEntities} entities, created ${numCreatedEntities} entities, removed ${numRemovedEntities} entities for snake ${snake.id}`)
-
-            if (snake.spawned) {
-
-                /* HANDLE TALK STAMINA */
-                if (snake.talkStamina < 255) {
-                    snakes[snake.id].talkStamina += 5;
-                    if (snake.talkStamina > 255)
-                        snakes[snake.id].talkStamina = 255;
-                }
-
-
-
-
-                /* CALCULATE TAIL LENGTH */
-                let totalPointLength = 0;
-                for (let i = -1; i < snake.points.length - 1; i++) {
-                    let point;
-                    if (i == -1)
-                        point = snake.position;
-                    else
-                        point = snake.points[i];
-                    let nextPoint = snake.points[i + 1];
-
-                    let segmentLength = getSegmentLength(point, nextPoint);
-                    totalPointLength += segmentLength;
-                }
-                if (totalPointLength > snake.length) {
-                    let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
-                    let lastPoint = snake.points[snake.points.length - 1] || snake.position;
-                    let direction = getNormalizedDirection(secondToLastPoint, lastPoint);
-
-                    let amountOverLength = totalPointLength - snake.length;
-                    let lastSegmentLength = getSegmentLength(secondToLastPoint, lastPoint);
-
-                    if (lastSegmentLength > amountOverLength) { // Last segment can be decreased to fit length
-                        let newPoint = {
-                            x: lastPoint.x - direction.x * amountOverLength,
-                            y: lastPoint.y - direction.y * amountOverLength
-                        }
-                        snake.points[snake.points.length - 1] = newPoint;
-                    } else { // Last segment is too short, remove it and decrease the next one
-                        snake.points.pop();
+            // Update snake for each loaded entity
+            loadedEntitiesValues.forEach(function (entity) {
+                if (entity && entity.spawned && entity.subtype === EntitySubtypes.Food) {
+                    const distanceSquared = Math.pow(snake.position.x - entity.position.x, 2) +
+                                            Math.pow(snake.position.y - entity.position.y, 2);
+                    if (distanceSquared < 9) { // Using distance squared to avoid square root calculation
+                        entity.eat(snake);
                     }
                 }
+            });
 
-                /* HANDLE LEADERBOARD */
-                snake.updateLeaderboard();
-                
+            // Update snake for all updated entities
+            snake.update(UpdateTypes.OnUpdate, updatedEntities);
+
+            // Handle talk stamina
+            snake.talkStamina = Math.min(255, snake.talkStamina + 5); // Using Math.min to clamp the value
+
+            // Calculate tail length
+            const totalPointLength = getSnakeTotalPointLength(snake);
+            if (totalPointLength > snake.length) {
+                adjustSnakeTailLength(snake, totalPointLength);
+            }
+
+            // Update leaderboard
+            snake.updateLeaderboard();
+        }
+    });
+
+    function getSnakeTotalPointLength(snake) {
+        let totalPointLength = 0;
+        const points = [snake.position, ...snake.points]; // Include snake position in points array
+        for (let i = 0; i < points.length - 1; i++) {
+            totalPointLength += getSegmentLength(points[i], points[i + 1]);
+        }
+        return totalPointLength;
+    }
+
+    function adjustSnakeTailLength(snake, totalPointLength) {
+        let remainingLength = totalPointLength - snake.length;
+        const points = snake.points.slice(); // Clone points array
+
+        // Start from the end of the points array
+        for (let i = points.length - 2; i >= 0; i--) {
+            remainingLength -= getSegmentLength(points[i], points[i + 1]);
+            if (remainingLength <= 0) {
+                // Calculate the new position of the last point based on remaining length
+                const direction = getNormalizedDirection(points[i], points[i + 1]);
+                const newPoint = {
+                    x: points[i + 1].x - direction.x * Math.abs(remainingLength),
+                    y: points[i + 1].y - direction.y * Math.abs(remainingLength)
+                };
+                // Update snake points array
+                snake.points = points.slice(0, i + 1).concat(newPoint);
+                break;
             }
         }
-    })
+    }
+    console.log(`UpdateClients took ${Date.now() - timeStart}ms`)
 
     Object.values(clients).forEach(function (snake) {
         snake.newPoints = []
     })
     lastUpdate = Date.now();
+    
 
 }
 
@@ -1816,7 +1805,8 @@ function mainLooper() {
 function SimulateGame(first) { // Simulate as if there is a ton of players
     if (first)
         for (let i = 0; i < 100; i++) {
-            let snake = new Snake({ socket: { send: () => { } } }, true)
+            let client = new Client({ send: () => { } }, "::1")
+            let snake = new Snake(client, true)
             snake.spawn("Simulated")
         }
     
@@ -1854,6 +1844,6 @@ function SimulateGame(first) { // Simulate as if there is a ton of players
     }, 10)
 
 }
-//SimulateGame(true)
+SimulateGame(true)
 
 mainLooper()
