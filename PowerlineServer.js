@@ -144,9 +144,15 @@ function pointsNearSnake(player1, player2, distance) {
             break
         if (lineInsideOrIntersectsRectangle(point, nextPoint, center, width, height)) {
             if (!lastPointFound) {
-                foundPoints.push(point);
+                foundPoints.push({
+                    index: i,
+                    point: point
+                });
             }
-            foundPoints.push(nextPoint);
+            foundPoints.push({
+                index: i + 1,
+                point: nextPoint
+            });
             lastPointFound = true
         }
         else {
@@ -1588,14 +1594,20 @@ function UpdateArena() { // Main update loop
 
             let closestRubLine
 
-            for (let i = -1; i < otherSnake.points.length - 1; i++) {
+            //for (let i = -1; i < otherSnake.points.length - 1; i++) {
+            let nearbyPoints = pointsNearSnake(snake, otherSnake, 30);
+            for (let i = 0; i < nearbyPoints.length - 1; i++) {
                 numPoints++
                 let point, nextPoint;
                 if (i == -1)
                     point = otherSnake.position;
                 else
-                    point = otherSnake.points[i];
-                nextPoint = otherSnake.points[i + 1];
+                    point = nearbyPoints[i];
+                nextPoint = nearbyPoints[i + 1];
+                if (nextPoint.index != point.index + 1)
+                    continue
+                point = point.point;
+                nextPoint = nextPoint.point;
 
                 // Rubbing Mechanics
                 if (otherSnake.id != snake.id) {
@@ -1613,7 +1625,7 @@ function UpdateArena() { // Main update loop
                         if (direction && snakeDirection) {
                             if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y)))
                                 noRub = true
-                            if (data.distance >= 3)
+                            if (data.distance >= 4)
                                 noRub = true
                             if (closestRubLine && data.distance > closestRubLine.distance)
                                 noRub = true
