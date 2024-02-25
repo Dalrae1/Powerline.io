@@ -1694,7 +1694,7 @@ async function main() {
         
     }
 
-    Object.values(snakes).forEach(function (snake) {
+    Object.values(clients).forEach(function (snake) {
         //let numUpdatedEntities = 0
         //let numCreatedEntities = 0
         //let numRemovedEntities = 0
