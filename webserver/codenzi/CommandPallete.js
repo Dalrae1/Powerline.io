@@ -32,6 +32,10 @@ var CommandPallete = function () {
         else
             element.style.display = 'none';
     }
+
+    function isVisible() {
+        return visible
+    }
     
     
     enterCommand = function (command) {
@@ -42,7 +46,7 @@ var CommandPallete = function () {
 
     return {
         domElement: create(),
-        visible: visible,
+        isVisible: isVisible,
         toggle: toggle
     }
     

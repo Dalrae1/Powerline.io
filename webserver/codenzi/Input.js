@@ -63,6 +63,12 @@ var Input = function() {
 			commandPallete.toggle();
 		}
 
+		if (commandPallete.isVisible()) {
+			return;
+
+		}
+			
+
 		if(e.keyCode == 67 && UIVisible && copyingLink)
 		{
 			setTimeout(function(){
