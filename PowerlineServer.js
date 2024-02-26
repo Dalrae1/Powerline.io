@@ -1795,14 +1795,14 @@ async function main() {
             timeElapsed9 += Date.now() - timeStart9;
         }
     });
-    /*console.log(`TimeElapsed2 took ${timeElapsed2}ms`)
+    console.log(`TimeElapsed2 took ${timeElapsed2}ms`)
     console.log(`TimeElapsed3 took ${timeElapsed3}ms`)
     console.log(`TimeElapsed4 took ${timeElapsed4}ms`)
     console.log(`TimeElapsed5 took ${timeElapsed5}ms`)
     console.log(`TimeElapsed6 took ${timeElapsed6}ms`)
     console.log(`TimeElapsed7 took ${timeElapsed7}ms`)
     console.log(`TimeElapsed8 took ${timeElapsed8}ms`)
-    console.log(`TimeElapsed9 took ${timeElapsed9}ms`)*/
+    console.log(`TimeElapsed9 took ${timeElapsed9}ms`)
 
     function getSnakeTotalPointLength(snake) {
         let totalPointLength = 0;
