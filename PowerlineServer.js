@@ -438,7 +438,7 @@ class Snake {
         const maxNickLength = Math.max(...snakesArray.map(snake => snake.nick.length));
 
         // Calculate total bits needed
-        const totalBits = 7 + numSnakes * (8 + maxNickLength * 2); // Inline snakeDataSize calculation
+        const totalBits = 11 + numSnakes * (8 + maxNickLength * 2); // Inline snakeDataSize calculation
 
         // Create the bit buffer
         const bitBuffer = new ArrayBuffer(totalBits);
@@ -481,6 +481,7 @@ class Snake {
             offset += 4;
             const myRank = mySnake.rank || 0;
             bitView.setUint16(offset, myRank, true);
+            offset += 2;
         }
 
         // Send the bit buffer
