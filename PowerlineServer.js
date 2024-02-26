@@ -525,15 +525,13 @@ class Snake {
         if (secondPoint)
             Object.values(clients).forEach((snake) => {
                 if (this.loadedEntities[snake.id]) {
-                    let nearbyPoints = pointsNearSnake(this, snake, 30);
-                    for (let i = 0; i < nearbyPoints.length - 1; i++) {
-                        let point, nextPoint;
-                        point = nearbyPoints[i];
-                        nextPoint = nearbyPoints[i + 1];
-                        if (nextPoint.index != point.index + 1)
-                            continue
-                        point = point.point;
-                        nextPoint = nextPoint.point;
+                    for (let i = -1; i < snake.points.length - 1; i++) {
+                        let point;
+                        if (i == -1)
+                            point = snake.position;
+                        else
+                            point = snake.points[i];
+                        let nextPoint = snake.points[i + 1];
                         
                         // Make sure that the last point did not intersect with another snake
                         if (this.position != nextPoint && secondPoint != point && secondPoint != nextPoint &&
@@ -1601,7 +1599,10 @@ function UpdateArena() { // Main update loop
             for (let i = 0; i < nearbyPoints.length - 1; i++) {
                 numPoints++
                 let point, nextPoint;
-                point = nearbyPoints[i];
+                if (i == -1)
+                    point = otherSnake.position;
+                else
+                    point = nearbyPoints[i];
                 nextPoint = nearbyPoints[i + 1];
                 if (nextPoint.index != point.index + 1)
                     continue
