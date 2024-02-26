@@ -2,7 +2,6 @@ const WebSocket = require('ws');
 const HttpsServer = require('https').createServer;
 const fs = require("fs");
 const EventEmitter = require("events");
-const { time } = require('console');
 
 
 let server, wssSecure
@@ -72,14 +71,14 @@ function lineInsideOrIntersectsRectangle(lineStart, lineEnd, center, width, heig
     if (pointInsideRectangle(lineStart, rectangle) || pointInsideRectangle(lineEnd, rectangle)) return true;
 
     const rectangleEdges = [
-        [[rectangle.x, rectangle.y], [rectangle.x + rectangle.width, rectangle.y]],
-        [[rectangle.x + rectangle.width, rectangle.y], [rectangle.x + rectangle.width, rectangle.y + rectangle.height]],
-        [[rectangle.x, rectangle.y + rectangle.height], [rectangle.x + rectangle.width, rectangle.y + rectangle.height]],
-        [[rectangle.x, rectangle.y], [rectangle.x, rectangle.y + rectangle.height]]
+        [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y }],
+        [{ x: rectangle.x + rectangle.width, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }],
+        [{ x: rectangle.x, y: rectangle.y + rectangle.height }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }],
+        [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x, y: rectangle.y + rectangle.height }]
     ];
 
     for (const edge of rectangleEdges) {
-        if (lineSegmentsIntersect(lineStart, lineEnd, { x: edge[0][0], y: edge[0][1] }, { x: edge[1][0], y: edge[1][1] })) return true;
+        if (lineSegmentsIntersect(lineStart, lineEnd, edge[0], edge[1])) return true;
     }
 
     return false;
@@ -94,35 +93,25 @@ function entitiesWithinRadius(center, entities, checksnake) {
     const yMax = center.y + windowSizeY / 2;
 
     const foundEntities = [];
-
-    entities.forEach(entity => {
-        let intersectsRectangle = false;
-
+    entities.forEach((entity) => {
         switch (entity.type) {
             case EntityTypes.Player:
-                if (entity.spawned) {
-                    for (let i = -1; i < entity.points.length - 1; i++) {
-                        const point = (i === -1) ? entity.position : entity.points[i];
-                        const nextPoint = entity.points[i + 1];
-                        if (lineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
-                            intersectsRectangle = true;
-                            break;
-                        }
+                for (let i = -1; i < entity.points.length - 1; i++) {
+                    const point = (i === -1) ? entity.position : entity.points[i];
+                    const nextPoint = entity.points[i + 1];
+                    if (lineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
+                        foundEntities.push(entity);
+                        break;
                     }
                 }
                 break;
             case EntityTypes.Item:
-                if (pointInsideRectangle(entity.position, { x: xMin, y: yMin, width: windowSizeX, height: windowSizeY })) {
-                    intersectsRectangle = true;
+                if (entity.position.x >= xMin && entity.position.x <= xMax && entity.position.y >= yMin && entity.position.y <= yMax) {
+                    foundEntities.push(entity);
                 }
                 break;
         }
-
-        if (intersectsRectangle) {
-            foundEntities.push(entity);
-        }
     });
-
     return foundEntities;
 }
 
@@ -1705,17 +1694,6 @@ async function main() {
     let timeStart = Date.now();
     UpdateArena()
     console.log(`UpdateArena took ${Date.now() - timeStart}ms`)
-    let num = 0
-    let timeElapsed2 = 0;
-    let timeElapsed3 = 0;
-    let timeElapsed4 = 0;
-    let timeElapsed5 = 0;
-    let timeElapsed6 = 0;
-    let timeElapsed7 = 0;
-    let timeElapsed8 = 0;
-    let timeElapsed9 = 0;
-
-
 
     
     
@@ -1735,31 +1713,20 @@ async function main() {
 
     clientSnakes.forEach(function (snake) {
         if (snake.id && snake.spawned) {
-            num++
-            let timeStart2 = Date.now();
             const updatedEntities = [];
             const loadedEntitiesValues = Object.values(snake.loadedEntities);
-            entitiesNearSnakeCalc = Date.now();
             const { entitiesToAdd: nearbyEntities, entitiesToRemove: removeEntities } = entitiesNearSnake(snake);
-            timeElapsed2 += Date.now() - timeStart2;
 
             // Combine entity updates
-            let timeStart3 = Date.now();
             updatedEntities.push(...nearbyEntities, ...loadedEntitiesValues.filter(entity =>
                 entity.type === EntityTypes.Player || (entity.type === EntityTypes.Item && entity.lastUpdate > lastUpdate)
             ));
-            timeElapsed3 += Date.now() - timeStart3;
 
             // Update snake for rendering and removal
-            let timeStart4 = Date.now();
             snake.update(UpdateTypes.OnRender, nearbyEntities);
-            timeElapsed4 += Date.now() - timeStart4;
-            let timeStart5 = Date.now();
             snake.update(UpdateTypes.OnRemove, removeEntities);
-            timeElapsed5 += Date.now() - timeStart5;
 
             // Update snake for each loaded entity
-            let timeStart6 = Date.now();
             loadedEntitiesValues.forEach(function (entity) {
                 if (entity && entity.spawned && entity.subtype === EntitySubtypes.Food) {
                     const distanceSquared = Math.pow(snake.position.x - entity.position.x, 2) +
@@ -1769,38 +1736,23 @@ async function main() {
                     }
                 }
             });
-            timeElapsed6 += Date.now() - timeStart6;
 
             // Update snake for all updated entities
-            let timeStart7 = Date.now();
             snake.update(UpdateTypes.OnUpdate, updatedEntities);
-            timeElapsed7 += Date.now() - timeStart7;
 
             // Handle talk stamina
             snake.talkStamina = Math.min(255, snake.talkStamina + 5); // Using Math.min to clamp the value
 
-            let timeStart8 = Date.now();
             // Calculate tail length
             const totalPointLength = getSnakeTotalPointLength(snake);
             if (totalPointLength > snake.length) {
                 adjustSnakeTailLength(snake, totalPointLength);
             }
-            timeElapsed8 += Date.now() - timeStart8;
 
             // Update leaderboard
-            let timeStart9 = Date.now();
             snake.updateLeaderboard();
-            timeElapsed9 += Date.now() - timeStart9;
         }
     });
-    console.log(`TimeElapsed2 took ${timeElapsed2}ms`)
-    console.log(`TimeElapsed3 took ${timeElapsed3}ms`)
-    console.log(`TimeElapsed4 took ${timeElapsed4}ms`)
-    console.log(`TimeElapsed5 took ${timeElapsed5}ms`)
-    console.log(`TimeElapsed6 took ${timeElapsed6}ms`)
-    console.log(`TimeElapsed7 took ${timeElapsed7}ms`)
-    console.log(`TimeElapsed8 took ${timeElapsed8}ms`)
-    console.log(`TimeElapsed9 took ${timeElapsed9}ms`)
 
     function getSnakeTotalPointLength(snake) {
         let totalPointLength = 0;
@@ -1892,6 +1844,6 @@ function SimulateGame(first) { // Simulate as if there is a ton of players
     }, 10)
 
 }
-//SimulateGame(true)
+SimulateGame(true)
 
 mainLooper()
