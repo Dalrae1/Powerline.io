@@ -22,8 +22,7 @@ if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
 var admins = [
     "73.96.77.58",
     "127.0.0.1",
-    "64.112.210.252",
-    "49.207.54.89" // Zayn Beiber
+    "64.112.210.252"
 ]
 const wss = new WebSocket.Server({ port: 1337});
 var snakes = {}
