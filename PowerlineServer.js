@@ -799,6 +799,7 @@ class Snake {
         this.network.send(Bit8);
     }
     update(updateType, entities) {
+        console.log(`Updating ${this.nick}`)
         /* CALCULATING TOTAL BITS */
         var calculatedTotalBits = 1;
         Object.values(entities).forEach((entity) => {
@@ -890,6 +891,7 @@ class Snake {
             }
         })
         calculatedTotalBits += 2 + 2 + 4 + 4; // King bits
+        console.log(`Calculated ${calculatedTotalBits} for ${this.nick}`)
         var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
         Bit8.setUint8(0, MessageTypes.SendEntities);
         var offset = 1;
@@ -1123,7 +1125,7 @@ class Snake {
         offset += 4;
         Bit8.setFloat32(offset, king && king.position.y || 0, true);
         offset += 4;
-        
+        console.log(`Sending update to ${this.nick}`)
       this.network.send(Bit8);
     }
     numDebugCircle = 0
