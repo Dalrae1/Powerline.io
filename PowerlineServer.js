@@ -28,7 +28,7 @@ var snakes = {}
 var entities = {}
 var clients = {}
 var lastClientId = 1
-var lastEntityId = 1
+var nextEntityId = 0
 var arenaSize = 300
 var updateDuration = 90
 var UPDATE_EVERY_N_TICKS = 3;
@@ -264,7 +264,7 @@ class Food {
     value = foodValue*2;
     lastUpdate = Date.now();
   constructor(x, y, color, origin, timeToLive = 5000+(Math.random()*60*1000*5)) {
-    entities[lastEntityId] = this;
+    entities[nextEntityId] = this;
     if (x == undefined) 
           this.position = GetRandomPosition();
     else {
@@ -272,13 +272,19 @@ class Food {
     }
     if (color == undefined) this.color = Math.random() * 360;
     else this.color = color;
-      this.id = lastEntityId;
+      this.id = nextEntityId;
     if (origin)
         this.origin = origin.id;
-    lastEntityId++;
-      setTimeout(() => {
-          this.eat();
-      }, timeToLive);
+      
+    for (let i = 0; i < 1000; i++) {
+        nextEntityId++;
+        if (!entities[nextEntityId]) {
+            break;
+        }
+    }
+    setTimeout(() => {
+        this.eat();
+    }, timeToLive);
     return this;
     }
     
@@ -332,6 +338,7 @@ class Food {
             snake.length += this.value;
             snake.lastAte = Date.now();
         }
+        nextEntityId = this.id;
         delete entities[this.id]; 
     }
 }
@@ -400,12 +407,12 @@ class Snake {
         
     }
     spawn(name) {
-        console.log("Spawning snake " + name)
+        console.log("Spawning snake " + name + " with ID " + nextEntityId)
         this.spawned = true;
         var Bit8 = new DataView(new ArrayBuffer(1000));
         Bit8.setUint8(0, MessageTypes.SendSpawn);
-        Bit8.setUint32(1, lastEntityId, true);
-        this.id = lastEntityId;
+        Bit8.setUint32(1, nextEntityId, true);
+        this.id = nextEntityId;
         this.nick = name
         let randomPos = GetRandomPosition();
         this.position = { x: randomPos.x, y: randomPos.y };
@@ -419,14 +426,17 @@ class Snake {
         this.talkStamina = 255;
         this.color = Math.random() * 360;
         this.length = defaultLength;
-        console.log(`Adding snake ${name} with ID ${this.id}, now there are ${Object.keys(snakes).length} snakes`)
 
 
 
-        lastEntityId++;
+        for (let i = 0; i < 1000; i++) {
+            nextEntityId++;
+            if (!entities[nextEntityId]) {
+                break;
+            }
+        }
         snakes[this.id] = this;
         entities[this.id] = this;
-        console.log(`Added snake ${name} with ID ${this.id}, now there are ${Object.keys(snakes).length} snakes`)
 
         
         this.network.send(Bit8);
@@ -786,6 +796,7 @@ class Snake {
 
         this.spawned = false;
         delete snakes[this.id];
+        nextEntityId = this.id;
         delete entities[this.id]
 
     }
