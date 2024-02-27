@@ -400,6 +400,7 @@ class Snake {
         
     }
     spawn(name) {
+        console.log("Spawning snake " + name)
         this.spawned = true;
         var Bit8 = new DataView(new ArrayBuffer(1000));
         Bit8.setUint8(0, MessageTypes.SendSpawn);
@@ -418,12 +419,14 @@ class Snake {
         this.talkStamina = 255;
         this.color = Math.random() * 360;
         this.length = defaultLength;
+        console.log(`Adding snake ${name} with ID ${this.id}, now there are ${Object.keys(snakes).length} snakes`)
 
 
 
         lastEntityId++;
         snakes[this.id] = this;
         entities[this.id] = this;
+        console.log(`Added snake ${name} with ID ${this.id}, now there are ${Object.keys(snakes).length} snakes`)
 
         
         this.network.send(Bit8);
@@ -799,7 +802,6 @@ class Snake {
         this.network.send(Bit8);
     }
     update(updateType, entities) {
-        console.log(`Updating ${this.nick}`)
         /* CALCULATING TOTAL BITS */
         var calculatedTotalBits = 1;
         Object.values(entities).forEach((entity) => {
@@ -891,7 +893,6 @@ class Snake {
             }
         })
         calculatedTotalBits += 2 + 2 + 4 + 4; // King bits
-        console.log(`Calculated ${calculatedTotalBits} for ${this.nick}`)
         var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
         Bit8.setUint8(0, MessageTypes.SendEntities);
         var offset = 1;
@@ -1125,7 +1126,6 @@ class Snake {
         offset += 4;
         Bit8.setFloat32(offset, king && king.position.y || 0, true);
         offset += 4;
-        console.log(`Sending update to ${this.nick}`)
       this.network.send(Bit8);
     }
     numDebugCircle = 0
