@@ -460,45 +460,69 @@ class Snake {
         
     }
     updateLeaderboard() {
-        let calculatedTotalBits = 1;
-        Object.values(snakes).forEach((snake) => {
-            calculatedTotalBits += 2 + 4 + ((snake.nick.length+1) * 2);
-        })
-        calculatedTotalBits += 2 + 2 + 4 + 2;
-        var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
-        var offset = 0
+        const sortedSnakes = Object.values(snakes).sort((a, b) => b.length - a.length);
+        const totalSnakes = sortedSnakes.length;
+        const maxDisplayedSnakes = Math.min(totalSnakes, 10); // Display only the first 10 snakes
+        const maxNickLength = Math.max(...sortedSnakes.map(snake => snake.nick.length));
+
+        const calculatedTotalBits = 1 + maxDisplayedSnakes * (2 + 4 + (maxNickLength + 1) * 2) + 2 + 2 + 4 + 2 + 2;
+        const Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
+        let offset = 0;
+
         Bit8.setUint8(offset, MessageTypes.SendLeaderboard);
         offset += 1;
-        let sortedSnakes = Object.values(snakes).sort((a, b) => {
-            return b.length - a.length;
-        });
+
         let myRank = 0;
-        let curRank = 0
-        Object.values(sortedSnakes).forEach((snake) => {
-            curRank++
-            snake.rank = curRank;
-            if (snake.id == this.id)
-                myRank = curRank;
-            if (curRank == 1) {
+
+        for (let index = 0; index < totalSnakes; index++) {
+            const snake = sortedSnakes[index];
+            const snakeId = snake.id;
+            if (snakeId == this.id) {
+                myRank = index + 1;
+            }
+            if (index >= maxDisplayedSnakes) {
+                if (myRank != 0)
+                    break
+                else
+                    continue
+            }
+            
+            
+            const snakeLength = (snake.length - defaultLength) * scoreMultiplier;
+            const snakeNick = snake.nick;
+            const nameBytes = new TextEncoder().encode(snakeNick);
+            const nameLength = nameBytes.length;
+            const snakeRank = index + 1;
+
+            if (snakeId === this.id) {
+                myRank = snakeRank;
+            }
+
+            if (snakeRank === 1) {
                 king = snake;
             }
-            Bit8.setUint16(offset, snake.id, true);
+
+            Bit8.setUint16(offset, snakeId, true);
             offset += 2;
-            Bit8.setUint32(offset, (snake.length - defaultLength)*scoreMultiplier, true);
+            Bit8.setUint32(offset, snakeLength, true);
             offset += 4;
-            for (var characterIndex = 0; characterIndex < snake.nick.length; characterIndex++) {
-                Bit8.setUint16(offset + characterIndex * 2, snake.nick.charCodeAt(characterIndex), true);
+
+            for (let j = 0; j < nameLength; j++) {
+                Bit8.setUint16(offset + j * 2, nameBytes[j], true);
             }
-            offset = getString(Bit8, offset).offset;
-        })
+            offset += nameLength * 2;
+
+            Bit8.setUint16(offset, 0, true);
+            offset += 2;
+        }
+
         Bit8.setUint16(offset, 0, true);
         offset += 2;
         Bit8.setUint16(offset, this.id, true);
         offset += 2;
-        Bit8.setUint32(offset, (this.length - defaultLength)*scoreMultiplier, true);
+        Bit8.setUint32(offset, (this.length - defaultLength) * scoreMultiplier, true);
         offset += 4;
-        // Set rank
-        // Sort snakes
+
         Bit8.setUint16(offset, myRank, true);
         offset += 2;
 
@@ -1735,30 +1759,39 @@ async function main() {
         
     }
 
+    let testTime = 0
     Object.values(clients).forEach(function (snake) {
         //let numUpdatedEntities = 0
         //let numCreatedEntities = 0
         //let numRemovedEntities = 0
         let isSpawned = snake.spawned;
         if (snake.id) {
+            
             let entQuery = entitiesNearSnake(snake);
+            
+            
             let nearbyEntities = entQuery.entitiesToAdd;
             let removeEntities = entQuery.entitiesToRemove;
             //numCreatedEntities += Object.values(nearbyEntities).length
             //numRemovedEntities += Object.values(removeEntities).length
+
+            
             snake.update(UpdateTypes.OnRender, nearbyEntities);
             snake.update(UpdateTypes.OnRemove, removeEntities)
-
+            
+            
+            let updateEntities = []
             Object.values(snake.loadedEntities).forEach(function (entity) {
                 switch (entity.type) {
                     case EntityTypes.Player:
                         //numUpdatedEntities++
-                        snake.update(UpdateTypes.OnUpdate, [entity]);
+                        updateEntities.push(entity)
+                        
                         break
                     case EntityTypes.Item:
                         if (entity.lastUpdate > lastUpdate) {
                             //numUpdatedEntities++
-                            snake.update(UpdateTypes.OnUpdate, [entity]);
+                            updateEntities.push(entity)
                         }
 
                         if (entity.subtype == EntitySubtypes.Food && isSpawned) {
@@ -1774,6 +1807,8 @@ async function main() {
 
                 }
             })
+            snake.update(UpdateTypes.OnUpdate, updateEntities);
+            
             //console.log(`Updated ${numUpdatedEntities} entities, created ${numCreatedEntities} entities, removed ${numRemovedEntities} entities for snake ${snake.id}`)
 
             if (snake.spawned) {
@@ -1821,12 +1856,15 @@ async function main() {
                 }
 
                 /* HANDLE LEADERBOARD */
+                let startTime2 = Date.now();
                 snake.updateLeaderboard();
+                testTime += Date.now() - startTime2
                 
             }
         }
     })
 
+    console.log(`testTime took took ${testTime}ms`)
     Object.values(clients).forEach(function (snake) {
         snake.newPoints = []
     })
