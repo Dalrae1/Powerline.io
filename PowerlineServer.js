@@ -28,7 +28,6 @@ var snakes = {}
 var entities = {}
 var clients = {}
 var lastClientId = 1
-var nextEntityId = 0
 var arenaSize = 300
 var updateDuration = 90
 var UPDATE_EVERY_N_TICKS = 3;
@@ -42,6 +41,33 @@ var lastUpdate = 0;
 let maxFood = arenaSize * 5;
 let foodSpawnPercent = (arenaSize ^ 2) / 10;
 var foodMultiplier = 1;
+
+
+class IDManager {
+    constructor() {
+        this.nextAvailableID = 1;
+        this.releasedIDs = new Set();
+    }
+
+    allocateID() {
+        if (this.releasedIDs.size > 0) {
+            // Reuse a released ID
+            const id = this.releasedIDs.values().next().value;
+            this.releasedIDs.delete(id);
+            return id;
+        } else {
+            // Allocate a new ID
+            return this.nextAvailableID++;
+        }
+    }
+
+    releaseID(id) {
+        this.releasedIDs.add(id);
+    }
+}
+
+// Example usage
+const entityIDs = new IDManager();
 
 function lineSegmentsIntersect(line1Start, line1End, line2Start, line2End) {
     const det = (line1End.x - line1Start.x) * (line2End.y - line2Start.y) - (line2End.x - line2Start.x) * (line1End.y - line1Start.y);
@@ -263,30 +289,25 @@ class Food {
     spawned = true
     value = foodValue*2;
     lastUpdate = Date.now();
-  constructor(x, y, color, origin, timeToLive = 5000+(Math.random()*60*1000*5)) {
-    entities[nextEntityId] = this;
-    if (x == undefined) 
-          this.position = GetRandomPosition();
-    else {
-        this.position = { x: x, y: y };
-    }
-    if (color == undefined) this.color = Math.random() * 360;
-    else this.color = color;
-      this.id = nextEntityId;
-    if (origin)
-        this.origin = origin.id;
-      
-    for (let i = 0; i < 1000; i++) {
-        nextEntityId++;
-        if (!entities[nextEntityId]) {
-            break;
+    constructor(x, y, color, origin, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5)) {
+        let thisId = entityIDs.allocateID();
+        entities[thisId] = this;
+        if (x == undefined) 
+            this.position = GetRandomPosition();
+        else {
+            this.position = { x: x, y: y };
         }
-    }
-    setTimeout(() => {
-        this.eat();
-    }, timeToLive);
-    return this;
-    }
+        if (color == undefined) this.color = Math.random() * 360;
+        else this.color = color;
+        this.id = thisId;
+        if (origin)
+            this.origin = origin.id;
+        
+        setTimeout(() => {
+            this.eat();
+        }, timeToLive);
+        return this;
+        }
     
     eat(snake) {
         this.lastUpdate = Date.now();
@@ -338,7 +359,7 @@ class Food {
             snake.length += this.value;
             snake.lastAte = Date.now();
         }
-        nextEntityId = this.id;
+        entityIDs.releaseID(this.id);
         delete entities[this.id]; 
     }
 }
@@ -407,12 +428,13 @@ class Snake {
         
     }
     spawn(name) {
-        console.log("Spawning snake " + name + " with ID " + nextEntityId)
+        let thisId = entityIDs.allocateID();
+        console.log("Spawning snake " + name + " with ID " + thisId)
         this.spawned = true;
         var Bit8 = new DataView(new ArrayBuffer(1000));
         Bit8.setUint8(0, MessageTypes.SendSpawn);
-        Bit8.setUint32(1, nextEntityId, true);
-        this.id = nextEntityId;
+        Bit8.setUint32(1, thisId, true);
+        this.id = thisId;
         this.nick = name
         let randomPos = GetRandomPosition();
         this.position = { x: randomPos.x, y: randomPos.y };
@@ -429,12 +451,6 @@ class Snake {
 
 
 
-        for (let i = 0; i < 1000; i++) {
-            nextEntityId++;
-            if (!entities[nextEntityId]) {
-                break;
-            }
-        }
         snakes[this.id] = this;
         entities[this.id] = this;
 
@@ -796,7 +812,7 @@ class Snake {
 
         this.spawned = false;
         delete snakes[this.id];
-        nextEntityId = this.id;
+        entityIDs.releaseID(this.id);
         delete entities[this.id]
 
     }
