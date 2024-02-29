@@ -7,6 +7,8 @@ const EventEmitter = require("events");
 /* Required */
 const IDManager = require("./modules/IDManager.js");
 const Enums = require("./modules/Enums.js");
+const Food = require("./modules/Food.js");
+const MapFunctions = require("./modules/MapFunctions.js");
 
 let server, wssSecure
 
@@ -28,79 +30,25 @@ var admins = [
     "64.112.210.252"
 ]
 const wss = new WebSocket.Server({ port: 1337});
-var snakes = {}
-var entities = {}
-var clients = {}
-var lastClientId = 1
-var arenaSize = 300
-var updateDuration = 90
-var UPDATE_EVERY_N_TICKS = 3;
-let maxBoostSpeed = 255;
-let maxRubSpeed = 200;
-var foodValue = 1.5;
-var scoreMultiplier = 10/foodValue;
-var defaultLength = 10;
-var king = null;
-var lastUpdate = 0;
-let maxFood = arenaSize * 5;
-let foodSpawnPercent = (arenaSize ^ 2) / 10;
-var foodMultiplier = 1;
-
-
-
-
-// Example usage
-const entityIDs = new IDManager();
-
-function lineSegmentsIntersect(line1Start, line1End, line2Start, line2End) {
-    const det = (line1End.x - line1Start.x) * (line2End.y - line2Start.y) - (line2End.x - line2Start.x) * (line1End.y - line1Start.y);
-    if (det === 0) {
-        return false;
-    } else {
-        const lambda = ((line2End.y - line2Start.y) * (line2End.x - line1Start.x) + (line2Start.x - line2End.x) * (line2End.y - line1Start.y)) / det;
-        const gamma = ((line1Start.y - line1End.y) * (line2End.x - line1Start.x) + (line1End.x - line1Start.x) * (line2End.y - line1Start.y)) / det;
-        return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
-    }
-}
-
-function pointInsideRectangle(point, rectangle) {
-    return point.x >= rectangle.x &&
-        point.x <= rectangle.x + rectangle.width &&
-        point.y >= rectangle.y &&
-        point.y <= rectangle.y + rectangle.height;
-}
-
-function lineInsideOrIntersectsRectangle(lineStart, lineEnd, center, width, height) {
-    const rectangle = {
-        x: center.x - width / 2,
-        y: center.y - height / 2,
-        width: width,
-        height: height
-    };
-
-    // Check if either endpoint of the line segment is inside the rectangle
-    if (pointInsideRectangle(lineStart, rectangle) || pointInsideRectangle(lineEnd, rectangle)) {
-        return true;
-    }
-
-    // Check if the line segment intersects any of the sides of the rectangle
-    const rectangleEdges = [
-        [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y }], // Top edge
-        [{ x: rectangle.x + rectangle.width, y: rectangle.y }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }], // Right edge
-        [{ x: rectangle.x, y: rectangle.y + rectangle.height }, { x: rectangle.x + rectangle.width, y: rectangle.y + rectangle.height }], // Bottom edge
-        [{ x: rectangle.x, y: rectangle.y }, { x: rectangle.x, y: rectangle.y + rectangle.height }] // Left edge
-    ];
-
-    for (const edge of rectangleEdges) {
-        if (lineSegmentsIntersect(lineStart, lineEnd, edge[0], edge[1])) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-console.log(Enums.EntityTypes.ENTITY_PLAYER)
+// Global variables
+entityIDs = new IDManager();
+entities = {}
+clients = {}
+snakes = {}
+arenaSize = 300
+foodValue = 1.5;
+lastClientId = 1
+updateDuration = 90
+UPDATE_EVERY_N_TICKS = 3;
+maxBoostSpeed = 255;
+maxRubSpeed = 200;
+scoreMultiplier = 10/foodValue;
+defaultLength = 10;
+king = null;
+lastUpdate = 0;
+maxFood = arenaSize * 5;
+foodSpawnPercent = (arenaSize ^ 2) / 10;
+foodMultiplier = 1;
 
 function entitiesWithinRadius(center, entities, checksnake) {
     let windowSizeX = checksnake.windowSizeX;
@@ -120,7 +68,7 @@ function entitiesWithinRadius(center, entities, checksnake) {
                     else
                         point = entity.points[i];
                     let nextPoint = entity.points[i + 1];
-                    if (lineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
+                    if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
                         foundEntities.push(entity);
                     }
                     
@@ -151,7 +99,7 @@ function pointsNearSnake(player1, player2, distance) {
             point = player2.position
         if (!nextPoint)
             break
-        if (lineInsideOrIntersectsRectangle(point, nextPoint, center, width, height)) {
+        if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, width, height)) {
             if (!lastPointFound) {
                 foundPoints.push({
                     index: i,
@@ -190,98 +138,11 @@ function scoreToLength(score) {
 }
 
 
-
-class Food {
-    type = Enums.EntityTypes.ENTITY_ITEM;
-    subtype = Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD;
-    position = { x: 0, y: 0 };
-    spawned = true
-    value = foodValue*2;
-    lastUpdate = Date.now();
-    constructor(x, y, color, origin, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5)) {
-        let thisId = entityIDs.allocateID();
-        entities[thisId] = this;
-        if (x == undefined) 
-            this.position = GetRandomPosition();
-        else {
-            this.position = { x: x, y: y };
-        }
-        if (color == undefined) this.color = Math.random() * 360;
-        else this.color = color;
-        this.id = thisId;
-        if (origin)
-            this.origin = origin.id;
-        
-        setTimeout(() => {
-            this.eat();
-        }, timeToLive);
-        return this;
-        }
-    
-    eat(snake) {
-        this.lastUpdate = Date.now();
-        this.spawned = false
-        if (snake && this.origin == snake.id) {
-            return;
-        }
-        if (snake) {
-            for (let i = 0; i < 3; i++) {
-                setTimeout(() => {
-                    snake.extraSpeed += 2;
-                    if (snake.extraSpeed > maxBoostSpeed && !snake.speedBypass)
-                        snake.extraSpeed = maxBoostSpeed;
-                }, updateDuration * 2 * i)
-            }
-        }
-        
-        Object.values(clients).forEach((snakee) => {
-            if (snakee.id) {
-                if (snakee.loadedEntities[this.id]) {
-                    var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
-                    Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
-                    var offset = 1;
-                    Bit8.setUint16(offset, this.id, true);
-                    offset += 2;
-                    Bit8.setUint8(offset, Enums.UpdateTypes.UPDATE_TYPE_DELETE, true);
-                    offset += 1;
-                    Bit8.setUint16(offset, snake && snake.id || 0, true);
-                    offset += 2;
-                    Bit8.setUint8(offset, Enums.KillReasons.KILLED, true);
-                    offset += 1;
-
-                    // King
-                    Bit8.setUint16(offset, 0, true);
-                    offset += 2;
-                    Bit8.setUint16(offset, king && king.id || 0, true);
-                    offset += 2;
-                    Bit8.setFloat32(offset, king && king.position.x || 0, true);
-                    offset += 4;
-                    Bit8.setFloat32(offset, king && king.position.y || 0, true);
-                    offset += 4;
-                    
-                    snakee.network.send(Bit8);
-                    delete snakee.loadedEntities[this.id]
-                }
-            }
-        })
-        if (snake) {
-            snake.length += this.value;
-            snake.lastAte = Date.now();
-        }
-        entityIDs.releaseID(this.id);
-        delete entities[this.id]; 
-    }
-}
-
 for (let i = 0; i < maxFood; i++) {
 //for (let i = 0; i < 1000; i++) {
     new Food();
 }
 
-
-function GetRandomPosition() {
-    return { x: Math.random() * arenaSize - arenaSize / 2, y: Math.random() * arenaSize - arenaSize / 2 };
-}
 
 
 class Snake {
@@ -345,7 +206,7 @@ class Snake {
         Bit8.setUint32(1, thisId, true);
         this.id = thisId;
         this.nick = name
-        let randomPos = GetRandomPosition();
+        let randomPos = MapFunctions.GetRandomPosition();
         this.position = { x: randomPos.x, y: randomPos.y };
         this.direction = Enums.Directions.UP;
         this.speed = 0.25;
