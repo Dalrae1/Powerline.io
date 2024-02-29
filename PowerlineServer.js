@@ -213,134 +213,8 @@ wss.on('connection', async function connection(ws, req) {
     })
 });
 
-function getNormalizedDirection(lineStart, lineEnd) {
-    if (lineStart.y > lineEnd.y) {
-        return { x: 0, y: -1 }
-    }
-    else if (lineStart.y < lineEnd.y) {
-        return { x: 0, y: 1 }
-    }
-    else if (lineStart.x < lineEnd.x) {
-        return { x: 1, y: 0 }
-    }
-    else if (lineStart.x > lineEnd.x) {
-        return { x: -1, y: 0 }
-    }
-}
-
 function getSegmentLength(point1, point2) {
     return Math.abs(Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)));
-}
-
-function nearestPointOnLine(point, lineStart, lineEnd) // Returns point on line closest to point
-{
-    let A = point.x - lineStart.x;
-    let B = point.y - lineStart.y;
-    let C = lineEnd.x - lineStart.x;
-    let D = lineEnd.y - lineStart.y;
-
-    let dot = A * C + B * D;
-    let len_sq = C * C + D * D;
-    let param = -1;
-    if (len_sq != 0) //in case of 0 length line
-        param = dot / len_sq;
-
-    let xx, yy;
-
-    if (param < 0) {
-        xx = lineStart.x;
-        yy = lineStart.y;
-    } else if (param > 1) {
-        xx = lineEnd.x;
-        yy = lineEnd.y;
-    } else {
-        xx = lineStart.x + param * C;
-        yy = lineStart.y + param * D;
-    }
-
-    let dx = point.x - xx;
-    let dy = point.y - yy;
-    return { point: { x: xx, y: yy }, distance: Math.sqrt(dx * dx + dy * dy) };
-}
-
-function onSegment(p, q, r) 
-{ 
-    if (q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) && 
-        q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y)) 
-       return true; 
-  
-    return false; 
-} 
-
-function orientation(p, q, r) 
-{ 
-    // See https://www.geeksforgeeks.org/orientation-3-ordered-points/ 
-    // for details of below formula. 
-    val = (q.y - p.y) * (r.x - q.x) - 
-              (q.x - p.x) * (r.y - q.y); 
-  
-    if (val == 0) return 0;
-  
-    return (val > 0)? 1: 2;
-} 
-  
-// The main function that returns true if line segment 'p1q1'  
-function doIntersect( p1,  q1,  p2,  q2) 
-{ 
-    // Find the four orientations needed for general and 
-    // special cases 
-    o1 = orientation(p1, q1, p2); 
-    o2 = orientation(p1, q1, q2); 
-    o3 = orientation(p2, q2, p1); 
-    o4 = orientation(p2, q2, q1); 
-  
-    // General case 
-    if (o1 != o2 && o3 != o4) 
-        return true; 
-  
-    // Special Cases 
-    // p1, q1 and p2 are collinear and p2 lies on segment p1q1 
-    if (o1 == 0 && onSegment(p1, p2, q1)) return true; 
-  
-    // p1, q1 and q2 are collinear and q2 lies on segment p1q1 
-    if (o2 == 0 && onSegment(p1, q2, q1)) return true; 
-  
-    // p2, q2 and p1 are collinear and p1 lies on segment p2q2 
-    if (o3 == 0 && onSegment(p2, p1, q2)) return true; 
-  
-     // p2, q2 and q1 are collinear and q1 lies on segment p2q2 
-    if (o4 == 0 && onSegment(p2, q1, q2)) return true; 
-  
-    return false; // Doesn't fall in any of the above cases 
-} 
-
-function getPointAtDistance(snake, distance) // Returns point that is distance away from head
-{
-    let totalPointLength = 0;
-    for (let i = -1; i < snake.points.length - 1; i++) {
-        let point;
-        if (i == -1)
-            point = snake.position;
-        else
-            point = snake.points[i];
-        let nextPoint = snake.points[i + 1];
-
-        
-
-        let segmentLength = getSegmentLength(point, nextPoint);
-        totalPointLength += segmentLength;
-        if (totalPointLength > distance) { // The point is in this segment
-            let segmentOverLength = segmentLength - (totalPointLength-distance);
-            let direction = getNormalizedDirection(point, nextPoint);
-            let lookForPoint = { x: point.x + (direction.x * segmentOverLength), y: point.y + (direction.y * segmentOverLength) };
-            //snake.DrawDebugCircle(point.x, point.y, 100);
-            //snake.DrawDebugCircle(nextPoint.x, nextPoint.y, 100);
-            //snake.DrawDebugCircle(lookForPoint.x, lookForPoint.y, 20);
-            return lookForPoint;
-
-        }
-    }
-    return snake.position;
 }
 
 
@@ -408,14 +282,14 @@ function UpdateArena() { // Main update loop
                 if (otherSnake.id != snake.id) {
                     
                     if (i <= otherSnake.points.length - 1) {
-                        let data = nearestPointOnLine(
+                        let data = MapFunctions.NearestPointOnLine(
                             snake.position,
                             point,
                             nextPoint
                         );
                         // Check if this line is in the same direction
-                        let direction = getNormalizedDirection(point, nextPoint);
-                        let snakeDirection = getNormalizedDirection(snake.position, secondPoint);
+                        let direction = MapFunctions.GetNormalizedDirection(point, nextPoint);
+                        let snakeDirection = MapFunctions.GetNormalizedDirection(snake.position, secondPoint);
                         let noRub = false;
                         if (direction && snakeDirection) {
                             if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y)))
@@ -438,10 +312,10 @@ function UpdateArena() { // Main update loop
                 // Collision Mechanics
 
                 if (snake.position != nextPoint && secondPoint != point && snake.position != secondPoint && snake.position != point) {
-                    if (doIntersect(snake.position, secondPoint, point, nextPoint)) {
+                    if (MapFunctions.DoIntersect(snake.position, secondPoint, point, nextPoint)) {
                         setTimeout(() => { // Make sure they didn't move out of the way
                             if (snake.position != nextPoint && secondPoint != point && snake.position != secondPoint && snake.position != point) {
-                                if (doIntersect(snake.position, secondPoint, point, nextPoint)) {
+                                if (MapFunctions.DoIntersect(snake.position, secondPoint, point, nextPoint)) {
                                     if (snake.id == otherSnake.id) {
                                         snake.kill(Enums.KillReasons.SELF, snake.id);
                                     } else {
@@ -581,7 +455,7 @@ async function main() {
                 if (totalPointLength > snake.length) {
                     let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
                     let lastPoint = snake.points[snake.points.length - 1] || snake.position;
-                    let direction = getNormalizedDirection(secondToLastPoint, lastPoint);
+                    let direction = MapFunctions.GetNormalizedDirection(secondToLastPoint, lastPoint);
 
                     let amountOverLength = totalPointLength - snake.length;
                     let lastSegmentLength = getSegmentLength(secondToLastPoint, lastPoint);

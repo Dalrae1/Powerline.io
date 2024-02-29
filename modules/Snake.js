@@ -21,7 +21,7 @@ function getPointAtDistance(snake, distance) // Returns point that is distance a
         totalPointLength += segmentLength;
         if (totalPointLength > distance) { // The point is in this segment
             let segmentOverLength = segmentLength - (totalPointLength-distance);
-            let direction = getNormalizedDirection(point, nextPoint);
+            let direction = MapFunctions.GetNormalizedDirection(point, nextPoint);
             let lookForPoint = { x: point.x + (direction.x * segmentOverLength), y: point.y + (direction.y * segmentOverLength) };
             //snake.DrawDebugCircle(point.x, point.y, 100);
             //snake.DrawDebugCircle(nextPoint.x, nextPoint.y, 100);
@@ -31,63 +31,6 @@ function getPointAtDistance(snake, distance) // Returns point that is distance a
         }
     }
     return snake.position;
-}
-
-function orientation(p, q, r) 
-{ 
-    // See https://www.geeksforgeeks.org/orientation-3-ordered-points/ 
-    // for details of below formula. 
-    val = (q.y - p.y) * (r.x - q.x) - 
-              (q.x - p.x) * (r.y - q.y); 
-  
-    if (val == 0) return 0;
-  
-    return (val > 0)? 1: 2;
-} 
-  
-// The main function that returns true if line segment 'p1q1'  
-function doIntersect( p1,  q1,  p2,  q2) 
-{ 
-    // Find the four orientations needed for general and 
-    // special cases 
-    o1 = orientation(p1, q1, p2); 
-    o2 = orientation(p1, q1, q2); 
-    o3 = orientation(p2, q2, p1); 
-    o4 = orientation(p2, q2, q1); 
-  
-    // General case 
-    if (o1 != o2 && o3 != o4) 
-        return true; 
-  
-    // Special Cases 
-    // p1, q1 and p2 are collinear and p2 lies on segment p1q1 
-    if (o1 == 0 && onSegment(p1, p2, q1)) return true; 
-  
-    // p1, q1 and q2 are collinear and q2 lies on segment p1q1 
-    if (o2 == 0 && onSegment(p1, q2, q1)) return true; 
-  
-    // p2, q2 and p1 are collinear and p1 lies on segment p2q2 
-    if (o3 == 0 && onSegment(p2, p1, q2)) return true; 
-  
-     // p2, q2 and q1 are collinear and q1 lies on segment p2q2 
-    if (o4 == 0 && onSegment(p2, q1, q2)) return true; 
-  
-    return false; // Doesn't fall in any of the above cases 
-} 
-
-function getNormalizedDirection(lineStart, lineEnd) {
-    if (lineStart.y > lineEnd.y) {
-        return { x: 0, y: -1 }
-    }
-    else if (lineStart.y < lineEnd.y) {
-        return { x: 0, y: 1 }
-    }
-    else if (lineStart.x < lineEnd.x) {
-        return { x: 1, y: 0 }
-    }
-    else if (lineStart.x > lineEnd.x) {
-        return { x: -1, y: 0 }
-    }
 }
 
 function getSegmentLength(point1, point2) {
@@ -326,13 +269,13 @@ class Snake {
                         if (this.position != nextPoint && secondPoint != point && secondPoint != nextPoint &&
                             this.position != secondPoint && this.position != point) {
                             
-                            if (doIntersect(this.position, secondPoint, point, nextPoint)) {
+                            if (MapFunctions.DoIntersect(this.position, secondPoint, point, nextPoint)) {
                                 /*this.DrawDebugCircle(this.position.x, this.position.y, 50, 4); // Yellow
                                 this.DrawDebugCircle(secondPoint.x, secondPoint.y, 50, 4); // Yellow
                                 this.DrawDebugCircle(point.x, point.y, 100, 3); // Green
                                 this.DrawDebugCircle(nextPoint.x, nextPoint.y, 100, 3); // Green*/
                                 setTimeout(() => { // Make sure they didn't move out of the way
-                                    if (doIntersect(this.position, secondPoint, point, nextPoint)) {
+                                    if (MapFunctions.DoIntersect(this.position, secondPoint, point, nextPoint)) {
                                         if (this == snake) {
                                             this.kill(Enums.KillReasons.SELF, this.id);
                                         } else {
@@ -554,7 +497,7 @@ class Snake {
             
             // Move food forward the direction that the line was going
             
-            let direction = getNormalizedDirection(nextPoint, point);
+            let direction = MapFunctions.GetNormalizedDirection(nextPoint, point);
 
             if (direction) {
                 let amountDispersion = 2;
