@@ -2,6 +2,11 @@ const Enums = require("./Enums.js");
 const MapFunctions = require("./MapFunctions.js");
 const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
 const Food = require("./Food.js");
+const AVLTree = require("./AVLTree.js");
+
+leaderboard = new AVLTree();
+
+
 
 class Snake {
     network = null;
@@ -33,7 +38,8 @@ class Snake {
         this.newPoints = [];
         this.talkStamina = 255;
         this.color = Math.random() * 360;
-        this.length = defaultLength;
+        this._length = defaultLength;
+        leaderboard.insert(this.length, this.id);
 
 
 
@@ -42,6 +48,16 @@ class Snake {
 
         
         this.network.send(Bit8);
+    }
+    get length() {
+        return this._length;
+    }
+    set length(value) {
+        
+        leaderboard.delete(this._length, this.id);
+        this._length = value;
+        leaderboard.insert(this.length, this.id);
+
     }
     windowSizeX = 128;
     windowSizeY = 64;
@@ -78,75 +94,50 @@ class Snake {
 
         
     }
-
     updateLeaderboard() {
-        const sortedSnakes = Object.values(snakes).sort((a, b) => b.length - a.length);
-        const totalSnakes = sortedSnakes.length;
-        const maxDisplayedSnakes = Math.min(totalSnakes, 10); // Display only the first 10 snakes
-        const maxNickLength = Math.max(...sortedSnakes.map(snake => snake.nick.length));
-
-        const calculatedTotalBits = 1 + maxDisplayedSnakes * (2 + 4 + (maxNickLength + 1) * 2) + 2 + 2 + 4 + 2 + 2;
-        const Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
+        const BitView = new DataView(new ArrayBuffer(1000));
         let offset = 0;
-
-        Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_LEADERBOARD);
+        BitView.setUint8(offset, Enums.ServerToClient.OPCODE_LEADERBOARD);
         offset += 1;
 
-        let myRank = 0;
-
-        for (let index = 0; index < totalSnakes; index++) {
-            const snake = sortedSnakes[index];
-            const snakeId = snake.id;
-            if (snakeId == this.id) {
-                myRank = index + 1;
+        let count = 1;
+        let myRank = 1;
+        for (let pair of leaderboard.reverseOrderTraversal()) {
+            let snake = entities[pair.data]
+            if (!snake || !snake.spawned)
+                continue
+            if (snake.id == this.id)
+                myRank = count;
+            if (count <= 10) {
+                if (count == 1)
+                    king = snake;
+                BitView.setUint16(offset, snake.id, true);
+                offset += 2;
+                BitView.setUint32(offset, (snake.length - defaultLength) * scoreMultiplier, true);
+                offset += 4;
+                const nameBytes = new TextEncoder().encode(snake.nick);
+                const nameLength = nameBytes.length;
+                for (let j = 0; j < nameLength; j++) {
+                    BitView.setUint16(offset + j * 2, nameBytes[j], true);
+                }
+                offset += nameLength * 2;
+                BitView.setUint16(offset, 0, true);
+                offset += 2;
             }
-            if (index >= maxDisplayedSnakes) {
-                if (myRank != 0)
-                    break
-                else
-                    continue
-            }
-            
-            
-            const snakeLength = (snake.length - defaultLength) * scoreMultiplier;
-            const snakeNick = snake.nick;
-            const nameBytes = new TextEncoder().encode(snakeNick);
-            const nameLength = nameBytes.length;
-            const snakeRank = index + 1;
-
-            if (snakeId === this.id) {
-                myRank = snakeRank;
-            }
-
-            if (snakeRank === 1) {
-                king = snake;
-            }
-
-            Bit8.setUint16(offset, snakeId, true);
+            count++
+        }
+        if (myRank) {
+            BitView.setUint16(offset, 0, true);
             offset += 2;
-            Bit8.setUint32(offset, snakeLength, true);
+            BitView.setUint16(offset, this.id, true);
+            offset += 2;
+            BitView.setUint32(offset, (this.length - defaultLength) * scoreMultiplier, true);
             offset += 4;
-
-            for (let j = 0; j < nameLength; j++) {
-                Bit8.setUint16(offset + j * 2, nameBytes[j], true);
-            }
-            offset += nameLength * 2;
-
-            Bit8.setUint16(offset, 0, true);
+            BitView.setUint16(offset, myRank, true);
             offset += 2;
         }
+        this.network.send(BitView);
 
-        Bit8.setUint16(offset, 0, true);
-        offset += 2;
-        Bit8.setUint16(offset, this.id, true);
-        offset += 2;
-        Bit8.setUint32(offset, (this.length - defaultLength) * scoreMultiplier, true);
-        offset += 4;
-
-        Bit8.setUint16(offset, myRank, true);
-        offset += 2;
-
-        this.network.send(Bit8);
     }
     addPoint(x, y) {
         this.points.unshift({ x: x, y: y });
@@ -461,6 +452,7 @@ class Snake {
 
 
         this.spawned = false;
+        leaderboard.delete(this.length, this.id);
         entityIDs.releaseID(this.id);
         delete snakes[this.id];
         delete entities[this.id]
