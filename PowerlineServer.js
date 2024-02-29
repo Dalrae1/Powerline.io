@@ -10,6 +10,7 @@ const Enums = require("./modules/Enums.js");
 const Food = require("./modules/Food.js");
 const Snake = require("./modules/Snake.js");
 const MapFunctions = require("./modules/MapFunctions.js");
+const { EntityFunctions, SnakeFunctions } = require("./modules/EntityFunctions.js");
 
 let server, wssSecure
 
@@ -52,94 +53,8 @@ admins = [
     "64.112.210.252"
 ]
 
-function entitiesWithinRadius(center, entities, checksnake) {
-    let windowSizeX = checksnake.windowSizeX;
-    let windowSizeY = checksnake.windowSizeY;
-    let xMin = center.x - windowSizeX / 2;
-    let xMax = center.x + windowSizeX / 2;
-    let yMin = center.y - windowSizeY / 2;
-    let yMax = center.y + windowSizeY / 2;
-    let foundEntities = [];
-    entities.forEach((entity) => {
-        switch (entity.type) {
-            case Enums.EntityTypes.ENTITY_PLAYER:
-                for (let i = -1; i < entity.points.length - 1; i++) {
-                    let point;
-                    if (i == -1)
-                        point = entity.position;
-                    else
-                        point = entity.points[i];
-                    let nextPoint = entity.points[i + 1];
-                    if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
-                        foundEntities.push(entity);
-                    }
-                    
-                }
-                break
-            case Enums.EntityTypes.ENTITY_ITEM:
-                if (entity.position.x >= xMin && entity.position.x <= xMax && entity.position.y >= yMin && entity.position.y <= yMax) {
-                    foundEntities.push(entity);
-                    break;
-                }
-                break
-        }
-    })
-    return foundEntities
-}
-
-function pointsNearSnake(player1, player2, distance) {
-    let width = distance;
-    let height = distance;
-    let foundPoints = [];
-    let lastPointFound = false
-    let center = player1.position
-    let points = player2.points
-    for (let i = -1; i < points.length - 1; i++) {
-        let point = points[i];
-        let nextPoint = points[i + 1];
-        if (i == -1)
-            point = player2.position
-        if (!nextPoint)
-            break
-        if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, width, height)) {
-            if (!lastPointFound) {
-                foundPoints.push({
-                    index: i,
-                    point: point
-                });
-            }
-            foundPoints.push({
-                index: i + 1,
-                point: nextPoint
-            });
-            lastPointFound = true
-        }
-        else {
-            lastPointFound = false
-        }
-    }
-    return foundPoints
-}
-
-function getScoreToDrop(length) {
-    let score = (length - defaultLength)*scoreMultiplier
-    let x = Math.ceil(Math.random() * 30 * 10) / 10
-    return Math.floor(((score - (score - x) / 6) + 70) / 10) * 10
-}
-
-function scoreToFood(score) {
-    return Math.floor(score / 10)
-}
-function lengthToScore(length) {
-    return (length - defaultLength)*scoreMultiplier
-}
-function scoreToLength(score) {
-    return score/scoreMultiplier
-}
-
 
 for (let i = 0; i < maxFood; i++) {
-//for (let i = 0; i < 1000; i++) {
     new Food();
 }
 
@@ -264,7 +179,7 @@ function UpdateArena() { // Main update loop
             let closestRubLine
 
             //for (let i = -1; i < otherSnake.points.length - 1; i++) {
-            let nearbyPoints = pointsNearSnake(snake, otherSnake, 30);
+            let nearbyPoints = SnakeFunctions.GetPointsNearSnake(snake, otherSnake, 30);
             for (let i = 0; i < nearbyPoints.length - 1; i++) {
                 numPoints++
                 let point, nextPoint;
@@ -352,14 +267,6 @@ function UpdateArena() { // Main update loop
     //console.log(`Updated ${numSnak} snakes and ${numPoints} points`)
 }
 
-function entitiesNearSnake(snake) { // Returns entities near snake and loaded entities that are not in radius
-    let entitiesInRadius = entitiesWithinRadius({ x: snake.position.x, y: snake.position.y }, Object.values(entities), snake);
-    let loadedEntities = Object.values(snake.loadedEntities);
-    let entitiesToAdd = entitiesInRadius.filter(entity => !loadedEntities.includes(entity));
-    let entitiesToRemove = loadedEntities.filter(entity => !entitiesInRadius.includes(entity));
-    return { entitiesToAdd, entitiesToRemove };
-}
-
 async function main() {
     let timeStart = Date.now();
     UpdateArena()
@@ -383,7 +290,7 @@ async function main() {
         let isSpawned = snake.spawned;
         if (snake.id) {
             
-            let entQuery = entitiesNearSnake(snake);
+            let entQuery = SnakeFunctions.GetEntitiesNearSnake(snake);
             
             
             let nearbyEntities = entQuery.entitiesToAdd;

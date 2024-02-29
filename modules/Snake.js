@@ -1,41 +1,10 @@
 const Enums = require("./Enums.js");
 const MapFunctions = require("./MapFunctions.js");
+const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
 const Food = require("./Food.js");
 
 
 
-function getPointAtDistance(snake, distance) // Returns point that is distance away from head
-{
-    let totalPointLength = 0;
-    for (let i = -1; i < snake.points.length - 1; i++) {
-        let point;
-        if (i == -1)
-            point = snake.position;
-        else
-            point = snake.points[i];
-        let nextPoint = snake.points[i + 1];
-
-        
-
-        let segmentLength = getSegmentLength(point, nextPoint);
-        totalPointLength += segmentLength;
-        if (totalPointLength > distance) { // The point is in this segment
-            let segmentOverLength = segmentLength - (totalPointLength-distance);
-            let direction = MapFunctions.GetNormalizedDirection(point, nextPoint);
-            let lookForPoint = { x: point.x + (direction.x * segmentOverLength), y: point.y + (direction.y * segmentOverLength) };
-            //snake.DrawDebugCircle(point.x, point.y, 100);
-            //snake.DrawDebugCircle(nextPoint.x, nextPoint.y, 100);
-            //snake.DrawDebugCircle(lookForPoint.x, lookForPoint.y, 20);
-            return lookForPoint;
-
-        }
-    }
-    return snake.position;
-}
-
-function getSegmentLength(point1, point2) {
-    return Math.abs(Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)));
-}
 
 function getScoreToDrop(length) {
     let score = (length - defaultLength)*scoreMultiplier
@@ -435,7 +404,7 @@ class Snake {
           else point = this.points[i];
           let nextPoint = this.points[i + 1];
 
-          let segmentLength = getSegmentLength(point, nextPoint);
+          let segmentLength = SnakeFunctions.GetSegmentLength(point, nextPoint);
           actualLength += segmentLength;
         }
 
@@ -487,12 +456,12 @@ class Snake {
         let foodToDrop = scoreToFood(scoreToDrop)*foodMultiplier;
         let dropAtInterval = actualLength / (foodToDrop);
         for (let i = 0; i < actualLength; i += dropAtInterval) {
-            let point = getPointAtDistance(this, i);
+            let point = SnakeFunctions.GetPointAtDistance(this, i);
             let nextPoint
             if (i == actualLength-1)
                 nextPoint = this.position;
             else
-                nextPoint = getPointAtDistance(this, i + 1);
+                nextPoint = SnakeFunctions.GetPointAtDistance(this, i + 1);
             let food = new Food(point.x, point.y, this.color - 25 + Math.random() * 50, this, 20000 + (Math.random() * 60 * 1000 * 5));
             
             // Move food forward the direction that the line was going
