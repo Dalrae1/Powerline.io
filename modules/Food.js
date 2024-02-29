@@ -20,7 +20,7 @@ class Food {
         else this.color = color;
         this.id = thisId;
         if (origin)
-            this.origin = origin.id;
+            this.origin = origin;
         
         setTimeout(() => {
             this.eat();
@@ -31,7 +31,7 @@ class Food {
     eat(snake) {
         this.lastUpdate = Date.now();
         this.spawned = false
-        if (snake && this.origin == snake.id) {
+        if (snake && this.origin == snake) {
             return;
         }
         if (snake) {

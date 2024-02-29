@@ -1,7 +1,6 @@
 const WebSocket = require('ws');
 const HttpsServer = require('https').createServer;
 const fs = require("fs");
-const EventEmitter = require("events");
 
 
 /* Required */
@@ -11,6 +10,7 @@ const Food = require("./modules/Food.js");
 const Snake = require("./modules/Snake.js");
 const MapFunctions = require("./modules/MapFunctions.js");
 const { EntityFunctions, SnakeFunctions } = require("./modules/EntityFunctions.js");
+const Client = require("./modules/Client.js");
 
 let server, wssSecure
 
@@ -30,6 +30,7 @@ if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
 const wss = new WebSocket.Server({ port: 1337});
 // Global variables
 entityIDs = new IDManager();
+clientIDs = new IDManager();
 entities = {}
 clients = {}
 snakes = {}
@@ -58,26 +59,9 @@ for (let i = 0; i < maxFood; i++) {
     new Food();
 }
 
-let newSnakes = [];
-
 function round(num) {
     return Math.round(num / 1000) * 1000
 }
-class Client extends EventEmitter {
-    constructor(websocket, ip) {
-        super();
-        this.socket = websocket;
-        this.nick = "";
-        this.id = 0;
-        if (ip.toString() == "::1") // Set IP to local
-            ip = "::ffff:127.0.0.1"
-            
-        this.ip = (ip.toString()).split(":")[3];
-        console.log(`Client connected from "${this.ip}"`);
-    }
-}
-
-
 
 
 global.getString = function (data, bitOffset) {
@@ -97,34 +81,34 @@ function sleep(ms) {
 if (wssSecure) {
     wssSecure.on('connection', async function connection(ws, req) {
         let client = new Client(ws, req.socket.remoteAddress);
-        let snake = new Snake(client);
         ws.on('message', async function incoming(message, req) {
             let view = new DataView(new Uint8Array(message).buffer);
             let messageType = view.getUint8(0);
-            snake.RecieveMessage(messageType, view)
+            client.RecieveMessage(messageType, view)
         })
         ws.on('close', function close() {
-            if (snake.id) {
-                snake.kill(Enums.KillReasons.LEFT_SCREEN, snake.id);
-                delete clients[snake.id];
+            if (client.snake && client.snake.id) {
+                client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake.id);
+                
             }
+            delete clients[client.id];
         })
     });
 }
 
 wss.on('connection', async function connection(ws, req) {
     let client = new Client(ws, req.socket.remoteAddress);
-    let snake = new Snake(client);
     ws.on('message', async function incoming(message, req) {
         let view = new DataView(new Uint8Array(message).buffer);
         let messageType = view.getUint8(0);
-        snake.RecieveMessage(messageType, view)
+        client.RecieveMessage(messageType, view)
     })
     ws.on('close', function close() {
-        if (snake.id) {
-            snake.kill(Enums.KillReasons.LEFT_SCREEN, snake.id);
-            delete clients[snake.id];
+        if (client.snake && client.snake.id) {
+            client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake.id);
+            
         }
+        delete clients[client.id];
     })
 });
 

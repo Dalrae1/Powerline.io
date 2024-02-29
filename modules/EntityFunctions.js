@@ -112,6 +112,20 @@ class SnakeFunctions {
         }
         return foundPoints
     }
+    static LengthToScore(length) {
+        return (length - defaultLength)*scoreMultiplier
+    }
+    static ScoreToLength(score) {
+        return score/scoreMultiplier
+    }
+    static ScoreToFood(score) {
+        return Math.floor(score / 10)
+    }
+    static GetScoreToDrop(length) {
+        let score = (length - defaultLength)*scoreMultiplier
+        let x = Math.ceil(Math.random() * 30 * 10) / 10
+        return Math.floor(((score - (score - x) / 6) + 70) / 10) * 10
+    }
 }
 
 module.exports = {

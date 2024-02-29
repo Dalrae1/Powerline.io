@@ -3,26 +3,6 @@ const MapFunctions = require("./MapFunctions.js");
 const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
 const Food = require("./Food.js");
 
-
-
-
-function getScoreToDrop(length) {
-    let score = (length - defaultLength)*scoreMultiplier
-    let x = Math.ceil(Math.random() * 30 * 10) / 10
-    return Math.floor(((score - (score - x) / 6) + 70) / 10) * 10
-}
-
-function scoreToFood(score) {
-    return Math.floor(score / 10)
-}
-function lengthToScore(length) {
-    return (length - defaultLength)*scoreMultiplier
-}
-function scoreToLength(score) {
-    return score/scoreMultiplier
-}
-
-
 class Snake {
     network = null;
     nick = "";
@@ -452,8 +432,8 @@ class Snake {
 
 
 
-        let scoreToDrop = getScoreToDrop(actualLength);
-        let foodToDrop = scoreToFood(scoreToDrop)*foodMultiplier;
+        let scoreToDrop = SnakeFunctions.GetScoreToDrop(actualLength);
+        let foodToDrop = SnakeFunctions.ScoreToFood(scoreToDrop)*foodMultiplier;
         let dropAtInterval = actualLength / (foodToDrop);
         for (let i = 0; i < actualLength; i += dropAtInterval) {
             let point = SnakeFunctions.GetPointAtDistance(this, i);
@@ -868,183 +848,7 @@ class Snake {
         }, 5000)
 
     }
-    RecieveMessage(messageType, view) {
-        if (messageType != Enums.ClientToServer.OPCODE_ENTER_GAME && !this.id) {
-            return
-        }
-        switch (messageType) {
-            case Enums.ClientToServer.OPCODE_CS_PING:
-                this.doPong();
-                this.doPing();
-                break;
-            case Enums.ClientToServer.OPCODE_ENTER_GAME:
-                var nick = global.getString(view, 1);
-                console.log("Spawning snake " + nick.string);
-                if (!this.spawned)
-                    this.spawn(nick.string);
-                break;
-            case Enums.ClientToServer.OPCODE_INPUT_POINT:
-                let offset = 1;
-                let direction = view.getUint8(offset, true);
-                offset += 1;
-                let vector = view.getFloat32(offset, true);
-                offset += 4;
-                let isFocused = view.getUint8(offset, true) & 1;
-                this.turn(direction, vector);
-                break;
-            case Enums.ClientToServer.OPCODE_TALK:
-                if (this.talkStamina >= 255) {
-                    this.Talk(view.getUint8(1, true));
-                    this.talkStamina = 0;
-                }
-                break;
-            case Enums.ClientToServer.OPCODE_AREA_UPDATE:
-                this.windowSizeX = view.getUint16(1, true)/2;
-                this.windowSizeY = view.getUint16(3, true)/2;
-                break;
-            case Enums.ClientToServer.OPCODE_HELLO_V4:
-                this.windowSizeX = view.getUint16(1, true)/2;
-                this.windowSizeY = view.getUint16(3, true)/2;
-            case Enums.ClientToServer.OPCODE_HELLO_DEBUG:
-                this.windowSizeX = view.getUint16(1, true)/2;
-                this.windowSizeY = view.getUint16(3, true) / 2;
-            case Enums.ClientToServer.OPCODE_BOOST:
-                if (admins.includes(this.ip)) {
-                    let boosting = view.getUint8(1) == 1
-                    if (boosting) {
-                        this.extraSpeed += 2;
-                        if (this.extraSpeed > maxBoostSpeed)
-                            this.speedBypass = true
-                        this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
-                    } else {
-                        this.speedBypass = false;
-                        if (this.extraSpeed > maxBoostSpeed)
-                            this.extraSpeed = maxBoostSpeed
-                    }
-                }
-                break;
-            case Enums.ClientToServer.OPCODE_DEBUG_GRAB:
-                if (admins.includes(this.ip))
-                    this.length += scoreToLength(1000);
-                break;
-            case 0x0d: // Invincible
-                if (admins.includes(this.ip))
-                    this.invincible = view.getUint8(1, true) == 1;
-            
-                break;
-            case 0x0e: // Commands
-                if (admins.includes(this.ip)) {
-                    let command = global.getString(view, 1).string;
-                    if (!command)
-                        return
-                    command = command.toLowerCase()
-                    let commandArgs = command.split(" ");
-                    if (!commandArgs[0])
-                        return
-                    switch (commandArgs[0]) {
-                        case "arenasize":
-                            if (commandArgs[1]) {
-                                let size = parseInt(commandArgs[1]);
-                                if (size) {
-                                    arenaSize = size;
-                                    Object.values(clients).forEach((client) => {
-                                        client.sendConfig()
-                                    })
-                                }
-                            }
-                            break;
-                        case "maxboostspeed":
-                            if (commandArgs[1]) {
-                                let speed = parseInt(commandArgs[1]);
-                                if (speed) {
-                                    maxBoostSpeed = speed;
-                                }
-                            }
-                            break;
-                        case "maxrubspeed":
-                            if (commandArgs[1]) {
-                                let speed = parseInt(commandArgs[1]);
-                                if (speed) {
-                                    maxRubSpeed = speed;
-                                }
-                            }
-                            break;
-                        case "updateduration":
-                            if (commandArgs[1]) {
-                                let duration = parseInt(commandArgs[1]);
-                                if (duration) {
-                                    updateDuration = duration;
-                                }
-                            }
-                            break;
-                        case "maxfood":
-                            if (commandArgs[1]) {
-                                let max = parseInt(commandArgs[1]);
-                                if (max) {
-                                    maxFood = max;
-                                }
-                            }
-                            break;
-                        case "foodspawnpercent":
-                            if (commandArgs[1]) {
-                                let rate = parseInt(commandArgs[1]);
-                                if (rate) {
-                                    foodSpawnPercent = rate;
-                                }
-                            }
-                            break;
-                        case "defaultlength":
-                            if (commandArgs[1]) {
-                                let length = parseInt(commandArgs[1]);
-                                if (length) {
-                                    defaultLength = length;
-                                }
-                            }
-                            break;
-                        case "randomfood":
-                            if (commandArgs[1]) {
-                                let num = parseInt(commandArgs[1]);
-                                if (num) {
-                                    for (let i = 0; i < num; i++) {
-                                        new Food();
-                                    }
-                                }
-                            }
-                            break;
-                        case "clearfood":
-                            Object.values(entities).forEach((entity) => {
-                                if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
-                                    entity.eat();
-                            })
-                            break;
-                        case "foodmultiplier":
-                            if (commandArgs[1]) {
-                                let multiplier = parseInt(commandArgs[1]);
-                                if (multiplier) {
-                                    foodMultiplier = multiplier;
-                                }
-                            }
-                            break;
-                        case "foodvalue":
-                            if (commandArgs[1]) {
-                                let value = parseInt(commandArgs[1]);
-                                if (value) {
-                                    foodValue = value;
-                                    Object.values(entities).forEach((entity) => {
-                                        if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
-                                            entity.value = foodValue;
 
-                                    })
-                                }
-                            }
-                            break;
-
-                    }
-                }
-                break;
-
-        }
-    }
 
 }
 
