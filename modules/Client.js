@@ -9,6 +9,7 @@ class Client extends EventEmitter {
         super();
         this.socket = websocket;
         this.id = clientIDs.allocateID();
+        clients[this.id] = this;
         if (ip.toString() == "::1") // Set IP to local
             ip = "::ffff:127.0.0.1"
             
@@ -30,8 +31,7 @@ class Client extends EventEmitter {
                 if (!this.snake.spawned)
                     this.snake.spawn(nick.string);*/
                 if (!this.snake || !this.snake.spawned) {
-                    this.snake = new Snake(this);
-                    this.snake.spawn(nick.string);
+                    this.snake = new Snake(this, nick.string);
 
                 }
                 break;

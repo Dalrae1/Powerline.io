@@ -108,6 +108,7 @@ wss.on('connection', async function connection(ws, req) {
             client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake.id);
             
         }
+        clientIDs.releaseID(client.id)
         delete clients[client.id];
     })
 });
@@ -267,113 +268,117 @@ async function main() {
     }
 
     let testTime = 0
-    Object.values(clients).forEach(function (snake) {
+    Object.values(clients).forEach(function (client) {
         //let numUpdatedEntities = 0
         //let numCreatedEntities = 0
         //let numRemovedEntities = 0
+        var snake = client.snake;
+        
+        if (!snake)
+            return
         let isSpawned = snake.spawned;
-        if (snake.id) {
-            
-            let entQuery = SnakeFunctions.GetEntitiesNearSnake(snake);
-            
-            
-            let nearbyEntities = entQuery.entitiesToAdd;
-            let removeEntities = entQuery.entitiesToRemove;
-            //numCreatedEntities += Object.values(nearbyEntities).length
-            //numRemovedEntities += Object.values(removeEntities).length
+        
+        let entQuery = SnakeFunctions.GetEntitiesNearSnake(snake);
+        
+        
+        let nearbyEntities = entQuery.entitiesToAdd;
+        let removeEntities = entQuery.entitiesToRemove;
+        //numCreatedEntities += Object.values(nearbyEntities).length
+        //numRemovedEntities += Object.values(removeEntities).length
 
-            
-            snake.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities);
-            snake.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, removeEntities)
-            
-            
-            let updateEntities = []
-            Object.values(snake.loadedEntities).forEach(function (entity) {
-                switch (entity.type) {
-                    case Enums.EntityTypes.ENTITY_PLAYER:
+        
+        snake.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities);
+        snake.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, removeEntities)
+        
+        
+        let updateEntities = []
+        Object.values(snake.loadedEntities).forEach(function (entity) {
+            switch (entity.type) {
+                case Enums.EntityTypes.ENTITY_PLAYER:
+                    //numUpdatedEntities++
+                    updateEntities.push(entity)
+                    
+                    break
+                case Enums.EntityTypes.ENTITY_ITEM:
+                    if (entity.lastUpdate > lastUpdate) {
                         //numUpdatedEntities++
                         updateEntities.push(entity)
-                        
-                        break
-                    case Enums.EntityTypes.ENTITY_ITEM:
-                        if (entity.lastUpdate > lastUpdate) {
-                            //numUpdatedEntities++
-                            updateEntities.push(entity)
-                        }
-
-                        if (entity.subtype == Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD && isSpawned) {
-                            let distance = Math.sqrt(
-                                Math.pow(snake.position.x - entity.position.x, 2) +
-                                Math.pow(snake.position.y - entity.position.y, 2)
-                            );
-                            if (distance < 3) {
-                                entity.eat(snake);
-                            }
-                        }
-                        break
-
-                }
-            })
-            snake.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities);
-            
-            //console.log(`Updated ${numUpdatedEntities} entities, created ${numCreatedEntities} entities, removed ${numRemovedEntities} entities for snake ${snake.id}`)
-
-            if (snake.spawned) {
-
-                /* HANDLE TALK STAMINA */
-                if (snake.talkStamina < 255) {
-                    snakes[snake.id].talkStamina += 5;
-                    if (snake.talkStamina > 255)
-                        snakes[snake.id].talkStamina = 255;
-                }
-
-
-
-
-                /* CALCULATE TAIL LENGTH */
-                let totalPointLength = 0;
-                for (let i = -1; i < snake.points.length - 1; i++) {
-                    let point;
-                    if (i == -1)
-                        point = snake.position;
-                    else
-                        point = snake.points[i];
-                    let nextPoint = snake.points[i + 1];
-
-                    let segmentLength = getSegmentLength(point, nextPoint);
-                    totalPointLength += segmentLength;
-                }
-                if (totalPointLength > snake.length) {
-                    let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
-                    let lastPoint = snake.points[snake.points.length - 1] || snake.position;
-                    let direction = MapFunctions.GetNormalizedDirection(secondToLastPoint, lastPoint);
-
-                    let amountOverLength = totalPointLength - snake.length;
-                    let lastSegmentLength = getSegmentLength(secondToLastPoint, lastPoint);
-
-                    if (lastSegmentLength > amountOverLength) { // Last segment can be decreased to fit length
-                        let newPoint = {
-                            x: lastPoint.x - direction.x * amountOverLength,
-                            y: lastPoint.y - direction.y * amountOverLength
-                        }
-                        snake.points[snake.points.length - 1] = newPoint;
-                    } else { // Last segment is too short, remove it and decrease the next one
-                        snake.points.pop();
                     }
-                }
 
-                /* HANDLE LEADERBOARD */
-                let startTime2 = Date.now();
-                snake.updateLeaderboard();
-                testTime += Date.now() - startTime2
-                
+                    if (entity.subtype == Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD && isSpawned) {
+                        let distance = Math.sqrt(
+                            Math.pow(snake.position.x - entity.position.x, 2) +
+                            Math.pow(snake.position.y - entity.position.y, 2)
+                        );
+                        if (distance < 3) {
+                            entity.eat(snake);
+                        }
+                    }
+                    break
+
             }
+        })
+        snake.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities);
+        
+        //console.log(`Updated ${numUpdatedEntities} entities, created ${numCreatedEntities} entities, removed ${numRemovedEntities} entities for snake ${snake.id}`)
+
+        if (snake.spawned) {
+
+            /* HANDLE TALK STAMINA */
+            if (snake.talkStamina < 255) {
+                snakes[snake.id].talkStamina += 5;
+                if (snake.talkStamina > 255)
+                    snakes[snake.id].talkStamina = 255;
+            }
+
+
+
+
+            /* CALCULATE TAIL LENGTH */
+            let totalPointLength = 0;
+            for (let i = -1; i < snake.points.length - 1; i++) {
+                let point;
+                if (i == -1)
+                    point = snake.position;
+                else
+                    point = snake.points[i];
+                let nextPoint = snake.points[i + 1];
+
+                let segmentLength = getSegmentLength(point, nextPoint);
+                totalPointLength += segmentLength;
+            }
+            if (totalPointLength > snake.length) {
+                let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
+                let lastPoint = snake.points[snake.points.length - 1] || snake.position;
+                let direction = MapFunctions.GetNormalizedDirection(secondToLastPoint, lastPoint);
+
+                let amountOverLength = totalPointLength - snake.length;
+                let lastSegmentLength = getSegmentLength(secondToLastPoint, lastPoint);
+
+                if (lastSegmentLength > amountOverLength) { // Last segment can be decreased to fit length
+                    let newPoint = {
+                        x: lastPoint.x - direction.x * amountOverLength,
+                        y: lastPoint.y - direction.y * amountOverLength
+                    }
+                    snake.points[snake.points.length - 1] = newPoint;
+                } else { // Last segment is too short, remove it and decrease the next one
+                    snake.points.pop();
+                }
+            }
+
+            /* HANDLE LEADERBOARD */
+            let startTime2 = Date.now();
+            snake.updateLeaderboard();
+            testTime += Date.now() - startTime2
+            
         }
     })
 
     //console.log(`testTime took took ${testTime}ms`)
-    Object.values(clients).forEach(function (snake) {
-        snake.newPoints = []
+    Object.values(clients).forEach(function (client) {
+        let snake = client.snake;
+        if (snake)
+            snake.newPoints = []
     })
     
 
@@ -392,49 +397,5 @@ function mainLooper() {
         mainLooper()
     }, 1)
 }
-
-
-function SimulateGame(first) { // Simulate as if there is a ton of players
-    if (first)
-        for (let i = 0; i < 100; i++) {
-            let snake = new Snake({ socket: { send: () => { } } }, true)
-            snake.spawn("Simulated")
-        }
-    
-    Object.values(snakes).forEach(function (snake) {
-        if (snake.simulated) {
-            let shouldTurn = Math.random() * 100 < 1;
-            if (shouldTurn) {
-                let direction = Math.floor(Math.random() * 4);
-                let vector;
-
-                switch (direction) {
-                    case Enums.Directions.UP:
-                        vector = snake.position.y;
-                        break
-                    case Enums.Directions.LEFT:
-                        vector = snake.position.x;
-                        break
-                    case Enums.Directions.DOWN:
-                        vector = snake.position.y;
-                        break
-                    case Enums.Directions.RIGHT:
-                        vector = snake.position.x;
-                        break
-                }
-                snake.turn(direction, vector);
-            }
-        }
-
-        
-
-    })
-
-    setTimeout(() => {
-        SimulateGame()
-    }, 10)
-
-}
-//SimulateGame(true)
 
 mainLooper()

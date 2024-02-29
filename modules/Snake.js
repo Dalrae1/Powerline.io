@@ -9,16 +9,39 @@ class Snake {
     type = Enums.EntityTypes.ENTITY_PLAYER;
     loadedEntities = {};
     
-    constructor(network, simulated) {
+    constructor(network, name) {
         this.network = network.socket;
         this.ip = network.ip;
-        this.simulated = simulated;
         this.sendConfig();
 
-        if (!this.id) {
-          clients[lastClientId] = this;
-          lastClientId++;
-        }
+        let thisId = entityIDs.allocateID();
+        console.log("Spawning snake " + name + " with ID " + thisId)
+        this.spawned = true;
+        var Bit8 = new DataView(new ArrayBuffer(1000));
+        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTERED_GAME);
+        Bit8.setUint32(1, thisId, true);
+        this.id = thisId;
+        this.nick = name
+        let randomPos = MapFunctions.GetRandomPosition();
+        this.position = { x: randomPos.x, y: randomPos.y };
+        this.direction = Enums.Directions.UP;
+        this.speed = 0.25;
+        this.speedBypass = false;
+        this.extraSpeed = 0;
+        this.killstreak = 0;
+        this.points = [{x: this.position.x, y: this.position.y}];
+        this.newPoints = [];
+        this.talkStamina = 255;
+        this.color = Math.random() * 360;
+        this.length = defaultLength;
+
+
+
+        snakes[this.id] = this;
+        entities[this.id] = this;
+
+        
+        this.network.send(Bit8);
     }
     windowSizeX = 128;
     windowSizeY = 64;
@@ -55,38 +78,7 @@ class Snake {
 
         
     }
-    spawn(name) {
-        let thisId = entityIDs.allocateID();
-        console.log("Spawning snake " + name + " with ID " + thisId)
-        this.spawned = true;
-        var Bit8 = new DataView(new ArrayBuffer(1000));
-        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTERED_GAME);
-        Bit8.setUint32(1, thisId, true);
-        this.id = thisId;
-        this.nick = name
-        let randomPos = MapFunctions.GetRandomPosition();
-        this.position = { x: randomPos.x, y: randomPos.y };
-        this.direction = Enums.Directions.UP;
-        this.speed = 0.25;
-        this.speedBypass = false;
-        this.extraSpeed = 0;
-        this.killstreak = 0;
-        this.points = [{x: this.position.x, y: this.position.y}];
-        this.newPoints = [];
-        this.talkStamina = 255;
-        this.color = Math.random() * 360;
-        this.length = defaultLength;
 
-
-
-        snakes[this.id] = this;
-        entities[this.id] = this;
-
-        
-        this.network.send(Bit8);
-
-        
-    }
     updateLeaderboard() {
         const sortedSnakes = Object.values(snakes).sort((a, b) => b.length - a.length);
         const totalSnakes = sortedSnakes.length;
@@ -204,7 +196,10 @@ class Snake {
         
 
         if (secondPoint)
-            Object.values(clients).forEach((snake) => {
+            Object.values(clients).forEach((client) => {
+                if (!client.snake)
+                    return
+                let snake = client.snake;
                 if (this.loadedEntities[snake.id]) {
                     for (let i = -1; i < snake.points.length - 1; i++) {
                         let point;
@@ -339,7 +334,10 @@ class Snake {
         if (!this.spawned) {
             return
         }
-        Object.values(clients).forEach((snake) => {
+        Object.values(clients).forEach((client) => {
+            if (!client.snake)
+                return
+            let snake = client.snake;
             if (snake.loadedEntities[this.id]) {
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
@@ -463,8 +461,8 @@ class Snake {
 
 
         this.spawned = false;
-        delete snakes[this.id];
         entityIDs.releaseID(this.id);
+        delete snakes[this.id];
         delete entities[this.id]
 
     }
