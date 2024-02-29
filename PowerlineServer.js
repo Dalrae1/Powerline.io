@@ -391,14 +391,20 @@ async function main() {
     Object.values(clients).forEach(function (snake) {
         snake.newPoints = []
     })
-    lastUpdate = Date.now();
+    
 
 }
 
 function mainLooper() {
     setTimeout(() => {
-        if (Date.now()-lastUpdate >= updateDuration)
+        if (Date.now() - lastUpdate >= updateDuration) {
+            if ((Date.now() - lastUpdate) > updateDuration + 10) {
+                console.log(`Server is lagging ${(Date.now() - lastUpdate)-updateDuration}ms behind...`)
+            }
+            lastUpdate = Date.now();
             main()
+            
+        }
         mainLooper()
     }, 1)
 }
