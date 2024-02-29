@@ -4,6 +4,10 @@ const fs = require("fs");
 const EventEmitter = require("events");
 
 
+/* Required */
+const IDManager = require("./modules/IDManager.js");
+const Enums = require("./modules/Enums.js");
+
 let server, wssSecure
 
 if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
@@ -43,28 +47,7 @@ let foodSpawnPercent = (arenaSize ^ 2) / 10;
 var foodMultiplier = 1;
 
 
-class IDManager {
-    constructor() {
-        this.nextAvailableID = 1;
-        this.releasedIDs = new Set();
-    }
 
-    allocateID() {
-        if (this.releasedIDs.size > 0) {
-            // Reuse a released ID
-            const id = this.releasedIDs.values().next().value;
-            this.releasedIDs.delete(id);
-            return id;
-        } else {
-            // Allocate a new ID
-            return this.nextAvailableID++;
-        }
-    }
-
-    releaseID(id) {
-        this.releasedIDs.add(id);
-    }
-}
 
 // Example usage
 const entityIDs = new IDManager();
@@ -117,7 +100,7 @@ function lineInsideOrIntersectsRectangle(lineStart, lineEnd, center, width, heig
     return false;
 }
 
-
+console.log(Enums.EntityTypes.ENTITY_PLAYER)
 
 function entitiesWithinRadius(center, entities, checksnake) {
     let windowSizeX = checksnake.windowSizeX;
@@ -129,7 +112,7 @@ function entitiesWithinRadius(center, entities, checksnake) {
     let foundEntities = [];
     entities.forEach((entity) => {
         switch (entity.type) {
-            case EntityTypes.Player:
+            case Enums.EntityTypes.ENTITY_PLAYER:
                 for (let i = -1; i < entity.points.length - 1; i++) {
                     let point;
                     if (i == -1)
@@ -143,7 +126,7 @@ function entitiesWithinRadius(center, entities, checksnake) {
                     
                 }
                 break
-            case EntityTypes.Item:
+            case Enums.EntityTypes.ENTITY_ITEM:
                 if (entity.position.x >= xMin && entity.position.x <= xMax && entity.position.y >= yMin && entity.position.y <= yMax) {
                     foundEntities.push(entity);
                     break;
@@ -206,85 +189,11 @@ function scoreToLength(score) {
 
 }
 
-const MessageTypes = Object.freeze({
-    // Server Messages
-    SendPingInfo: 0,
-    PingLoop: 1,
-    SendConfig: 160,
-    SendSpawn: 161,
-    SendEntities: 163,
-    SendEvent: 164,
-    SendLeaderboard: 165,
-    SendConfigWithMinimapOffset: 176,
-    // Client Messages
-    RecievePing: 0,
-    RecieveNick: 3,
-    RecieveLeave: 4,
-    RecieveDirection: 5,
-    RecieveTurnPoint: 6,
-    RecieveResize: 7,
-    RecieveBoost: 8,
-    RecieveDebugFoodGrab: 9,
-    RecieveBigPicture: 11,
-    RecieveTalk: 12,
-    RecievePong: 16,
-    RecieveDebugHello: 0xab,
-    RecieveHello: 0xbf,
-})
-const EventTypes = Object.freeze({
-    Kill: 1,
-    Killed: 2
-})
-const UpdateTypes = Object.freeze({
-    OnUpdate: 0,
-    OnRender: 1,
-    OnRemove: 2
-})
-
-const EntityTypes = Object.freeze({
-    Collider: 1,
-    Item: 4,
-    Player: 5
-})
-const EntitySubtypes = Object.freeze({
-    Food: 0,
-    Energy: 1,
-    TriPlus: 2,
-    TriMinus: 3,
-
-
-})
-
-
-const EntityFlags = Object.freeze({
-    Debug: 1,
-    IsRubbing: 2,
-    Boosting: 4,
-    Ping: 8,
-    KilledKing: 0x10,
-    Killstreak: 0x20,
-    ShowTalking: 0x40
-})
-
-const KillReasons = Object.freeze({
-    LeftScreen: 0,
-    Killed: 1,
-    Boundary: 2,
-    Self: 3,
-})
-
-const Directions = Object.freeze({
-    None: 0,
-    Up: 1,
-    Left: 2,
-    Down: 3,
-    Right: 4
-})
 
 
 class Food {
-    type = EntityTypes.Item;
-    subtype = EntitySubtypes.Food;
+    type = Enums.EntityTypes.ENTITY_ITEM;
+    subtype = Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD;
     position = { x: 0, y: 0 };
     spawned = true
     value = foodValue*2;
@@ -329,15 +238,15 @@ class Food {
             if (snakee.id) {
                 if (snakee.loadedEntities[this.id]) {
                     var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
-                    Bit8.setUint8(0, MessageTypes.SendEntities);
+                    Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
                     var offset = 1;
                     Bit8.setUint16(offset, this.id, true);
                     offset += 2;
-                    Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
+                    Bit8.setUint8(offset, Enums.UpdateTypes.UPDATE_TYPE_DELETE, true);
                     offset += 1;
                     Bit8.setUint16(offset, snake && snake.id || 0, true);
                     offset += 2;
-                    Bit8.setUint8(offset, KillReasons.Killed, true);
+                    Bit8.setUint8(offset, Enums.KillReasons.KILLED, true);
                     offset += 1;
 
                     // King
@@ -378,7 +287,7 @@ function GetRandomPosition() {
 class Snake {
     network = null;
     nick = "";
-    type = EntityTypes.Player;
+    type = Enums.EntityTypes.ENTITY_PLAYER;
     loadedEntities = {};
     
     constructor(network, simulated) {
@@ -396,13 +305,13 @@ class Snake {
     windowSizeY = 64;
     sendConfig() {
         var Bit8 = new DataView(new ArrayBuffer(49));
-        let cfgType = MessageTypes.SendConfig;
+        let cfgType = Enums.ServerToClient.OPCODE_CONFIG;
         let offset = 0;
         Bit8.setUint8(offset, cfgType); // 176 or 160
         offset += 1;
         Bit8.setFloat32(offset, arenaSize, true); //Arena Size
         offset += 4;
-        if (cfgType == MessageTypes.SendConfigWithMinimapOffset) {
+        if (cfgType == Enums.ServerToClient.OPCODE_CONFIG_2) {
             Bit8.setFloat32(offset, 0, true); //Minimap Entities X Offset
             offset += 4;
             Bit8.setFloat32(offset, 0, true); //Minimap Entities Y Offset
@@ -432,13 +341,13 @@ class Snake {
         console.log("Spawning snake " + name + " with ID " + thisId)
         this.spawned = true;
         var Bit8 = new DataView(new ArrayBuffer(1000));
-        Bit8.setUint8(0, MessageTypes.SendSpawn);
+        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTERED_GAME);
         Bit8.setUint32(1, thisId, true);
         this.id = thisId;
         this.nick = name
         let randomPos = GetRandomPosition();
         this.position = { x: randomPos.x, y: randomPos.y };
-        this.direction = Directions.Up;
+        this.direction = Enums.Directions.UP;
         this.speed = 0.25;
         this.speedBypass = false;
         this.extraSpeed = 0;
@@ -469,7 +378,7 @@ class Snake {
         const Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
         let offset = 0;
 
-        Bit8.setUint8(offset, MessageTypes.SendLeaderboard);
+        Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_LEADERBOARD);
         offset += 1;
 
         let myRank = 0;
@@ -534,7 +443,7 @@ class Snake {
     }
     turn(direction, vector) {
         let whatVector, oppositeVector;
-        if (direction == Directions.Up || direction == Directions.Down) {
+        if (direction == Enums.Directions.UP || direction == Enums.Directions.DOWN) {
             whatVector = "x";
             oppositeVector = "y";
         } else {
@@ -544,7 +453,7 @@ class Snake {
         if (this.direction == direction || this.direction + 2 == direction || this.direction - 2 == direction) { // If the direction is the same or opposite
             return;
         }
-        let goingUp = this.direction = Directions.Up || this.direction == Directions.Right;
+        let goingUp = this.direction = Enums.Directions.UP || this.direction == Enums.Directions.RIGHT;
         if (this.position[whatVector] == vector) { // Attempting to turn in place
             //console.log("Attempting to turn in place")
             if (goingUp) {
@@ -558,7 +467,7 @@ class Snake {
             if (dist > 5) {
                 //console.log("Attempting to turn "+dist+" units away")
                 
-                let goingUp = this.direction = Directions.Up || this.direction == Directions.Right;
+                let goingUp = this.direction = Enums.Directions.UP || this.direction == Enums.Directions.RIGHT;
                 if (goingUp) {
                     this.position[whatVector] += 0.1;
                 }
@@ -598,9 +507,9 @@ class Snake {
                                 setTimeout(() => { // Make sure they didn't move out of the way
                                     if (doIntersect(this.position, secondPoint, point, nextPoint)) {
                                         if (this == snake) {
-                                            this.kill(KillReasons.Self, this.id);
+                                            this.kill(Enums.KillReasons.SELF, this.id);
                                         } else {
-                                            this.kill(KillReasons.Killed, snake.id);
+                                            this.kill(Enums.KillReasons.KILLED, snake.id);
                                         }
                                     }
                                 }, snake.ping || 50)
@@ -618,7 +527,7 @@ class Snake {
         this.addPoint(this.position.x, this.position.y);
     }
     rubAgainst(snake, distance) {
-        this.flags |= EntityFlags.IsRubbing;
+        this.flags |= Enums.EntityFlags.IS_RUBBING;
         this.speeding = true
         this.RubSnake = snake.id;
 
@@ -632,7 +541,7 @@ class Snake {
         
     }
     stopRubbing() {
-        this.flags &= ~EntityFlags.IsRubbing;
+        this.flags &= ~Enums.EntityFlags.IS_RUBBING;
         this.speeding = false
     }
     kill(reason, killedByID) {
@@ -644,29 +553,29 @@ class Snake {
             //
             snakes[killedByID].killstreak += 1;
             if (snakes[killedByID].killstreak >= 8) {
-                snakes[killedByID].flags |= EntityFlags.Killstreak;
+                snakes[killedByID].flags |= Enums.EntityFlags.KILLSTREAK;
                 let oldKillstreak = snakes[killedByID].killstreak;
                 setTimeout(() => {
                     if (!snakes[killedByID])
                         return
                     if (snakes[killedByID].killstreak == oldKillstreak)
-                        snakes[killedByID].flags &= ~EntityFlags.Killstreak;
+                        snakes[killedByID].flags &= ~Enums.EntityFlags.KILLSTREAK;
                 }, 5000)
             }
             if (king && king == this) {
-                snakes[killedByID].flags |= EntityFlags.KilledKing;
+                snakes[killedByID].flags |= Enums.EntityFlags.KILLED_KING;
                 setTimeout(() => {
                     if (!snakes[killedByID])
                         return
-                    snakes[killedByID].flags &= ~EntityFlags.KilledKing;
+                    snakes[killedByID].flags &= ~Enums.EntityFlags.KILLED_KING;
                 }, 5000)
             }
 
             // Send "Killed"
             var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
-            Bit8.setUint8(0, MessageTypes.SendEvent);
+            Bit8.setUint8(0, Enums.ServerToClient.OPCODE_EVENTS);
             var offset = 1;
-            Bit8.setUint8(offset, EventTypes.Kill, true);
+            Bit8.setUint8(offset, Enums.EventCodes.EVENT_DID_KILL, true);
             offset += 1;
             Bit8.setUint16(offset, 0, true); //(ID?), unused.
             offset += 2;
@@ -686,9 +595,9 @@ class Snake {
             snakes[killedByID].network.send(Bit8);
             // Send "Killed By"
             var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
-            Bit8.setUint8(0, MessageTypes.SendEvent);
+            Bit8.setUint8(0, Enums.ServerToClient.OPCODE_EVENTS);
             var offset = 1;
-            Bit8.setUint8(offset, EventTypes.Killed, true);
+            Bit8.setUint8(offset, Enums.EventCodes.EVENT_WAS_KILLED, true);
             offset += 1;
             Bit8.setUint16(offset, 0, true); //(ID?), unused.
             offset += 2;
@@ -714,12 +623,12 @@ class Snake {
         Object.values(clients).forEach((snake) => {
             if (snake.loadedEntities[this.id]) {
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
-                Bit8.setUint8(0, MessageTypes.SendEntities);
+                Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
                 var offset = 1;
             
                 Bit8.setUint16(offset, this.id, true);
                 offset += 2;
-                Bit8.setUint8(offset, UpdateTypes.OnRemove, true);
+                Bit8.setUint8(offset, Enums.UpdateTypes.UPDATE_TYPE_DELETE, true);
                 offset += 1;
                 Bit8.setUint16(offset, killedByID, true);
                 offset += 2;
@@ -843,13 +752,13 @@ class Snake {
     doPong() {
         this.pingStart = Date.now();
         var Bit8 = new DataView(new ArrayBuffer(3));
-        Bit8.setUint8(0, MessageTypes.SendPingInfo);
+        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PING);
         Bit8.setUint16(1, this.ping || 0, true);
         this.network.send(Bit8);
     }
     doPing() {
         var Bit8 = new DataView(new ArrayBuffer(1));
-        Bit8.setUint8(0, MessageTypes.PingLoop);
+        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PONG);
         this.network.send(Bit8);
     }
     update(updateType, entities) {
@@ -858,64 +767,64 @@ class Snake {
         Object.values(entities).forEach((entity) => {
             if (
                 entity.position && entity.spawned &&
-                (((updateType == UpdateTypes.OnUpdate || updateType == UpdateTypes.OnRemove) && this.loadedEntities[entity.id]) || updateType == UpdateTypes.OnRender) // Make sure that entity is rendered before making updates
+                (((updateType == Enums.UpdateTypes.UPDATE_TYPE_PARTIAL || updateType == Enums.UpdateTypes.UPDATE_TYPE_DELETE) && this.loadedEntities[entity.id]) || updateType == Enums.UpdateTypes.UPDATE_TYPE_FULL) // Make sure that entity is rendered before making updates
             ) {
                 calculatedTotalBits += 2 + 1;
                 switch (updateType) {
-                    case UpdateTypes.OnUpdate:
+                    case Enums.UpdateTypes.UPDATE_TYPE_PARTIAL:
                         switch (entity.type) {
-                            case EntityTypes.Player:
+                            case Enums.EntityTypes.ENTITY_PLAYER:
                                 calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
                                 
-                                if (entity.flags & EntityFlags.Debug) {
+                                if (entity.flags & Enums.EntityFlags.DEBUG) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
                                 }
-                                if (entity.flags & EntityFlags.IsRubbing) {
+                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
                                     calculatedTotalBits += 4 + 4 + 2;
                                 }
-                                if (entity.flags & EntityFlags.Boosting) { }
-                                if (entity.flags & EntityFlags.Ping) {
+                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
+                                if (entity.flags & Enums.EntityFlags.PING) {
                                     calculatedTotalBits += 2;
                                 }
-                                if (entity.flags & EntityFlags.KilledKing) { }
-                                if (entity.flags & EntityFlags.Killstreak) {
+                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
+                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
                                     calculatedTotalBits += 2;
                                 }
-                                if (entity.flags & EntityFlags.ShowTalking) {
+                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
                                     calculatedTotalBits += 1;
                                 }
                                 calculatedTotalBits += 1 + 1 + 1 + (4 + 4) * (entity.newPoints.length);
                                 break;
-                            case EntityTypes.Item:
+                            case Enums.EntityTypes.ENTITY_ITEM:
                                 calculatedTotalBits += 4 + 4;
                                 break;
                         }
                         break
-                    case UpdateTypes.OnRender:
+                    case Enums.UpdateTypes.UPDATE_TYPE_FULL:
                         calculatedTotalBits += 1 + 1
-                        if (entity.type == EntityTypes.Player)
+                        if (entity.type == Enums.EntityTypes.ENTITY_PLAYER)
                             calculatedTotalBits += (1 + entity.nick.length) * 2;
                         else
                             calculatedTotalBits += 2;
                         
                         switch (entity.type) {
-                            case EntityTypes.Player:
+                            case Enums.EntityTypes.ENTITY_PLAYER:
                                 calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
-                                if (entity.flags & EntityFlags.Debug) {
+                                if (entity.flags & Enums.EntityFlags.DEBUG) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
                                 }
-                                if (entity.flags & EntityFlags.IsRubbing) {
+                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
                                     calculatedTotalBits += 4 + 4 + 2;
                                 }
-                                if (entity.flags & EntityFlags.Boosting) { }
-                                if (entity.flags & EntityFlags.Ping) {
+                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
+                                if (entity.flags & Enums.EntityFlags.PING) {
                                     calculatedTotalBits += 2;
                                 }
-                                if (entity.flags & EntityFlags.KilledKing) { }
-                                if (entity.flags & EntityFlags.Killstreak) {
+                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
+                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
                                     calculatedTotalBits += 2;
                                 }
-                                if (entity.flags & EntityFlags.ShowTalking) {
+                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
                                     calculatedTotalBits += 1;
                                 }
                                 
@@ -923,19 +832,19 @@ class Snake {
                                 calculatedTotalBits += (4 + 4) * entity.points.length;
                                 calculatedTotalBits += 2 + 1;
                                 break
-                            case EntityTypes.Item:
+                            case Enums.EntityTypes.ENTITY_ITEM:
                                 calculatedTotalBits += 4 + 4 + 2;
                                 break
                         }
                         break
-                    case UpdateTypes.OnRemove:
+                    case Enums.UpdateTypes.UPDATE_TYPE_DELETE:
                         calculatedTotalBits += 2 + 1
                         
                         switch (entity.type) {
-                            case EntityTypes.Player:
+                            case Enums.EntityTypes.ENTITY_PLAYER:
                                 calculatedTotalBits += 4 + 4;
                                 break
-                            case EntityTypes.Item:
+                            case Enums.EntityTypes.ENTITY_ITEM:
 
                                 break
                         }
@@ -945,23 +854,23 @@ class Snake {
         })
         calculatedTotalBits += 2 + 2 + 4 + 4; // King bits
         var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
-        Bit8.setUint8(0, MessageTypes.SendEntities);
+        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
         var offset = 1;
         
 
         Object.values(entities).forEach((entity) => {
             if (
                 entity.position && entity.spawned &&
-                (((updateType == UpdateTypes.OnUpdate || updateType == UpdateTypes.OnRemove) && this.loadedEntities[entity.id]) || updateType == UpdateTypes.OnRender) // Make sure that entity is rendered before making updates
+                (((updateType == Enums.UpdateTypes.UPDATE_TYPE_PARTIAL || updateType == Enums.UpdateTypes.UPDATE_TYPE_DELETE) && this.loadedEntities[entity.id]) || updateType == Enums.UpdateTypes.UPDATE_TYPE_FULL) // Make sure that entity is rendered before making updates
             ) {
                 Bit8.setUint16(offset, entity.id, true);
                 offset += 2;
                 Bit8.setUint8(offset, updateType, true);
                 offset += 1;
                 switch (updateType) {
-                    case UpdateTypes.OnUpdate:
+                    case Enums.UpdateTypes.UPDATE_TYPE_PARTIAL:
                         switch (entity.type) {
-                            case EntityTypes.Player:
+                            case Enums.EntityTypes.ENTITY_PLAYER:
                                 Bit8.setFloat32(offset, entity.position.x, true);
                                 offset += 4;
                                 Bit8.setFloat32(offset, entity.position.y, true);
@@ -975,7 +884,7 @@ class Snake {
                                 offset += 2;
                                 Bit8.setUint8(offset, entity.flags, true);
                                 offset += 1;
-                                if (entity.flags & EntityFlags.Debug) {
+                                if (entity.flags & Enums.EntityFlags.DEBUG) {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
                                     Bit8.setFloat32(offset, 0, true);
@@ -998,7 +907,7 @@ class Snake {
 
                                     offset += 2;
                                 }
-                                if (entity.flags & EntityFlags.IsRubbing) {
+                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
                                     Bit8.setFloat32(offset, entity.rubX, true);
                                     offset += 4;
                                     Bit8.setFloat32(offset, entity.rubY, true);
@@ -1006,17 +915,17 @@ class Snake {
                                     Bit8.setUint16(offset, entity.RubSnake, true);
                                     offset += 2;
                                 }
-                                if (entity.flags & EntityFlags.Boosting) { }
-                                if (entity.flags & EntityFlags.Ping) {
+                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
+                                if (entity.flags & Enums.EntityFlags.PING) {
                                     Bit8.setUint16(offset, entity.ping || 0, true);
                                     offset += 2;
                                 }
-                                if (entity.flags & EntityFlags.KilledKing) { }
-                                if (entity.flags & EntityFlags.Killstreak) {
+                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
+                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
                                     Bit8.setUint16(offset, entity.killstreak, true);
                                     offset += 2;
                                 }
-                                if (entity.flags & EntityFlags.ShowTalking) {
+                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
                                     Bit8.setUint8(offset, entity.talkId, true);
                                     offset += 1;
                                 }
@@ -1036,7 +945,7 @@ class Snake {
                                     offset += 4;
                                 }
                                 break;
-                            case EntityTypes.Item:
+                            case Enums.EntityTypes.ENTITY_ITEM:
                                 Bit8.setFloat32(offset, entity.position.x, true);
                                 offset += 4;
                                 Bit8.setFloat32(offset, entity.position.y, true);
@@ -1044,12 +953,12 @@ class Snake {
                                 break;
                         }
                         break
-                    case UpdateTypes.OnRender:
+                    case Enums.UpdateTypes.UPDATE_TYPE_FULL:
                         Bit8.setUint8(offset, entity.type, true);
                         offset += 1;
                         Bit8.setUint8(offset, entity.subtype || 0, true);
                         offset += 1;
-                        if (entity.type == EntityTypes.Player) {
+                        if (entity.type == Enums.EntityTypes.ENTITY_PLAYER) {
                             for (var characterIndex = 0; characterIndex < entity.nick.length; characterIndex++) {
                                 Bit8.setUint16(offset + characterIndex * 2, entity.nick.charCodeAt(characterIndex), true);
                             }
@@ -1060,7 +969,7 @@ class Snake {
                         }
                         
                         switch (entity.type) {
-                            case EntityTypes.Player:
+                            case Enums.EntityTypes.ENTITY_PLAYER:
                                 Bit8.setFloat32(offset, entity.position.x, true);
                                 offset += 4;
                                 Bit8.setFloat32(offset, entity.position.y, true);
@@ -1074,7 +983,7 @@ class Snake {
                                 offset += 2;
                                 Bit8.setUint8(offset, entity.flags, true);
                                 offset += 1;
-                                if (entity.flags & EntityFlags.Debug) {
+                                if (entity.flags & Enums.EntityFlags.DEBUG) {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
                                     Bit8.setFloat32(offset, 0, true);
@@ -1097,7 +1006,7 @@ class Snake {
 
                                     offset += 2;
                                 }
-                                if (entity.flags & EntityFlags.IsRubbing) {
+                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
                                     Bit8.setFloat32(offset, entity.rubX, true);
                                     offset += 4;
                                     Bit8.setFloat32(offset, entity.rubY, true);
@@ -1105,17 +1014,17 @@ class Snake {
                                     Bit8.setUint16(offset, entity.RubSnake, true);
                                     offset += 2;
                                 }
-                                if (entity.flags & EntityFlags.Boosting) { }
-                                if (entity.flags & EntityFlags.Ping) {
+                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
+                                if (entity.flags & Enums.EntityFlags.PING) {
                                     Bit8.setUint16(offset, entity.ping || 0, true);
                                     offset += 2;
                                 }
-                                if (entity.flags & EntityFlags.KilledKing) { }
-                                if (entity.flags & EntityFlags.Killstreak) {
+                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
+                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
                                     Bit8.setUint16(offset, entity.killstreak, true);
                                     offset += 2;
                                 }
-                                if (entity.flags & EntityFlags.ShowTalking) {
+                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
                                     Bit8.setUint8(offset, entity.talkId, true);
                                     offset += 1;
                                 }
@@ -1135,7 +1044,7 @@ class Snake {
                                 Bit8.setUint8(offset, 0, true);
                                 offset += 1;
                                 break;
-                            case EntityTypes.Item:
+                            case Enums.EntityTypes.ENTITY_ITEM:
                                 Bit8.setFloat32(offset, entity.position.x, true);
                                 offset += 4;
                                 
@@ -1149,20 +1058,20 @@ class Snake {
                         this.loadedEntities[entity.id] = entity;
 
                         break;
-                    case UpdateTypes.OnRemove:
+                    case Enums.UpdateTypes.UPDATE_TYPE_DELETE:
                         Bit8.setUint16(offset, 0, true); // Set to 0 to disable sounds
                         offset += 2;
-                        Bit8.setUint8(offset, KillReasons.LeftScreen, true);
+                        Bit8.setUint8(offset, Enums.KillReasons.LEFT_SCREEN, true);
                         offset += 1;
                         delete this.loadedEntities[entity.id]
                         switch (entity.type) {
-                            case EntityTypes.Player:
+                            case Enums.EntityTypes.ENTITY_PLAYER:
                                 Bit8.setFloat32(offset, entity.position.x, true);
                                 offset += 4;
                                 Bit8.setFloat32(offset, entity.position.y, true);
                                 offset += 4;
                                 break
-                            case EntityTypes.Item:
+                            case Enums.EntityTypes.ENTITY_ITEM:
                                 break
                         }
                         break;
@@ -1211,31 +1120,31 @@ class Snake {
         Bit8.setUint16(offset, 0, true);
     }
     Talk(id) {
-        this.flags |= EntityFlags.ShowTalking;
+        this.flags |= Enums.EntityFlags.SHOW_TALKING;
         this.talkId = id;
         let oldTalkId = id;
         setTimeout(() => {
             if (this.talkId == oldTalkId)
-                this.flags &= ~EntityFlags.ShowTalking;
+                this.flags &= ~Enums.EntityFlags.SHOW_TALKING;
         }, 5000)
 
     }
     RecieveMessage(messageType, view) {
-        if (messageType != MessageTypes.RecieveNick && !this.id) {
+        if (messageType != Enums.ClientToServer.OPCODE_ENTER_GAME && !this.id) {
             return
         }
         switch (messageType) {
-            case MessageTypes.RecievePing:
+            case Enums.ClientToServer.OPCODE_CS_PING:
                 this.doPong();
                 this.doPing();
                 break;
-            case MessageTypes.RecieveNick:
+            case Enums.ClientToServer.OPCODE_ENTER_GAME:
                 var nick = getString(view, 1);
                 console.log("Spawning snake " + nick.string);
                 if (!this.spawned)
                     this.spawn(nick.string);
                 break;
-            case MessageTypes.RecieveTurnPoint:
+            case Enums.ClientToServer.OPCODE_INPUT_POINT:
                 let offset = 1;
                 let direction = view.getUint8(offset, true);
                 offset += 1;
@@ -1244,23 +1153,23 @@ class Snake {
                 let isFocused = view.getUint8(offset, true) & 1;
                 this.turn(direction, vector);
                 break;
-            case MessageTypes.RecieveTalk:
+            case Enums.ClientToServer.OPCODE_TALK:
                 if (this.talkStamina >= 255) {
                     this.Talk(view.getUint8(1, true));
                     this.talkStamina = 0;
                 }
                 break;
-            case MessageTypes.RecieveResize:
+            case Enums.ClientToServer.OPCODE_AREA_UPDATE:
                 this.windowSizeX = view.getUint16(1, true)/2;
                 this.windowSizeY = view.getUint16(3, true)/2;
                 break;
-            case MessageTypes.RecieveHello:
+            case Enums.ClientToServer.OPCODE_HELLO_V4:
                 this.windowSizeX = view.getUint16(1, true)/2;
                 this.windowSizeY = view.getUint16(3, true)/2;
-            case MessageTypes.RecieveDebugHello:
+            case Enums.ClientToServer.OPCODE_HELLO_DEBUG:
                 this.windowSizeX = view.getUint16(1, true)/2;
                 this.windowSizeY = view.getUint16(3, true) / 2;
-            case MessageTypes.RecieveBoost:
+            case Enums.ClientToServer.OPCODE_BOOST:
                 if (admins.includes(this.ip)) {
                     let boosting = view.getUint8(1) == 1
                     if (boosting) {
@@ -1275,7 +1184,7 @@ class Snake {
                     }
                 }
                 break;
-            case MessageTypes.RecieveDebugFoodGrab:
+            case Enums.ClientToServer.OPCODE_DEBUG_GRAB:
                 if (admins.includes(this.ip))
                     this.length += scoreToLength(1000);
                 break;
@@ -1365,7 +1274,7 @@ class Snake {
                             break;
                         case "clearfood":
                             Object.values(entities).forEach((entity) => {
-                                if (entity.type == EntityTypes.Item)
+                                if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
                                     entity.eat();
                             })
                             break;
@@ -1383,7 +1292,7 @@ class Snake {
                                 if (value) {
                                     foodValue = value;
                                     Object.values(entities).forEach((entity) => {
-                                        if (entity.type == EntityTypes.Item)
+                                        if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
                                             entity.value = foodValue;
 
                                     })
@@ -1448,7 +1357,7 @@ if (wssSecure) {
         })
         ws.on('close', function close() {
             if (snake.id) {
-                snake.kill(KillReasons.LeftScreen, snake.id);
+                snake.kill(Enums.KillReasons.LEFT_SCREEN, snake.id);
                 delete clients[snake.id];
             }
         })
@@ -1465,7 +1374,7 @@ wss.on('connection', async function connection(ws, req) {
     })
     ws.on('close', function close() {
         if (snake.id) {
-            snake.kill(KillReasons.LeftScreen, snake.id);
+            snake.kill(Enums.KillReasons.LEFT_SCREEN, snake.id);
             delete clients[snake.id];
         }
     })
@@ -1609,13 +1518,13 @@ function UpdateArena() { // Main update loop
         numSnak++
         // Make snakes move
         let totalSpeed = snake.speed //+ (snake.extraSpeed/255);
-        if (snake.direction == Directions.Up) {
+        if (snake.direction == Enums.Directions.UP) {
             snake.position.y += totalSpeed * UPDATE_EVERY_N_TICKS;
-        } else if (snake.direction == Directions.Left) {
+        } else if (snake.direction == Enums.Directions.LEFT) {
             snake.position.x -= totalSpeed * UPDATE_EVERY_N_TICKS;
-        } else if (snake.direction == Directions.Down) {
+        } else if (snake.direction == Enums.Directions.DOWN) {
             snake.position.y -= totalSpeed * UPDATE_EVERY_N_TICKS;
-        } else if (snake.direction == Directions.Right) {
+        } else if (snake.direction == Enums.Directions.RIGHT) {
             snake.position.x += totalSpeed * UPDATE_EVERY_N_TICKS;
         }
 
@@ -1633,7 +1542,7 @@ function UpdateArena() { // Main update loop
                     snake.position.y > arenaSize / 2 ||
                     snake.position.y < -arenaSize / 2
                 ) {
-                    snake.kill(KillReasons.Boundary, snake.id);
+                    snake.kill(Enums.KillReasons.BOUNDARY, snake.id);
                 }
             }, snake.ping || 50)
         }
@@ -1641,7 +1550,7 @@ function UpdateArena() { // Main update loop
         let secondPoint = snake.points[0];
         // Other snake collision checks
         Object.values(snake.loadedEntities).forEach(function (otherSnake) {
-            if (otherSnake.type != EntityTypes.Player)
+            if (otherSnake.type != Enums.EntityTypes.ENTITY_PLAYER)
                 return
             // Check if head of snake of near body of other snake
 
@@ -1701,9 +1610,9 @@ function UpdateArena() { // Main update loop
                             if (snake.position != nextPoint && secondPoint != point && snake.position != secondPoint && snake.position != point) {
                                 if (doIntersect(snake.position, secondPoint, point, nextPoint)) {
                                     if (snake.id == otherSnake.id) {
-                                        snake.kill(KillReasons.Self, snake.id);
+                                        snake.kill(Enums.KillReasons.SELF, snake.id);
                                     } else {
-                                        snake.kill(KillReasons.Killed, otherSnake.id);
+                                        snake.kill(Enums.KillReasons.KILLED, otherSnake.id);
                                     }
                                 }
                             }
@@ -1776,25 +1685,25 @@ async function main() {
             //numRemovedEntities += Object.values(removeEntities).length
 
             
-            snake.update(UpdateTypes.OnRender, nearbyEntities);
-            snake.update(UpdateTypes.OnRemove, removeEntities)
+            snake.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities);
+            snake.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, removeEntities)
             
             
             let updateEntities = []
             Object.values(snake.loadedEntities).forEach(function (entity) {
                 switch (entity.type) {
-                    case EntityTypes.Player:
+                    case Enums.EntityTypes.ENTITY_PLAYER:
                         //numUpdatedEntities++
                         updateEntities.push(entity)
                         
                         break
-                    case EntityTypes.Item:
+                    case Enums.EntityTypes.ENTITY_ITEM:
                         if (entity.lastUpdate > lastUpdate) {
                             //numUpdatedEntities++
                             updateEntities.push(entity)
                         }
 
-                        if (entity.subtype == EntitySubtypes.Food && isSpawned) {
+                        if (entity.subtype == Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD && isSpawned) {
                             let distance = Math.sqrt(
                                 Math.pow(snake.position.x - entity.position.x, 2) +
                                 Math.pow(snake.position.y - entity.position.y, 2)
@@ -1807,7 +1716,7 @@ async function main() {
 
                 }
             })
-            snake.update(UpdateTypes.OnUpdate, updateEntities);
+            snake.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities);
             
             //console.log(`Updated ${numUpdatedEntities} entities, created ${numCreatedEntities} entities, removed ${numRemovedEntities} entities for snake ${snake.id}`)
 
@@ -1864,7 +1773,7 @@ async function main() {
         }
     })
 
-    console.log(`testTime took took ${testTime}ms`)
+    //console.log(`testTime took took ${testTime}ms`)
     Object.values(clients).forEach(function (snake) {
         snake.newPoints = []
     })
@@ -1896,16 +1805,16 @@ function SimulateGame(first) { // Simulate as if there is a ton of players
                 let vector;
 
                 switch (direction) {
-                    case Directions.Up:
+                    case Enums.Directions.UP:
                         vector = snake.position.y;
                         break
-                    case Directions.Left:
+                    case Enums.Directions.LEFT:
                         vector = snake.position.x;
                         break
-                    case Directions.Down:
+                    case Enums.Directions.DOWN:
                         vector = snake.position.y;
                         break
-                    case Directions.Right:
+                    case Enums.Directions.RIGHT:
                         vector = snake.position.x;
                         break
                 }
