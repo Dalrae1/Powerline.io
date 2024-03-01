@@ -4,7 +4,8 @@ var CommandPallete = function () {
     function createElement( tag, id, css ) {
 
 		var element = document.createElement( tag );
-		element.id = id;
+        element.id = id;
+        element.maxLength = 25;
 		element.style.cssText = css;
 		return element;
 
