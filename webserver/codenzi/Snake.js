@@ -1254,6 +1254,14 @@ var Snake = function() {
 		}else{
 			talkID = 0;
 		}
+		if (flags & 0x80) // Custom talk
+		{
+			var talkMessage = getString(view, offset);
+			talkID = 20
+			offset = talkMessage.offset;
+			talkText = talkMessage.nick;
+
+		}
 
 		this.talkStamina = view.getUint8(offset, true);
 		offset += 1;

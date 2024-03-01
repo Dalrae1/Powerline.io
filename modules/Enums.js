@@ -7,7 +7,11 @@ const ServerToClient = {
     OPCODE_ENTITY_INFO: 0xA3,
     OPCODE_EVENTS: 0xA4,
     OPCODE_LEADERBOARD: 0xA5,
-    OPCODE_MINIMAP: 0xA6 // Unused
+    OPCODE_MINIMAP: 0xA6, // Unused
+    // CUSTOM
+
+    OPCODE_DEBUGCIRCLE: 0xA7,
+    OPCODE_CUSTOMTALK: 0xA8,
 };
 
 const ClientToServer = {
@@ -57,7 +61,9 @@ const EntityFlags = {
     PING: 0x08,
     KILLED_KING: 0x10,
     KILLSTREAK: 0x20,
-    SHOW_TALKING: 0x40
+    SHOW_TALKING: 0x40,
+    // Custom
+    SHOW_CUSTOM_TALKING: 0x80,
 };
 
 const KillReasons = {

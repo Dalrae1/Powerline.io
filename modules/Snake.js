@@ -488,6 +488,10 @@ class Snake {
                                 if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
                                     calculatedTotalBits += 1;
                                 }
+                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
+                                    calculatedTotalBits += (entity.customTalk.length) * 2;
+                                    calculatedTotalBits += 2
+                                }
                                 calculatedTotalBits += 1 + 1 + 1 + (4 + 4) * (entity.newPoints.length);
                                 break;
                             case Enums.EntityTypes.ENTITY_ITEM:
@@ -521,6 +525,10 @@ class Snake {
                                 }
                                 if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
                                     calculatedTotalBits += 1;
+                                }
+                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
+                                    calculatedTotalBits += entity.customTalk.length * 2;
+                                    calculatedTotalBits += 2
                                 }
                                 
                                 calculatedTotalBits += 1 + 1
@@ -624,6 +632,14 @@ class Snake {
                                     Bit8.setUint8(offset, entity.talkId, true);
                                     offset += 1;
                                 }
+                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
+                                    for (let i = 0; i < entity.customTalk.length; i++) {
+                                        Bit8.setUint16(offset, entity.customTalk.charCodeAt(i), true);
+                                        offset += 2;
+                                    }
+                                    offset += 2 // Write 2 bits of null
+
+                                }
                                 
                                 Bit8.setUint8(offset, entity.talkStamina, true);
                                 offset += 1;
@@ -722,6 +738,14 @@ class Snake {
                                 if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
                                     Bit8.setUint8(offset, entity.talkId, true);
                                     offset += 1;
+                                }
+                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
+                                    for (let i = 0; i < entity.customTalk.length; i++) {
+                                        Bit8.setUint16(offset, entity.customTalk.charCodeAt(i), true);
+                                        offset += 2;
+                                    }
+                                    offset += 2 // Write 2 bits of null
+
                                 }
                                 Bit8.setUint8(offset, entity.talkStamina, true);
                                 offset += 1;

@@ -85,14 +85,15 @@ class Client extends EventEmitter {
             
                 break;
             case 0x0e: // Commands
-                if (admins.includes(this.snake.ip)) {
-                    let command = global.getString(view, 1).string;
-                    if (!command)
-                        return
-                    command = command.toLowerCase()
-                    let commandArgs = command.split(" ");
-                    if (!commandArgs[0])
-                        return
+                let command = global.getString(view, 1).string;
+                if (!command)
+                    return
+                let commandArgs = command.split(" ");
+                if (!commandArgs[0])
+                    return
+                commandArgs[0] = commandArgs[0].toLowerCase();
+                if (admins.includes(this.snake.ip) || commandArgs[0] == "say") {
+                    
                     switch (commandArgs[0]) {
                         case "arenasize":
                             if (commandArgs[1]) {
@@ -188,6 +189,20 @@ class Client extends EventEmitter {
 
                                     })
                                 }
+                            }
+                            break;
+                        case "say":
+                            if (commandArgs[1]) {
+                                if (this.snake.talkStamina < 255)
+                                    return
+                                let message = commandArgs.slice(1).join(" ");
+                                
+                                this.snake.flags |= Enums.EntityFlags.SHOW_CUSTOM_TALKING
+                                this.snake.customTalk = message;
+                                this.snake.talkStamina = 0;
+                                setTimeout(() => {
+                                    this.snake.flags &= ~Enums.EntityFlags.SHOW_CUSTOM_TALKING;
+                                }, 5000)
                             }
                             break;
 

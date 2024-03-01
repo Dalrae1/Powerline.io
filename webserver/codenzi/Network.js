@@ -709,6 +709,21 @@ var Network = function () {
 
 
 		}
+		else if (op == 0xA8) { // Custom talk
+			var offset = 1;
+			var id = view.getUint16(offset, true);
+			offset += 2;
+			var res = getString(view, offset);
+			var message = res.nick;
+			offset = res.offset;
+			// Get entity
+			var entity = entities[id];
+			if (entity)
+				entity.talk(message);
+
+
+
+		}
 	}
 
 	this.connectionClosed = function() {
