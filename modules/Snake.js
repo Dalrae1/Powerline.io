@@ -156,34 +156,20 @@ class Snake {
             return;
         }
         let goingUp = this.direction = Enums.Directions.UP || this.direction == Enums.Directions.RIGHT;
-        if (this.position[whatVector] == vector) { // Attempting to turn in place
-            //console.log("Attempting to turn in place")
-            if (goingUp) {
-                this.position[whatVector] += 0.1;
-            }
-            else {
-                this.position[whatVector] -= 0.1;
-            }
+        let secondPoint = this.points[0];
+        if (Math.abs(secondPoint[whatVector] - vector) < 0.1) { // Attempting to turn in place
+            vector += goingUp ? 0.22 : -0.22;
         } else {
             let dist = Math.abs(this.position[whatVector] - vector);
             if (dist > 5) {
-                //console.log("Attempting to turn "+dist+" units away")
-                
-                let goingUp = this.direction = Enums.Directions.UP || this.direction == Enums.Directions.RIGHT;
-                if (goingUp) {
-                    this.position[whatVector] += 0.1;
-                }
-                else {
-                    this.position[whatVector] -= 0.1;
-                }
-            } else
-                this.position[whatVector] = vector;
-
+                vector += goingUp ? 0.22 : -0.22;
+            }
         }
+        this.position[whatVector] = vector;
 
         
 
-        let secondPoint = this.points[0];
+        
         
 
         if (secondPoint)
