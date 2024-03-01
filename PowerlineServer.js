@@ -253,13 +253,9 @@ function UpdateArena() { // Main update loop
 }
 
 async function main() {
-    let timeStart = Date.now();
     UpdateArena()
-    //console.log(`UpdateArena took ${Date.now() - timeStart}ms`)
 
     // Add random food spawns
-    
-    
     if (Object.keys(entities).length < maxFood) {
         if (Math.random()*100 < foodSpawnPercent) {
             new Food();
@@ -267,24 +263,21 @@ async function main() {
         
     }
 
-    let testTime = 0
+    
     Object.values(clients).forEach(function (client) {
-        //let numUpdatedEntities = 0
-        //let numCreatedEntities = 0
-        //let numRemovedEntities = 0
         var snake = client.snake;
         
         if (!snake)
             return
         let isSpawned = snake.spawned;
         
+        
         let entQuery = SnakeFunctions.GetEntitiesNearSnake(snake);
+        
         
         
         let nearbyEntities = entQuery.entitiesToAdd;
         let removeEntities = entQuery.entitiesToRemove;
-        //numCreatedEntities += Object.values(nearbyEntities).length
-        //numRemovedEntities += Object.values(removeEntities).length
 
         
         snake.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities);
@@ -292,16 +285,16 @@ async function main() {
         
         
         let updateEntities = []
+        
+        
         Object.values(snake.loadedEntities).forEach(function (entity) {
             switch (entity.type) {
                 case Enums.EntityTypes.ENTITY_PLAYER:
-                    //numUpdatedEntities++
                     updateEntities.push(entity)
                     
                     break
                 case Enums.EntityTypes.ENTITY_ITEM:
                     if (entity.lastUpdate > lastUpdate) {
-                        //numUpdatedEntities++
                         updateEntities.push(entity)
                     }
 
@@ -318,10 +311,10 @@ async function main() {
 
             }
         })
-        snake.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities);
         
-        //console.log(`Updated ${numUpdatedEntities} entities, created ${numCreatedEntities} entities, removed ${numRemovedEntities} entities for snake ${snake.id}`)
+        snake.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities);
 
+        
         if (snake.spawned) {
 
             /* HANDLE TALK STAMINA */
@@ -343,10 +336,12 @@ async function main() {
                 else
                     point = snake.points[i];
                 let nextPoint = snake.points[i + 1];
-
+                
                 let segmentLength = getSegmentLength(point, nextPoint);
+                
                 totalPointLength += segmentLength;
             }
+            
             if (totalPointLength > snake.length) {
                 let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
                 let lastPoint = snake.points[snake.points.length - 1] || snake.position;
@@ -365,16 +360,14 @@ async function main() {
                     snake.points.pop();
                 }
             }
+            
 
             /* HANDLE LEADERBOARD */
-            let startTime2 = Date.now();
-            snake.updateLeaderboard();
-            testTime += Date.now() - startTime2
             
+            snake.updateLeaderboard();
         }
+        
     })
-
-    //console.log(`testTime took took ${testTime}ms`)
     Object.values(clients).forEach(function (client) {
         let snake = client.snake;
         if (snake)
