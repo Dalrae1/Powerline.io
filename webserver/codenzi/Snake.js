@@ -136,6 +136,7 @@ var Snake = function() {
 
 	var boostTime = 0;
 	var demogorgon = false;
+	var specialColor = false; //'hsl(5, 100%, 50%)';
 
 	// Talk Test
 	var talkText = '';
@@ -587,7 +588,11 @@ var Snake = function() {
 		if(demogorgon){
 			v = 100;
 		}
-		var color = 'hsl('+this.hue+', 100%, '+v+'%)';		
+		var color = 'hsl('+this.hue+', 100%, '+v+'%)';
+		if (specialColor) {
+			color = specialColor.color;
+		}
+				
 		var w = this.getWidth();
 		headScale = w/2.5;
 		if(headScale > 1.0)
@@ -738,15 +743,26 @@ var Snake = function() {
 			v = 100;
 			context.lineWidth = (w+1)*this.snakeScale;
 		}
+		if (specialColor) {
+			context.strokeStyle = specialColor.color;
+		} else {
+			context.strokeStyle = 'hsl('+this.hue+', 100%, '+v+'%)';
+		}
+		
 
-		context.strokeStyle = 'hsl('+this.hue+', 100%, '+v+'%)';
+		
 
 		if(glowSnakes && highQuality)
 		{
 			context.shadowBlur = 15;
 		}
 
+		if (specialColor && specialColor.customEffects)
+			eval(specialColor.customEffects)
+
 		this.drawTail(this.renderedPoints, context);
+
+		
 
 		if(demogorgon){
 			context.lineWidth = (w)*this.snakeScale;
@@ -781,6 +797,7 @@ var Snake = function() {
 			this.drawTail(this.renderedPoints, context);
 			context.globalAlpha = 1.0;
 		}
+		
 
 		// Highlight line color
 		if(extraSpeed > 10)
@@ -1143,6 +1160,10 @@ var Snake = function() {
 		// Flags
 		var flags = view.getUint8(offset, true);
 		offset += 1;
+		if (flags & 0x80) { // Includes custom flags, represented by 16 bits
+			flags = view.getUint16(offset, true);
+			offset += 2;
+		}
 		if(flags & 0x1) // Debug?
 		{
 			lowerBound.x = view.getFloat32(offset, true);
@@ -1260,7 +1281,24 @@ var Snake = function() {
 			talkID = 20
 			offset = talkMessage.offset;
 			talkText = talkMessage.nick;
-
+		}
+		if (flags & 0x100) // Custom color
+		{
+			var saturation = view.getUint16(offset, true);
+			offset += 2;
+			var lightness = view.getUint16(offset, true);
+			offset += 2;
+			var hue = view.getUint16(offset, true);
+			offset += 2;
+			var customEffects = getString(view, offset);
+			offset = customEffects.offset;
+			specialColor = {};
+			specialColor.color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+			specialColor.customEffects = customEffects.nick;
+			
+		}
+		else {
+			specialColor = null;
 		}
 
 		this.talkStamina = view.getUint8(offset, true);

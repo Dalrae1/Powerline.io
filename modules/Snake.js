@@ -20,6 +20,14 @@ class Snake {
         this.ip = network.ip;
         this.sendConfig();
 
+        if (customPlayerColors[name]) {
+            this.saturation = customPlayerColors[name].saturation;
+            this.lightness = customPlayerColors[name].lightness;
+            this.customEffects = customPlayerColors[name].customEffects;
+            this.flags |= Enums.EntityFlags.CUSTOM_COLOR;
+
+        }
+
         let thisId = entityIDs.allocateID();
         console.log("Spawning snake " + name + " with ID " + thisId)
         this.spawned = true;
@@ -473,7 +481,7 @@ class Snake {
                         switch (entity.type) {
                             case Enums.EntityTypes.ENTITY_PLAYER:
                                 calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
-                                
+                                calculatedTotalBits += 2 // For 16b flags
                                 if (entity.flags & Enums.EntityFlags.DEBUG) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
                                 }
@@ -495,6 +503,10 @@ class Snake {
                                     calculatedTotalBits += (entity.customTalk.length) * 2;
                                     calculatedTotalBits += 2
                                 }
+                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
+                                    calculatedTotalBits += 2 + 2 + 2;
+                                    calculatedTotalBits += (1 + entity.customEffects.length) * 2;
+                                }
                                 calculatedTotalBits += 1 + 1 + 1 + (4 + 4) * (entity.newPoints.length);
                                 break;
                             case Enums.EntityTypes.ENTITY_ITEM:
@@ -512,6 +524,7 @@ class Snake {
                         switch (entity.type) {
                             case Enums.EntityTypes.ENTITY_PLAYER:
                                 calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
+                                calculatedTotalBits += 2 // For 16b flags
                                 if (entity.flags & Enums.EntityFlags.DEBUG) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
                                 }
@@ -532,6 +545,10 @@ class Snake {
                                 if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
                                     calculatedTotalBits += entity.customTalk.length * 2;
                                     calculatedTotalBits += 2
+                                }
+                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
+                                    calculatedTotalBits += 2 + 2 + 2;
+                                    calculatedTotalBits += (1 + entity.customEffects.length) * 2;
                                 }
                                 
                                 calculatedTotalBits += 1 + 1
@@ -588,8 +605,12 @@ class Snake {
                                 offset += 1;
                                 Bit8.setUint16(offset, entity.points.length, true);
                                 offset += 2;
-                                Bit8.setUint8(offset, entity.flags, true);
+                                let is16Bit = 0
+                                is16Bit |= 0x80;
+                                Bit8.setUint8(offset, is16Bit, true);
                                 offset += 1;
+                                Bit8.setUint16(offset, entity.flags, true);
+                                offset += 2;
                                 if (entity.flags & Enums.EntityFlags.DEBUG) {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
@@ -641,6 +662,18 @@ class Snake {
                                         offset += 2;
                                     }
                                     offset += 2 // Write 2 bits of null
+                                }
+                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
+                                    Bit8.setUint16(offset, entity.saturation, true);
+                                    offset += 2;
+                                    Bit8.setUint16(offset, entity.lightness, true);
+                                    offset += 2;
+                                    Bit8.setUint16(offset, entity.color, true);
+                                    offset += 2;
+                                    for (var characterIndex = 0; characterIndex < entity.customEffects.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customEffects.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customEffects.length) * 2;
 
                                 }
                                 
@@ -695,8 +728,12 @@ class Snake {
                                 offset += 1;
                                 Bit8.setUint16(offset, entity.points.length, true);
                                 offset += 2;
-                                Bit8.setUint8(offset, entity.flags, true);
+                                let is16Bit = 0
+                                is16Bit |= 0x80;
+                                Bit8.setUint8(offset, is16Bit, true);
                                 offset += 1;
+                                Bit8.setUint16(offset, entity.flags, true);
+                                offset += 2;
                                 if (entity.flags & Enums.EntityFlags.DEBUG) {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
@@ -748,7 +785,18 @@ class Snake {
                                         offset += 2;
                                     }
                                     offset += 2 // Write 2 bits of null
-
+                                }
+                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
+                                    Bit8.setUint16(offset, entity.saturation, true);
+                                    offset += 2;
+                                    Bit8.setUint16(offset, entity.lightness, true);
+                                    offset += 2;
+                                    Bit8.setUint16(offset, entity.color, true);
+                                    offset += 2;
+                                    for (var characterIndex = 0; characterIndex < entity.customEffects.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customEffects.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customEffects.length) * 2;
                                 }
                                 Bit8.setUint8(offset, entity.talkStamina, true);
                                 offset += 1;

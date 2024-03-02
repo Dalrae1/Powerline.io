@@ -64,6 +64,7 @@ const EntityFlags = {
     SHOW_TALKING: 0x40,
     // Custom
     SHOW_CUSTOM_TALKING: 0x80,
+    CUSTOM_COLOR: 0x100,
 };
 
 const KillReasons = {

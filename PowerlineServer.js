@@ -53,6 +53,36 @@ admins = [
     "127.0.0.1",
     "64.112.210.252"
 ]
+customPlayerColors = {
+    "Dracula": {
+        saturation: 100,
+        lightness: 100,
+        customEffects: `
+            context.shadowColor = 'rgba(255,0,0, 1)';
+            context.lineWidth = (w)*this.snakeScale;
+			context.strokeStyle = 'rgba(0,0,0, 1)';
+			this.drawTail(this.renderedPoints, context);
+            shadowBlur = 0;
+        `
+    },
+    "Sun": {
+        saturation: 100,
+        lightness: 100,
+        customEffects: `
+        context.strokeStyle = 'rgba(255, 235, 161, 1)';
+        // Create central galaxy core along the snake's body
+        context.shadowColor = 'rgba(227, 182, 18, 1)';
+        let point = this.renderedPoints[0];
+        let gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, w*this.snakeScale*5);
+        gradient.addColorStop(0, 'rgba(227, 182, 18,1)');
+        gradient.addColorStop(1, 'rgba(227, 182, 18,0)');
+        context.fillStyle = gradient;
+        context.beginPath();
+        context.arc(point.x, point.y, w*this.snakeScale*5, 0, Math.PI * 2);
+        context.fill();
+        `
+    }
+}
 
 
 for (let i = 0; i < maxFood; i++) {
