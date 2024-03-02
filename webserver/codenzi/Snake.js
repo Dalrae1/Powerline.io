@@ -176,7 +176,10 @@ var Snake = function () {
 		}
 	}
 
-	this.update = function(dt) {
+	this.update = function (dt) {
+		specialBody = globalSpecialBody ? globalSpecialBody : specialBody;
+		specialTail = globalSpecialTail ? globalSpecialTail : specialTail;
+		specialHead = globalSpecialHead ? globalSpecialHead : specialHead;
 
 		if(!this.beingDeleted)
 		{
