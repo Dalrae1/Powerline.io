@@ -88,7 +88,7 @@ if (wssSecure) {
         })
         ws.on('close', function close() {
             if (client.snake && client.snake.id) {
-                client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake.id);
+                client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
                 
             }
             delete clients[client.id];
@@ -105,7 +105,7 @@ wss.on('connection', async function connection(ws, req) {
     })
     ws.on('close', function close() {
         if (client.snake && client.snake.id) {
-            client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake.id);
+            client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
             
         }
         clientIDs.releaseID(client.id)
@@ -149,7 +149,7 @@ function UpdateArena() { // Main update loop
                     snake.position.y > arenaSize / 2 ||
                     snake.position.y < -arenaSize / 2
                 ) {
-                    snake.kill(Enums.KillReasons.BOUNDARY, snake.id);
+                    snake.kill(Enums.KillReasons.BOUNDARY, snake);
                 }
             }, snake.ping || 50)
         }
@@ -217,9 +217,9 @@ function UpdateArena() { // Main update loop
                             if (snake.position != nextPoint && secondPoint != point && snake.position != secondPoint && snake.position != point) {
                                 if (MapFunctions.DoIntersect(snake.position, secondPoint, point, nextPoint)) {
                                     if (snake.id == otherSnake.id) {
-                                        snake.kill(Enums.KillReasons.SELF, snake.id);
+                                        snake.kill(Enums.KillReasons.SELF, snake);
                                     } else {
-                                        snake.kill(Enums.KillReasons.KILLED, otherSnake.id);
+                                        snake.kill(Enums.KillReasons.KILLED, otherSnake);
                                     }
                                 }
                             }

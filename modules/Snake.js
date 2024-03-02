@@ -15,6 +15,7 @@ class Snake {
     loadedEntities = {};
     
     constructor(network, name) {
+        this.client = network;
         this.network = network.socket;
         this.ip = network.ip;
         this.sendConfig();
@@ -198,9 +199,9 @@ class Snake {
                                 setTimeout(() => { // Make sure they didn't move out of the way
                                     if (MapFunctions.DoIntersect(this.position, secondPoint, point, nextPoint)) {
                                         if (this == snake) {
-                                            this.kill(Enums.KillReasons.SELF, this.id);
+                                            this.kill(Enums.KillReasons.SELF, this);
                                         } else {
-                                            this.kill(Enums.KillReasons.KILLED, snake.id);
+                                            this.kill(Enums.KillReasons.KILLED, snake);
                                         }
                                     }
                                 }, snake.ping || 50)
@@ -235,30 +236,30 @@ class Snake {
         this.flags &= ~Enums.EntityFlags.IS_RUBBING;
         this.speeding = false
     }
-    kill(reason, killedByID) {
+    kill(reason, killedBy) {
         if (this.invincible)
             return;
-        if (killedByID != this.id) {
-            if (!snakes[killedByID])
+        if (killedBy != this) {
+            if (!killedBy)
                 return
             //
-            snakes[killedByID].killstreak += 1;
-            if (snakes[killedByID].killstreak >= 8) {
-                snakes[killedByID].flags |= Enums.EntityFlags.KILLSTREAK;
-                let oldKillstreak = snakes[killedByID].killstreak;
+            killedBy.killstreak += 1;
+            if (killedBy.killstreak >= 8) {
+                killedBy.flags |= Enums.EntityFlags.KILLSTREAK;
+                let oldKillstreak = killedBy.killstreak;
                 setTimeout(() => {
-                    if (!snakes[killedByID])
+                    if (!killedBy)
                         return
-                    if (snakes[killedByID].killstreak == oldKillstreak)
-                        snakes[killedByID].flags &= ~Enums.EntityFlags.KILLSTREAK;
+                    if (killedBy.killstreak == oldKillstreak)
+                        killedBy.flags &= ~Enums.EntityFlags.KILLSTREAK;
                 }, 5000)
             }
             if (king && king == this) {
-                snakes[killedByID].flags |= Enums.EntityFlags.KILLED_KING;
+                killedBy.flags |= Enums.EntityFlags.KILLED_KING;
                 setTimeout(() => {
-                    if (!snakes[killedByID])
+                    if (!killedBy)
                         return
-                    snakes[killedByID].flags &= ~Enums.EntityFlags.KILLED_KING;
+                    killedBy.flags &= ~Enums.EntityFlags.KILLED_KING;
                 }, 5000)
             }
 
@@ -283,7 +284,7 @@ class Snake {
             }
 
             offset = global.getString(Bit8, offset).offset;
-            snakes[killedByID].network.send(Bit8);
+            killedBy.network.send(Bit8);
             // Send "Killed By"
             var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
             Bit8.setUint8(0, Enums.ServerToClient.OPCODE_EVENTS);
@@ -294,12 +295,12 @@ class Snake {
             offset += 2;
             for (
                 var characterIndex = 0;
-                characterIndex < snakes[killedByID].nick.length;
+                characterIndex < killedBy.nick.length;
                 characterIndex++
             ) {
                 Bit8.setUint16(
                 offset + characterIndex * 2,
-                snakes[killedByID].nick.charCodeAt(characterIndex),
+                killedBy.nick.charCodeAt(characterIndex),
                 true
                 );
             }
@@ -324,7 +325,7 @@ class Snake {
                 offset += 2;
                 Bit8.setUint8(offset, Enums.UpdateTypes.UPDATE_TYPE_DELETE, true);
                 offset += 1;
-                Bit8.setUint16(offset, killedByID, true);
+                Bit8.setUint16(offset, killedBy.id, true);
                 offset += 2;
                 Bit8.setUint8(offset, reason);
                 offset += 1;
@@ -436,8 +437,10 @@ class Snake {
         
         
 
-
+        
         this.spawned = false;
+        this.client.lastKilled = killedBy
+        this.client.snake = undefined;
         leaderboard.delete(this.length, this.id);
         entityIDs.releaseID(this.id);
         delete snakes[this.id];
