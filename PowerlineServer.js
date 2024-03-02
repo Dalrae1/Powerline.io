@@ -55,20 +55,19 @@ admins = [
 ]
 customPlayerColors = {
     "Dracula": {
-        saturation: 100,
-        lightness: 100,
-        customEffects: `
+        customHead: ``,
+        customBody: `
             context.shadowColor = 'rgba(255,0,0, 1)';
             context.lineWidth = (w)*this.snakeScale;
 			context.strokeStyle = 'rgba(0,0,0, 1)';
 			this.drawTail(this.renderedPoints, context);
             shadowBlur = 0;
-        `
+        `,
+        customTail: ``
     },
     "Sun": {
-        saturation: 100,
-        lightness: 100,
-        customEffects: `
+        customHead: ``,
+        customBody: `
         context.strokeStyle = 'rgba(255, 235, 161, 1)';
         // Create central galaxy core along the snake's body
         context.shadowColor = 'rgba(227, 182, 18, 1)';
@@ -80,7 +79,8 @@ customPlayerColors = {
         context.beginPath();
         context.arc(point.x, point.y, w*this.snakeScale*5, 0, Math.PI * 2);
         context.fill();
-        `
+        `,
+        customTail: ``
     }
 }
 

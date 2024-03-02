@@ -21,9 +21,9 @@ class Snake {
         this.sendConfig();
 
         if (customPlayerColors[name]) {
-            this.saturation = customPlayerColors[name].saturation;
-            this.lightness = customPlayerColors[name].lightness;
-            this.customEffects = customPlayerColors[name].customEffects;
+            this.customHead = customPlayerColors[name].customHead;
+            this.customBody = customPlayerColors[name].customBody;
+            this.customTail = customPlayerColors[name].customTail;
             this.flags |= Enums.EntityFlags.CUSTOM_COLOR;
 
         }
@@ -504,8 +504,9 @@ class Snake {
                                     calculatedTotalBits += 2
                                 }
                                 if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    calculatedTotalBits += 2 + 2 + 2;
-                                    calculatedTotalBits += (1 + entity.customEffects.length) * 2;
+                                    calculatedTotalBits += (1 + entity.customHead.length) * 2;
+                                    calculatedTotalBits += (1 + entity.customBody.length) * 2;
+                                    calculatedTotalBits += (1 + entity.customTail.length) * 2;
                                 }
                                 calculatedTotalBits += 1 + 1 + 1 + (4 + 4) * (entity.newPoints.length);
                                 break;
@@ -547,8 +548,9 @@ class Snake {
                                     calculatedTotalBits += 2
                                 }
                                 if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    calculatedTotalBits += 2 + 2 + 2;
-                                    calculatedTotalBits += (1 + entity.customEffects.length) * 2;
+                                    calculatedTotalBits += (1 + entity.customHead.length) * 2;
+                                    calculatedTotalBits += (1 + entity.customBody.length) * 2;
+                                    calculatedTotalBits += (1 + entity.customTail.length) * 2;
                                 }
                                 
                                 calculatedTotalBits += 1 + 1
@@ -664,17 +666,20 @@ class Snake {
                                     offset += 2 // Write 2 bits of null
                                 }
                                 if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    Bit8.setUint16(offset, entity.saturation, true);
-                                    offset += 2;
-                                    Bit8.setUint16(offset, entity.lightness, true);
-                                    offset += 2;
-                                    Bit8.setUint16(offset, entity.color, true);
-                                    offset += 2;
-                                    for (var characterIndex = 0; characterIndex < entity.customEffects.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customEffects.charCodeAt(characterIndex), true);
+                                    for (var characterIndex = 0; characterIndex < entity.customHead.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customHead.charCodeAt(characterIndex), true);
                                     }
-                                    offset += (1 + entity.customEffects.length) * 2;
+                                    offset += (1 + entity.customHead.length) * 2;
 
+                                    for (var characterIndex = 0; characterIndex < entity.customBody.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customBody.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customBody.length) * 2;
+
+                                    for (var characterIndex = 0; characterIndex < entity.customTail.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customTail.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customTail.length) * 2;
                                 }
                                 
                                 Bit8.setUint8(offset, entity.talkStamina, true);
@@ -787,16 +792,20 @@ class Snake {
                                     offset += 2 // Write 2 bits of null
                                 }
                                 if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    Bit8.setUint16(offset, entity.saturation, true);
-                                    offset += 2;
-                                    Bit8.setUint16(offset, entity.lightness, true);
-                                    offset += 2;
-                                    Bit8.setUint16(offset, entity.color, true);
-                                    offset += 2;
-                                    for (var characterIndex = 0; characterIndex < entity.customEffects.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customEffects.charCodeAt(characterIndex), true);
+                                    for (var characterIndex = 0; characterIndex < entity.customHead.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customHead.charCodeAt(characterIndex), true);
                                     }
-                                    offset += (1 + entity.customEffects.length) * 2;
+                                    offset += (1 + entity.customHead.length) * 2;
+
+                                    for (var characterIndex = 0; characterIndex < entity.customBody.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customBody.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customBody.length) * 2;
+
+                                    for (var characterIndex = 0; characterIndex < entity.customTail.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customTail.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customTail.length) * 2;
                                 }
                                 Bit8.setUint8(offset, entity.talkStamina, true);
                                 offset += 1;

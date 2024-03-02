@@ -1,4 +1,8 @@
-var Snake = function() {
+globalSpecialBody = false;
+globalSpecialHead = false;
+globalSpecialTail = false
+
+var Snake = function () {
 	var snake = this;
 
 	this.snake = true;
@@ -136,7 +140,9 @@ var Snake = function() {
 
 	var boostTime = 0;
 	var demogorgon = false;
-	var specialColor = false; //'hsl(5, 100%, 50%)';
+	var specialBody = globalSpecialBody ? globalSpecialBody : false;
+	var specialTail = globalSpecialTail ? globalSpecialTail : false;
+	var specialHead = globalSpecialHead ? globalSpecialHead : false;
 
 	// Talk Test
 	var talkText = '';
@@ -589,9 +595,6 @@ var Snake = function() {
 			v = 100;
 		}
 		var color = 'hsl('+this.hue+', 100%, '+v+'%)';
-		if (specialColor) {
-			color = specialColor.color;
-		}
 				
 		var w = this.getWidth();
 		headScale = w/2.5;
@@ -743,11 +746,7 @@ var Snake = function() {
 			v = 100;
 			context.lineWidth = (w+1)*this.snakeScale;
 		}
-		if (specialColor) {
-			context.strokeStyle = specialColor.color;
-		} else {
-			context.strokeStyle = 'hsl('+this.hue+', 100%, '+v+'%)';
-		}
+		context.strokeStyle = 'hsl('+this.hue+', 100%, '+v+'%)';
 		
 
 		
@@ -757,8 +756,8 @@ var Snake = function() {
 			context.shadowBlur = 15;
 		}
 
-		if (specialColor && specialColor.customEffects)
-			eval(specialColor.customEffects)
+		if (specialBody)
+			eval(specialBody)
 
 		this.drawTail(this.renderedPoints, context);
 
@@ -769,6 +768,9 @@ var Snake = function() {
 			context.strokeStyle = 'hsl(0, 100%, 0%)';
 			this.drawTail(this.renderedPoints, context);
 		}
+
+		if (specialTail)
+			eval(specialTail)
 
 
 		var lenMin = 4000;
@@ -877,6 +879,9 @@ var Snake = function() {
 
 		// =========
 		// Draw Head
+		if (specialHead)
+			eval(specialHead)
+
 		var tmpScale = this.snakeScale*headScale;
 
 		context.scale(0.21*tmpScale, 0.21*tmpScale);
@@ -1284,21 +1289,15 @@ var Snake = function() {
 		}
 		if (flags & 0x100) // Custom color
 		{
-			var saturation = view.getUint16(offset, true);
-			offset += 2;
-			var lightness = view.getUint16(offset, true);
-			offset += 2;
-			var hue = view.getUint16(offset, true);
-			offset += 2;
-			var customEffects = getString(view, offset);
-			offset = customEffects.offset;
-			specialColor = {};
-			specialColor.color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-			specialColor.customEffects = customEffects.nick;
+			var customHeadColor = getString(view, offset);
+			var customBodyColor = getString(view, customHeadColor.offset);
+			var customTailColor = getString(view, customBodyColor.offset);
+			offset = customTailColor.offset;
 			
-		}
-		else {
-			specialColor = null;
+			specialHead = customHeadColor.nick;
+			specialBody = customBodyColor.nick;
+			specialTail = customTailColor.nick;
+			
 		}
 
 		this.talkStamina = view.getUint8(offset, true);
