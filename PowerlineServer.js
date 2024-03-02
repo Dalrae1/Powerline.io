@@ -69,7 +69,6 @@ customPlayerColors = {
         customHead: ``,
         customBody: `
         context.strokeStyle = 'rgba(255, 235, 161, 1)';
-        // Create central galaxy core along the snake's body
         context.shadowColor = 'rgba(227, 182, 18, 1)';
         let point = this.renderedPoints[0];
         let gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, w*this.snakeScale*5);
@@ -163,6 +162,14 @@ function UpdateArena() { // Main update loop
             snake.position.y -= totalSpeed * UPDATE_EVERY_N_TICKS;
         } else if (snake.direction == Enums.Directions.RIGHT) {
             snake.position.x += totalSpeed * UPDATE_EVERY_N_TICKS;
+        }
+
+        if (snake.actualLength > snake._length) {
+            let setTo = snake._length + (totalSpeed * UPDATE_EVERY_N_TICKS);
+            if (setTo > snake.actualLength)
+                snake._length = snake.actualLength;
+            else
+                snake._length += totalSpeed * UPDATE_EVERY_N_TICKS;
         }
 
         // Collision Checks

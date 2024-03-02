@@ -19,7 +19,7 @@ class Snake {
         this.network = network.socket;
         this.ip = network.ip;
         this.sendConfig();
-
+        //this.flags |= Enums.EntityFlags.DEBUG
         if (customPlayerColors[name]) {
             this.customHead = customPlayerColors[name].customHead;
             this.customBody = customPlayerColors[name].customBody;
@@ -48,6 +48,7 @@ class Snake {
         this.talkStamina = 255;
         this.color = Math.random() * 360;
         this._length = defaultLength;
+        this.actualLength = defaultLength;
         leaderboard.insert(this.length, this.id);
 
 
@@ -63,9 +64,9 @@ class Snake {
     }
     set length(value) {
         
-        leaderboard.delete(this._length, this.id);
-        this._length = value;
-        leaderboard.insert(this.length, this.id);
+        leaderboard.delete(this.actualLength, this.id);
+        this.actualLength = value;
+        leaderboard.insert(this.actualLength, this.id);
 
     }
     windowSizeX = 128;
@@ -484,6 +485,7 @@ class Snake {
                                 calculatedTotalBits += 2 // For 16b flags
                                 if (entity.flags & Enums.EntityFlags.DEBUG) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
+                                    calculatedTotalBits += this.points.length*8
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
                                     calculatedTotalBits += 4 + 4 + 2;
@@ -528,6 +530,7 @@ class Snake {
                                 calculatedTotalBits += 2 // For 16b flags
                                 if (entity.flags & Enums.EntityFlags.DEBUG) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
+                                    calculatedTotalBits += this.points.length*8
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
                                     calculatedTotalBits += 4 + 4 + 2;
@@ -632,9 +635,14 @@ class Snake {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
 
-                                    Bit8.setUint16(offset, 0, true);
-
+                                    Bit8.setUint16(offset, this.points.length, true);
                                     offset += 2;
+                                    for (let i = 0; i < this.points.length; i++) {
+                                        Bit8.setFloat32(offset, this.points[i].x, true);
+                                        offset += 4;
+                                        Bit8.setFloat32(offset, this.points[i].y, true);
+                                        offset += 4;
+                                    }
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
                                     Bit8.setFloat32(offset, entity.rubX, true);
@@ -758,9 +766,14 @@ class Snake {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
 
-                                    Bit8.setUint16(offset, 0, true);
-
+                                    Bit8.setUint16(offset, this.points.length, true);
                                     offset += 2;
+                                    for (let i = 0; i < this.points.length; i++) {
+                                        Bit8.setFloat32(offset, this.points[i].x, true);
+                                        offset += 4;
+                                        Bit8.setFloat32(offset, this.points[i].y, true);
+                                        offset += 4;
+                                    }
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
                                     Bit8.setFloat32(offset, entity.rubX, true);
