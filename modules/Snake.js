@@ -449,7 +449,7 @@ class Snake {
         this.spawned = false;
         this.client.killedBy = killedBy
         this.client.snake = undefined;
-        leaderboard.delete(this.length, this.id);
+        leaderboard.delete(this.actualLength, this.id);
         entityIDs.releaseID(this.id);
         delete snakes[this.id];
         delete entities[this.id]
