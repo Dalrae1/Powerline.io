@@ -123,7 +123,7 @@ class Snake {
                     king = snake;
                 BitView.setUint16(offset, snake.id, true);
                 offset += 2;
-                BitView.setUint32(offset, (snake.length - defaultLength) * scoreMultiplier, true);
+                BitView.setUint32(offset, (snake.actualLength - defaultLength) * scoreMultiplier, true);
                 offset += 4;
                 const nameBytes = new TextEncoder().encode(snake.nick);
                 const nameLength = nameBytes.length;
@@ -446,9 +446,8 @@ class Snake {
         
         
 
-        
         this.spawned = false;
-        this.client.lastKilled = killedBy
+        this.client.killedBy = killedBy
         this.client.snake = undefined;
         leaderboard.delete(this.length, this.id);
         entityIDs.releaseID(this.id);
