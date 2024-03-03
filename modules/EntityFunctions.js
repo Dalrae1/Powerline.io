@@ -2,9 +2,9 @@ const MapFunctions = require("./MapFunctions.js");
 const Enums = require("./Enums.js");
 
 class EntityFunctions {
-    static GetEntitiesInRadius(center, entities, checksnake) {
-        const windowSizeX = checksnake.windowSizeX;
-        const windowSizeY = checksnake.windowSizeY;
+    static GetEntitiesInRadius(center, entities, client) {
+        const windowSizeX = client.windowSizeX;
+        const windowSizeY = client.windowSizeY;
         const xMin = center.x - windowSizeX / 2;
         const xMax = center.x + windowSizeX / 2;
         const yMin = center.y - windowSizeY / 2;
@@ -52,11 +52,13 @@ class SnakeFunctions {
     static GetSegmentLength(point1, point2) {
         return Math.abs((point2.x - point1.x) + (point2.y - point1.y));
     }
-    static GetEntitiesNearSnake(snake) {
-        const entitiesInRadius = EntityFunctions.GetEntitiesInRadius({ x: snake.position.x, y: snake.position.y }, Object.values(entities), snake);
-        const loadedEntitiesSet = new Set(Object.values(snake.loadedEntities));
+    static GetEntitiesNearClient(client) {
+        let position = client.dead ? client.deadPosition : (client.snake ? client.snake.position : null)
+        if (!position) return { entitiesToAdd: [], entitiesToRemove: [] };
+        const entitiesInRadius = EntityFunctions.GetEntitiesInRadius({ x: position.x, y: position.y}, Object.values(entities), client);
+        const loadedEntitiesSet = new Set(Object.values(client.loadedEntities));
         const entitiesToAdd = entitiesInRadius.filter(entity => !loadedEntitiesSet.has(entity));
-        const entitiesToRemove = Object.values(snake.loadedEntities).filter(entity => !entitiesInRadius.includes(entity));
+        const entitiesToRemove = Object.values(client.loadedEntities).filter(entity => !entitiesInRadius.includes(entity));
         return { entitiesToAdd, entitiesToRemove };
     }
 

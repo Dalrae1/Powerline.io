@@ -12,13 +12,13 @@ class Snake {
     network = null;
     nick = "";
     type = Enums.EntityTypes.ENTITY_PLAYER;
-    loadedEntities = {};
     
     constructor(network, name) {
         this.client = network;
         this.network = network.socket;
         this.ip = network.ip;
-        this.sendConfig();
+        this.client.dead = false;
+        this.client.sendConfig();
         //this.flags |= Enums.EntityFlags.DEBUG
         if (customPlayerColors[name]) {
             this.customHead = customPlayerColors[name].customHead;
@@ -49,6 +49,7 @@ class Snake {
         this.color = Math.random() * 360;
         this._length = defaultLength;
         this.actualLength = defaultLength;
+        this.killedSnakes = [];
         leaderboard.insert(this.length, this.id);
 
 
@@ -69,41 +70,7 @@ class Snake {
         leaderboard.insert(this.actualLength, this.id);
 
     }
-    windowSizeX = 128;
-    windowSizeY = 64;
-    sendConfig() {
-        var Bit8 = new DataView(new ArrayBuffer(49));
-        let cfgType = Enums.ServerToClient.OPCODE_CONFIG;
-        let offset = 0;
-        Bit8.setUint8(offset, cfgType); // 176 or 160
-        offset += 1;
-        Bit8.setFloat32(offset, arenaSize, true); //Arena Size
-        offset += 4;
-        if (cfgType == Enums.ServerToClient.OPCODE_CONFIG_2) {
-            Bit8.setFloat32(offset, 0, true); //Minimap Entities X Offset
-            offset += 4;
-            Bit8.setFloat32(offset, 0, true); //Minimap Entities Y Offset
-            offset += 4;
-        }
-        Bit8.setFloat32(offset, 2, true); //Default zoom
-        offset += 4;
-        Bit8.setFloat32(offset, 1.5, true); //Minimum zoom
-        offset += 4;
-        Bit8.setFloat32(offset, 100, true); //Minimum zoom score
-        offset += 4;
-        Bit8.setFloat32(offset, 10, true); //Zoom Level 2
-        offset += 4 + 4;
-        Bit8.setFloat32(offset, 90, true); //Input Delay, If 0 then no input delay calculations will take place
-        offset += 4;
-        Bit8.setFloat32(offset, 60, true); //Not Used
-        offset += 4;
-        Bit8.setFloat32(offset, 40, true); //Other Snake Delay
-        offset += 4;
-        Bit8.setFloat32(offset, 1, true); //isTalkEnabled
-        this.network.send(Bit8);
-
-        
-    }
+    
     updateLeaderboard() {
         const BitView = new DataView(new ArrayBuffer(1000));
         let offset = 0;
@@ -187,7 +154,7 @@ class Snake {
                 if (!client.snake)
                     return
                 let snake = client.snake;
-                if (this.loadedEntities[snake.id]) {
+                if (this.client.loadedEntities[snake.id]) {
                     for (let i = -1; i < snake.points.length - 1; i++) {
                         let point;
                         if (i == -1)
@@ -325,7 +292,7 @@ class Snake {
             if (!client.snake)
                 return
             let snake = client.snake;
-            if (snake.loadedEntities[this.id]) {
+            if (snake.client.loadedEntities[this.id]) {
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
                 var offset = 1;
@@ -353,7 +320,7 @@ class Snake {
                 Bit8.setFloat32(offset, king && king.position.y || 0, true);
                 offset += 4;
                 snake.network.send(Bit8);
-                delete snake.loadedEntities[this.id]
+                delete snake.client.loadedEntities[this.id]
             }
         });
 
@@ -444,10 +411,45 @@ class Snake {
             }
         }
         
-        
+        let entitiesToAdd = []
+        let entitiesToRemove = []
+        if (killedBy != this) {
+            this.client.killedBy = killedBy
+            killedBy.killedSnakes.push(this)
+            // Sync up the loaded entities
+            
+            Object.values(killedBy.client.loadedEntities).forEach((entity) => {
+                if (entity.id == this.id) {
+                    return
+                }
+                if (!this.client.loadedEntities[entity.id]) {
+                    entitiesToAdd.push(entity)
+                }
+            })
+            Object.values(this.client.loadedEntities).forEach((entity) => {
+                if (entity.id == killedBy.id) {
+                    return
+                }
+                if (!killedBy.client.loadedEntities[entity.id]) {
+                    entitiesToRemove.push(entity)
+                }
+            })
+            this.client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, entitiesToRemove);
+            this.client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, entitiesToAdd);
 
+        }
+        this.killedSnakes.forEach((snake, index) => {
+            if (snake.client.snake || !clients[snake.client.id]) {// If the snake respawned or disconnected, remove it from the list
+                delete this.killedSnakes[index]
+                return
+            }
+            snake.client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, [entitiesToRemove]);
+            snake.client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, [entitiesToAdd]);
+        })
+        killedBy.killedSnakes = killedBy.killedSnakes.concat(this.killedSnakes) // Add the snakes that this snake killed to the killer's list
         this.spawned = false;
-        this.client.killedBy = killedBy
+        this.client.deadPosition = this.position;
+        this.client.dead = true;
         this.client.snake = undefined;
         leaderboard.delete(this.actualLength, this.id);
         entityIDs.releaseID(this.id);
@@ -467,418 +469,7 @@ class Snake {
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PONG);
         this.network.send(Bit8);
     }
-    update(updateType, entities) {
-        /* CALCULATING TOTAL BITS */
-        var calculatedTotalBits = 1;
-        Object.values(entities).forEach((entity) => {
-            if (
-                entity.position && entity.spawned &&
-                (((updateType == Enums.UpdateTypes.UPDATE_TYPE_PARTIAL || updateType == Enums.UpdateTypes.UPDATE_TYPE_DELETE) && this.loadedEntities[entity.id]) || updateType == Enums.UpdateTypes.UPDATE_TYPE_FULL) // Make sure that entity is rendered before making updates
-            ) {
-                calculatedTotalBits += 2 + 1;
-                switch (updateType) {
-                    case Enums.UpdateTypes.UPDATE_TYPE_PARTIAL:
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
-                                calculatedTotalBits += 2 // For 16b flags
-                                if (entity.flags & Enums.EntityFlags.DEBUG) {
-                                    calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
-                                    calculatedTotalBits += this.points.length*8
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
-                                    calculatedTotalBits += 4 + 4 + 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
-                                if (entity.flags & Enums.EntityFlags.PING) {
-                                    calculatedTotalBits += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
-                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
-                                    calculatedTotalBits += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
-                                    calculatedTotalBits += 1;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
-                                    calculatedTotalBits += (entity.customTalk.length) * 2;
-                                    calculatedTotalBits += 2
-                                }
-                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    calculatedTotalBits += (1 + entity.customHead.length) * 2;
-                                    calculatedTotalBits += (1 + entity.customBody.length) * 2;
-                                    calculatedTotalBits += (1 + entity.customTail.length) * 2;
-                                }
-                                calculatedTotalBits += 1 + 1 + 1 + (4 + 4) * (entity.newPoints.length);
-                                break;
-                            case Enums.EntityTypes.ENTITY_ITEM:
-                                calculatedTotalBits += 4 + 4;
-                                break;
-                        }
-                        break
-                    case Enums.UpdateTypes.UPDATE_TYPE_FULL:
-                        calculatedTotalBits += 1 + 1
-                        if (entity.type == Enums.EntityTypes.ENTITY_PLAYER)
-                            calculatedTotalBits += (1 + entity.nick.length) * 2;
-                        else
-                            calculatedTotalBits += 2;
-                        
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
-                                calculatedTotalBits += 2 // For 16b flags
-                                if (entity.flags & Enums.EntityFlags.DEBUG) {
-                                    calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
-                                    calculatedTotalBits += this.points.length*8
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
-                                    calculatedTotalBits += 4 + 4 + 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
-                                if (entity.flags & Enums.EntityFlags.PING) {
-                                    calculatedTotalBits += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
-                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
-                                    calculatedTotalBits += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
-                                    calculatedTotalBits += 1;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
-                                    calculatedTotalBits += entity.customTalk.length * 2;
-                                    calculatedTotalBits += 2
-                                }
-                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    calculatedTotalBits += (1 + entity.customHead.length) * 2;
-                                    calculatedTotalBits += (1 + entity.customBody.length) * 2;
-                                    calculatedTotalBits += (1 + entity.customTail.length) * 2;
-                                }
-                                
-                                calculatedTotalBits += 1 + 1
-                                calculatedTotalBits += (4 + 4) * entity.points.length;
-                                calculatedTotalBits += 2 + 1;
-                                break
-                            case Enums.EntityTypes.ENTITY_ITEM:
-                                calculatedTotalBits += 4 + 4 + 2;
-                                break
-                        }
-                        break
-                    case Enums.UpdateTypes.UPDATE_TYPE_DELETE:
-                        calculatedTotalBits += 2 + 1
-                        
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                calculatedTotalBits += 4 + 4;
-                                break
-                            case Enums.EntityTypes.ENTITY_ITEM:
 
-                                break
-                        }
-                        break
-                }
-            }
-        })
-        calculatedTotalBits += 2 + 2 + 4 + 4; // King bits
-        var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
-        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
-        var offset = 1;
-        
-
-        Object.values(entities).forEach((entity) => {
-            if (
-                entity.position && entity.spawned &&
-                (((updateType == Enums.UpdateTypes.UPDATE_TYPE_PARTIAL || updateType == Enums.UpdateTypes.UPDATE_TYPE_DELETE) && this.loadedEntities[entity.id]) || updateType == Enums.UpdateTypes.UPDATE_TYPE_FULL) // Make sure that entity is rendered before making updates
-            ) {
-                Bit8.setUint16(offset, entity.id, true);
-                offset += 2;
-                Bit8.setUint8(offset, updateType, true);
-                offset += 1;
-                switch (updateType) {
-                    case Enums.UpdateTypes.UPDATE_TYPE_PARTIAL:
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                Bit8.setFloat32(offset, entity.position.x, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.position.y, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.speed, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.length, true);
-                                offset += 4;
-                                offset += 1;
-                                Bit8.setUint16(offset, entity.points.length, true);
-                                offset += 2;
-                                let is16Bit = 0
-                                is16Bit |= 0x80;
-                                Bit8.setUint8(offset, is16Bit, true);
-                                offset += 1;
-                                Bit8.setUint16(offset, entity.flags, true);
-                                offset += 2;
-                                if (entity.flags & Enums.EntityFlags.DEBUG) {
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-
-                                    Bit8.setUint16(offset, this.points.length, true);
-                                    offset += 2;
-                                    for (let i = 0; i < this.points.length; i++) {
-                                        Bit8.setFloat32(offset, this.points[i].x, true);
-                                        offset += 4;
-                                        Bit8.setFloat32(offset, this.points[i].y, true);
-                                        offset += 4;
-                                    }
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
-                                    Bit8.setFloat32(offset, entity.rubX, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, entity.rubY, true);
-                                    offset += 4;
-                                    Bit8.setUint16(offset, entity.RubSnake, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
-                                if (entity.flags & Enums.EntityFlags.PING) {
-                                    Bit8.setUint16(offset, entity.ping || 0, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
-                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
-                                    Bit8.setUint16(offset, entity.killstreak, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
-                                    Bit8.setUint8(offset, entity.talkId, true);
-                                    offset += 1;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
-                                    for (let i = 0; i < entity.customTalk.length; i++) {
-                                        Bit8.setUint16(offset, entity.customTalk.charCodeAt(i), true);
-                                        offset += 2;
-                                    }
-                                    offset += 2 // Write 2 bits of null
-                                }
-                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    for (var characterIndex = 0; characterIndex < entity.customHead.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customHead.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customHead.length) * 2;
-
-                                    for (var characterIndex = 0; characterIndex < entity.customBody.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customBody.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customBody.length) * 2;
-
-                                    for (var characterIndex = 0; characterIndex < entity.customTail.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customTail.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customTail.length) * 2;
-                                }
-                                
-                                Bit8.setUint8(offset, entity.talkStamina, true);
-                                offset += 1;
-                                Bit8.setUint8(offset, entity.extraSpeed, true);
-                                offset += 1;
-                                let newPointsLength = entity.newPoints.length
-                                Bit8.setUint8(offset, newPointsLength, true);
-                                offset += 1;
-                                for (let i = newPointsLength - 1; i >= 0; i--) {
-                                    let point = entity.newPoints[i];
-                                    Bit8.setFloat32(offset, point.x, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, point.y, true);
-                                    offset += 4;
-                                }
-                                break;
-                            case Enums.EntityTypes.ENTITY_ITEM:
-                                Bit8.setFloat32(offset, entity.position.x, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.position.y, true);
-                                offset += 4;
-                                break;
-                        }
-                        break
-                    case Enums.UpdateTypes.UPDATE_TYPE_FULL:
-                        Bit8.setUint8(offset, entity.type, true);
-                        offset += 1;
-                        Bit8.setUint8(offset, entity.subtype || 0, true);
-                        offset += 1;
-                        if (entity.type == Enums.EntityTypes.ENTITY_PLAYER) {
-                            for (var characterIndex = 0; characterIndex < entity.nick.length; characterIndex++) {
-                                Bit8.setUint16(offset + characterIndex * 2, entity.nick.charCodeAt(characterIndex), true);
-                            }
-                            offset += (1 + entity.nick.length) * 2;
-                        } else {
-                            Bit8.setUint16(offset, 0, true);
-                            offset += 2;
-                        }
-                        
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                Bit8.setFloat32(offset, entity.position.x, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.position.y, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.speed, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.length, true);
-                                offset += 4;
-                                offset += 1;
-                                Bit8.setUint16(offset, entity.points.length, true);
-                                offset += 2;
-                                let is16Bit = 0
-                                is16Bit |= 0x80;
-                                Bit8.setUint8(offset, is16Bit, true);
-                                offset += 1;
-                                Bit8.setUint16(offset, entity.flags, true);
-                                offset += 2;
-                                if (entity.flags & Enums.EntityFlags.DEBUG) {
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-
-                                    Bit8.setUint16(offset, this.points.length, true);
-                                    offset += 2;
-                                    for (let i = 0; i < this.points.length; i++) {
-                                        Bit8.setFloat32(offset, this.points[i].x, true);
-                                        offset += 4;
-                                        Bit8.setFloat32(offset, this.points[i].y, true);
-                                        offset += 4;
-                                    }
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
-                                    Bit8.setFloat32(offset, entity.rubX, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, entity.rubY, true);
-                                    offset += 4;
-                                    Bit8.setUint16(offset, entity.RubSnake, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
-                                if (entity.flags & Enums.EntityFlags.PING) {
-                                    Bit8.setUint16(offset, entity.ping || 0, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
-                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
-                                    Bit8.setUint16(offset, entity.killstreak, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
-                                    Bit8.setUint8(offset, entity.talkId, true);
-                                    offset += 1;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
-                                    for (let i = 0; i < entity.customTalk.length; i++) {
-                                        Bit8.setUint16(offset, entity.customTalk.charCodeAt(i), true);
-                                        offset += 2;
-                                    }
-                                    offset += 2 // Write 2 bits of null
-                                }
-                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    for (var characterIndex = 0; characterIndex < entity.customHead.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customHead.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customHead.length) * 2;
-
-                                    for (var characterIndex = 0; characterIndex < entity.customBody.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customBody.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customBody.length) * 2;
-
-                                    for (var characterIndex = 0; characterIndex < entity.customTail.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customTail.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customTail.length) * 2;
-                                }
-                                Bit8.setUint8(offset, entity.talkStamina, true);
-                                offset += 1;
-                                Bit8.setUint8(offset, entity.extraSpeed, true);
-                                offset += 1;
-                                for (let i = 0; i < entity.points.length; i++) {
-                                    let point = entity.points[i];
-                                    Bit8.setFloat32(offset, point.x, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, point.y, true);
-                                    offset += 4;
-                                }
-                                Bit8.setUint16(offset, entity.color, true);
-                                offset += 2;
-                                Bit8.setUint8(offset, 0, true);
-                                offset += 1;
-                                break;
-                            case Enums.EntityTypes.ENTITY_ITEM:
-                                Bit8.setFloat32(offset, entity.position.x, true);
-                                offset += 4;
-                                
-                                Bit8.setFloat32(offset, entity.position.y, true);
-                                offset += 4;
-                                Bit8.setUint16(offset, entity.color, true);
-                                offset += 2;
-                                break;
-
-                        }
-                        this.loadedEntities[entity.id] = entity;
-
-                        break;
-                    case Enums.UpdateTypes.UPDATE_TYPE_DELETE:
-                        Bit8.setUint16(offset, 0, true); // Set to 0 to disable sounds
-                        offset += 2;
-                        Bit8.setUint8(offset, Enums.KillReasons.LEFT_SCREEN, true);
-                        offset += 1;
-                        delete this.loadedEntities[entity.id]
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                Bit8.setFloat32(offset, entity.position.x, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.position.y, true);
-                                offset += 4;
-                                break
-                            case Enums.EntityTypes.ENTITY_ITEM:
-                                break
-                        }
-                        break;
-                }
-            }
-        })
-        Bit8.setUint16(offset, 0, true);
-        offset += 2;
-        Bit8.setUint16(offset, king && king.id || 0, true);
-        offset += 2;
-        Bit8.setFloat32(offset, king && king.position.x || 0, true);
-        offset += 4;
-        Bit8.setFloat32(offset, king && king.position.y || 0, true);
-        offset += 4;
-      this.network.send(Bit8);
-    }
     numDebugCircle = 0
     DrawDebugCircle(x, y, color = 100, size = 4) {
         this.numDebugCircle++

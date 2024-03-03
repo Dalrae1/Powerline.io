@@ -9,6 +9,10 @@ class Client extends EventEmitter {
         super();
         this.socket = websocket;
         this.id = clientIDs.allocateID();
+        this.loadedEntities = {};
+        this.windowSizeX = 128;
+        this.windowSizeY = 64;
+        this.dead = true
         clients[this.id] = this;
         if (ip.toString() == "::1") // Set IP to local
             ip = "::ffff:127.0.0.1"
@@ -51,15 +55,15 @@ class Client extends EventEmitter {
                 }
                 break;
             case Enums.ClientToServer.OPCODE_AREA_UPDATE:
-                this.snake.windowSizeX = view.getUint16(1, true)/2;
-                this.snake.windowSizeY = view.getUint16(3, true)/2;
+                this.windowSizeX = view.getUint16(1, true)/2;
+                this.windowSizeY = view.getUint16(3, true)/2;
                 break;
             case Enums.ClientToServer.OPCODE_HELLO_V4:
-                this.snake.windowSizeX = view.getUint16(1, true)/2;
-                this.snake.windowSizeY = view.getUint16(3, true)/2;
+                this.windowSizeX = view.getUint16(1, true)/2;
+                this.windowSizeY = view.getUint16(3, true)/2;
             case Enums.ClientToServer.OPCODE_HELLO_DEBUG:
-                this.snake.windowSizeX = view.getUint16(1, true)/2;
-                this.snake.windowSizeY = view.getUint16(3, true) / 2;
+                this.windowSizeX = view.getUint16(1, true)/2;
+                this.windowSizeY = view.getUint16(3, true) / 2;
             case Enums.ClientToServer.OPCODE_BOOST:
                 if (admins.includes(this.snake.ip)) {
                     let boosting = view.getUint8(1) == 1
@@ -211,6 +215,449 @@ class Client extends EventEmitter {
                 break;
 
         }
+    }
+    sendConfig() {
+        var Bit8 = new DataView(new ArrayBuffer(49));
+        let cfgType = Enums.ServerToClient.OPCODE_CONFIG;
+        let offset = 0;
+        Bit8.setUint8(offset, cfgType); // 176 or 160
+        offset += 1;
+        Bit8.setFloat32(offset, arenaSize, true); //Arena Size
+        offset += 4;
+        if (cfgType == Enums.ServerToClient.OPCODE_CONFIG_2) {
+            Bit8.setFloat32(offset, 0, true); //Minimap Entities X Offset
+            offset += 4;
+            Bit8.setFloat32(offset, 0, true); //Minimap Entities Y Offset
+            offset += 4;
+        }
+        Bit8.setFloat32(offset, 2, true); //Default zoom
+        offset += 4;
+        Bit8.setFloat32(offset, 1.5, true); //Minimum zoom
+        offset += 4;
+        Bit8.setFloat32(offset, 100, true); //Minimum zoom score
+        offset += 4;
+        Bit8.setFloat32(offset, 10, true); //Zoom Level 2
+        offset += 4 + 4;
+        Bit8.setFloat32(offset, 90, true); //Input Delay, If 0 then no input delay calculations will take place
+        offset += 4;
+        Bit8.setFloat32(offset, 60, true); //Not Used
+        offset += 4;
+        Bit8.setFloat32(offset, 40, true); //Other Snake Delay
+        offset += 4;
+        Bit8.setFloat32(offset, 1, true); //isTalkEnabled
+        this.socket.send(Bit8);
+    }
+    update(updateType, entities) {
+        /* CALCULATING TOTAL BITS */
+        var calculatedTotalBits = 1;
+        Object.values(entities).forEach((entity) => {
+            if (
+                entity.position && entity.spawned &&
+                (((updateType == Enums.UpdateTypes.UPDATE_TYPE_PARTIAL || updateType == Enums.UpdateTypes.UPDATE_TYPE_DELETE) && this.loadedEntities[entity.id]) || updateType == Enums.UpdateTypes.UPDATE_TYPE_FULL) // Make sure that entity is rendered before making updates
+            ) {
+                calculatedTotalBits += 2 + 1;
+                switch (updateType) {
+                    case Enums.UpdateTypes.UPDATE_TYPE_PARTIAL:
+                        switch (entity.type) {
+                            case Enums.EntityTypes.ENTITY_PLAYER:
+                                calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
+                                calculatedTotalBits += 2 // For 16b flags
+                                if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                    calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
+                                    calculatedTotalBits += entity.points.length*8
+                                }
+                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
+                                    calculatedTotalBits += 4 + 4 + 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
+                                if (entity.flags & Enums.EntityFlags.PING) {
+                                    calculatedTotalBits += 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
+                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
+                                    calculatedTotalBits += 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
+                                    calculatedTotalBits += 1;
+                                }
+                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
+                                    calculatedTotalBits += (entity.customTalk.length) * 2;
+                                    calculatedTotalBits += 2
+                                }
+                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
+                                    calculatedTotalBits += (1 + entity.customHead.length) * 2;
+                                    calculatedTotalBits += (1 + entity.customBody.length) * 2;
+                                    calculatedTotalBits += (1 + entity.customTail.length) * 2;
+                                }
+                                calculatedTotalBits += 1 + 1 + 1 + (4 + 4) * (entity.newPoints.length);
+                                break;
+                            case Enums.EntityTypes.ENTITY_ITEM:
+                                calculatedTotalBits += 4 + 4;
+                                break;
+                        }
+                        break
+                    case Enums.UpdateTypes.UPDATE_TYPE_FULL:
+                        calculatedTotalBits += 1 + 1
+                        if (entity.type == Enums.EntityTypes.ENTITY_PLAYER)
+                            calculatedTotalBits += (1 + entity.nick.length) * 2;
+                        else
+                            calculatedTotalBits += 2;
+                        
+                        switch (entity.type) {
+                            case Enums.EntityTypes.ENTITY_PLAYER:
+                                calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
+                                calculatedTotalBits += 2 // For 16b flags
+                                if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                    calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
+                                    calculatedTotalBits += entity.points.length*8
+                                }
+                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
+                                    calculatedTotalBits += 4 + 4 + 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
+                                if (entity.flags & Enums.EntityFlags.PING) {
+                                    calculatedTotalBits += 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
+                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
+                                    calculatedTotalBits += 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
+                                    calculatedTotalBits += 1;
+                                }
+                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
+                                    calculatedTotalBits += entity.customTalk.length * 2;
+                                    calculatedTotalBits += 2
+                                }
+                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
+                                    calculatedTotalBits += (1 + entity.customHead.length) * 2;
+                                    calculatedTotalBits += (1 + entity.customBody.length) * 2;
+                                    calculatedTotalBits += (1 + entity.customTail.length) * 2;
+                                }
+                                
+                                calculatedTotalBits += 1 + 1
+                                calculatedTotalBits += (4 + 4) * entity.points.length;
+                                calculatedTotalBits += 2 + 1;
+                                break
+                            case Enums.EntityTypes.ENTITY_ITEM:
+                                calculatedTotalBits += 4 + 4 + 2;
+                                break
+                        }
+                        break
+                    case Enums.UpdateTypes.UPDATE_TYPE_DELETE:
+                        calculatedTotalBits += 2 + 1
+                        
+                        switch (entity.type) {
+                            case Enums.EntityTypes.ENTITY_PLAYER:
+                                calculatedTotalBits += 4 + 4;
+                                break
+                            case Enums.EntityTypes.ENTITY_ITEM:
+
+                                break
+                        }
+                        break
+                }
+            }
+        })
+        calculatedTotalBits += 2 + 2 + 4 + 4; // King bits
+        var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
+        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
+        var offset = 1;
+        
+
+        Object.values(entities).forEach((entity) => {
+            if (
+                entity.position && entity.spawned &&
+                (((updateType == Enums.UpdateTypes.UPDATE_TYPE_PARTIAL || updateType == Enums.UpdateTypes.UPDATE_TYPE_DELETE) && this.loadedEntities[entity.id]) || updateType == Enums.UpdateTypes.UPDATE_TYPE_FULL) // Make sure that entity is rendered before making updates
+            ) {
+                Bit8.setUint16(offset, entity.id, true);
+                offset += 2;
+                Bit8.setUint8(offset, updateType, true);
+                offset += 1;
+                switch (updateType) {
+                    case Enums.UpdateTypes.UPDATE_TYPE_PARTIAL:
+                        switch (entity.type) {
+                            case Enums.EntityTypes.ENTITY_PLAYER:
+                                Bit8.setFloat32(offset, entity.position.x, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.position.y, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.speed, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.length, true);
+                                offset += 4;
+                                offset += 1;
+                                Bit8.setUint16(offset, entity.points.length, true);
+                                offset += 2;
+                                let is16Bit = 0
+                                is16Bit |= 0x80;
+                                Bit8.setUint8(offset, is16Bit, true);
+                                offset += 1;
+                                Bit8.setUint16(offset, entity.flags, true);
+                                offset += 2;
+                                if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+
+                                    Bit8.setUint16(offset, entity.points.length, true);
+                                    offset += 2;
+                                    for (let i = 0; i < entity.points.length; i++) {
+                                        Bit8.setFloat32(offset, entity.points[i].x, true);
+                                        offset += 4;
+                                        Bit8.setFloat32(offset, entity.points[i].y, true);
+                                        offset += 4;
+                                    }
+                                }
+                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
+                                    Bit8.setFloat32(offset, entity.rubX, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, entity.rubY, true);
+                                    offset += 4;
+                                    Bit8.setUint16(offset, entity.RubSnake, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
+                                if (entity.flags & Enums.EntityFlags.PING) {
+                                    Bit8.setUint16(offset, entity.ping || 0, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
+                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
+                                    Bit8.setUint16(offset, entity.killstreak, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
+                                    Bit8.setUint8(offset, entity.talkId, true);
+                                    offset += 1;
+                                }
+                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
+                                    for (let i = 0; i < entity.customTalk.length; i++) {
+                                        Bit8.setUint16(offset, entity.customTalk.charCodeAt(i), true);
+                                        offset += 2;
+                                    }
+                                    offset += 2 // Write 2 bits of null
+                                }
+                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
+                                    for (var characterIndex = 0; characterIndex < entity.customHead.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customHead.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customHead.length) * 2;
+
+                                    for (var characterIndex = 0; characterIndex < entity.customBody.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customBody.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customBody.length) * 2;
+
+                                    for (var characterIndex = 0; characterIndex < entity.customTail.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customTail.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customTail.length) * 2;
+                                }
+                                
+                                Bit8.setUint8(offset, entity.talkStamina, true);
+                                offset += 1;
+                                Bit8.setUint8(offset, entity.extraSpeed, true);
+                                offset += 1;
+                                let newPointsLength = entity.newPoints.length
+                                Bit8.setUint8(offset, newPointsLength, true);
+                                offset += 1;
+                                for (let i = newPointsLength - 1; i >= 0; i--) {
+                                    let point = entity.newPoints[i];
+                                    Bit8.setFloat32(offset, point.x, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, point.y, true);
+                                    offset += 4;
+                                }
+                                break;
+                            case Enums.EntityTypes.ENTITY_ITEM:
+                                Bit8.setFloat32(offset, entity.position.x, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.position.y, true);
+                                offset += 4;
+                                break;
+                        }
+                        break
+                    case Enums.UpdateTypes.UPDATE_TYPE_FULL:
+                        Bit8.setUint8(offset, entity.type, true);
+                        offset += 1;
+                        Bit8.setUint8(offset, entity.subtype || 0, true);
+                        offset += 1;
+                        if (entity.type == Enums.EntityTypes.ENTITY_PLAYER) {
+                            for (var characterIndex = 0; characterIndex < entity.nick.length; characterIndex++) {
+                                Bit8.setUint16(offset + characterIndex * 2, entity.nick.charCodeAt(characterIndex), true);
+                            }
+                            offset += (1 + entity.nick.length) * 2;
+                        } else {
+                            Bit8.setUint16(offset, 0, true);
+                            offset += 2;
+                        }
+                        
+                        switch (entity.type) {
+                            case Enums.EntityTypes.ENTITY_PLAYER:
+                                Bit8.setFloat32(offset, entity.position.x, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.position.y, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.speed, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.length, true);
+                                offset += 4;
+                                offset += 1;
+                                Bit8.setUint16(offset, entity.points.length, true);
+                                offset += 2;
+                                let is16Bit = 0
+                                is16Bit |= 0x80;
+                                Bit8.setUint8(offset, is16Bit, true);
+                                offset += 1;
+                                Bit8.setUint16(offset, entity.flags, true);
+                                offset += 2;
+                                if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, 0, true);
+                                    offset += 4;
+
+                                    Bit8.setUint16(offset, entity.points.length, true);
+                                    offset += 2;
+                                    for (let i = 0; i < entity.points.length; i++) {
+                                        Bit8.setFloat32(offset, entity.points[i].x, true);
+                                        offset += 4;
+                                        Bit8.setFloat32(offset, entity.points[i].y, true);
+                                        offset += 4;
+                                    }
+                                }
+                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
+                                    Bit8.setFloat32(offset, entity.rubX, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, entity.rubY, true);
+                                    offset += 4;
+                                    Bit8.setUint16(offset, entity.RubSnake, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
+                                if (entity.flags & Enums.EntityFlags.PING) {
+                                    Bit8.setUint16(offset, entity.ping || 0, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
+                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
+                                    Bit8.setUint16(offset, entity.killstreak, true);
+                                    offset += 2;
+                                }
+                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
+                                    Bit8.setUint8(offset, entity.talkId, true);
+                                    offset += 1;
+                                }
+                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
+                                    for (let i = 0; i < entity.customTalk.length; i++) {
+                                        Bit8.setUint16(offset, entity.customTalk.charCodeAt(i), true);
+                                        offset += 2;
+                                    }
+                                    offset += 2 // Write 2 bits of null
+                                }
+                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
+                                    for (var characterIndex = 0; characterIndex < entity.customHead.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customHead.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customHead.length) * 2;
+
+                                    for (var characterIndex = 0; characterIndex < entity.customBody.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customBody.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customBody.length) * 2;
+
+                                    for (var characterIndex = 0; characterIndex < entity.customTail.length; characterIndex++) {
+                                        Bit8.setUint16(offset + characterIndex * 2, entity.customTail.charCodeAt(characterIndex), true);
+                                    }
+                                    offset += (1 + entity.customTail.length) * 2;
+                                }
+                                Bit8.setUint8(offset, entity.talkStamina, true);
+                                offset += 1;
+                                Bit8.setUint8(offset, entity.extraSpeed, true);
+                                offset += 1;
+                                for (let i = 0; i < entity.points.length; i++) {
+                                    let point = entity.points[i];
+                                    Bit8.setFloat32(offset, point.x, true);
+                                    offset += 4;
+                                    Bit8.setFloat32(offset, point.y, true);
+                                    offset += 4;
+                                }
+                                Bit8.setUint16(offset, entity.color, true);
+                                offset += 2;
+                                Bit8.setUint8(offset, 0, true);
+                                offset += 1;
+                                break;
+                            case Enums.EntityTypes.ENTITY_ITEM:
+                                Bit8.setFloat32(offset, entity.position.x, true);
+                                offset += 4;
+                                
+                                Bit8.setFloat32(offset, entity.position.y, true);
+                                offset += 4;
+                                Bit8.setUint16(offset, entity.color, true);
+                                offset += 2;
+                                break;
+
+                        }
+                        this.loadedEntities[entity.id] = entity;
+
+                        break;
+                    case Enums.UpdateTypes.UPDATE_TYPE_DELETE:
+                        Bit8.setUint16(offset, 0, true); // Set to 0 to disable sounds
+                        offset += 2;
+                        Bit8.setUint8(offset, Enums.KillReasons.LEFT_SCREEN, true);
+                        offset += 1;
+                        delete this.loadedEntities[entity.id]
+                        switch (entity.type) {
+                            case Enums.EntityTypes.ENTITY_PLAYER:
+                                Bit8.setFloat32(offset, entity.position.x, true);
+                                offset += 4;
+                                Bit8.setFloat32(offset, entity.position.y, true);
+                                offset += 4;
+                                break
+                            case Enums.EntityTypes.ENTITY_ITEM:
+                                break
+                        }
+                        break;
+                }
+            }
+        })
+        Bit8.setUint16(offset, 0, true);
+        offset += 2;
+        Bit8.setUint16(offset, king && king.id || 0, true);
+        offset += 2;
+        Bit8.setFloat32(offset, king && king.position.x || 0, true);
+        offset += 4;
+        Bit8.setFloat32(offset, king && king.position.y || 0, true);
+        offset += 4;
+      this.socket.send(Bit8);
     }
 }
 

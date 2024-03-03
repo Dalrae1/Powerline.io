@@ -34,7 +34,7 @@ clientIDs = new IDManager();
 entities = {}
 clients = {}
 snakes = {}
-arenaSize = 300
+arenaSize = 100
 foodValue = 1.5;
 lastClientId = 1
 updateDuration = 90
@@ -45,7 +45,7 @@ scoreMultiplier = 10/foodValue;
 defaultLength = 10;
 king = null;
 lastUpdate = 0;
-maxFood = arenaSize * 5;
+maxFood = 1//arenaSize * 5;
 foodSpawnPercent = (arenaSize ^ 2) / 10;
 foodMultiplier = 1;
 admins = [
@@ -193,7 +193,7 @@ function UpdateArena() { // Main update loop
         let shouldRub = false;
         let secondPoint = snake.points[0];
         // Other snake collision checks
-        Object.values(snake.loadedEntities).forEach(function (otherSnake) {
+        Object.values(snake.client.loadedEntities).forEach(function (otherSnake) {
             if (otherSnake.type != Enums.EntityTypes.ENTITY_PLAYER)
                 return
             // Check if head of snake of near body of other snake
@@ -304,12 +304,12 @@ async function main() {
     Object.values(clients).forEach(function (client) {
         var snake = client.snake;
         
-        if (!snake)
-            return
-        let isSpawned = snake.spawned;
+        //if (!snake)
+            //return
+        let isSpawned = !client.dead;
         
         
-        let entQuery = SnakeFunctions.GetEntitiesNearSnake(snake);
+        let entQuery = SnakeFunctions.GetEntitiesNearClient(client);
         
         
         
@@ -317,14 +317,12 @@ async function main() {
         let removeEntities = entQuery.entitiesToRemove;
 
         
-        snake.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities);
-        snake.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, removeEntities)
+        
         
         
         let updateEntities = []
         
-        
-        Object.values(snake.loadedEntities).forEach(function (entity) {
+        Object.values(client.loadedEntities).forEach(function (entity) {
             switch (entity.type) {
                 case Enums.EntityTypes.ENTITY_PLAYER:
                     updateEntities.push(entity)
@@ -348,11 +346,25 @@ async function main() {
 
             }
         })
-        
-        snake.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities);
+
+        client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities);
+        client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, removeEntities);
+        client.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities);
+
+        if (isSpawned) {
+            snake.killedSnakes.forEach((killedSnake, index) => { // Sync all spectating snakes
+                if (killedSnake.client.snake || !clients[killedSnake.client.id]) {// If the snake respawned or disconnected, remove it from the list
+                    delete snake.killedSnakes[index]
+                    return
+                }
+                killedSnake.client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities)
+                killedSnake.client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, removeEntities)
+                killedSnake.client.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities)
+            })
+        }
 
         
-        if (snake.spawned) {
+        if (isSpawned) {
 
             /* HANDLE TALK STAMINA */
             if (snake.talkStamina < 255) {

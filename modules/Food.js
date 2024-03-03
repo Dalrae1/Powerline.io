@@ -43,36 +43,33 @@ class Food {
                 }, updateDuration * 2 * i)
             }
         }
+
+        var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
+        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
+        var offset = 1;
+        Bit8.setUint16(offset, this.id, true);
+        offset += 2;
+        Bit8.setUint8(offset, Enums.UpdateTypes.UPDATE_TYPE_DELETE, true);
+        offset += 1;
+        Bit8.setUint16(offset, snake && snake.id || 0, true);
+        offset += 2;
+        Bit8.setUint8(offset, Enums.KillReasons.KILLED, true);
+        offset += 1;
+
+        // King
+        Bit8.setUint16(offset, 0, true);
+        offset += 2;
+        Bit8.setUint16(offset, king && king.id || 0, true);
+        offset += 2;
+        Bit8.setFloat32(offset, king && king.position.x || 0, true);
+        offset += 4;
+        Bit8.setFloat32(offset, king && king.position.y || 0, true);
+        offset += 4;
         
         Object.values(clients).forEach((client) => {
-            if (!client.snake)
-                return
-            let otherSnake = client.snake;
-            if (otherSnake.loadedEntities[this.id]) {
-                var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
-                Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
-                var offset = 1;
-                Bit8.setUint16(offset, this.id, true);
-                offset += 2;
-                Bit8.setUint8(offset, Enums.UpdateTypes.UPDATE_TYPE_DELETE, true);
-                offset += 1;
-                Bit8.setUint16(offset, snake && snake.id || 0, true);
-                offset += 2;
-                Bit8.setUint8(offset, Enums.KillReasons.KILLED, true);
-                offset += 1;
-
-                // King
-                Bit8.setUint16(offset, 0, true);
-                offset += 2;
-                Bit8.setUint16(offset, king && king.id || 0, true);
-                offset += 2;
-                Bit8.setFloat32(offset, king && king.position.x || 0, true);
-                offset += 4;
-                Bit8.setFloat32(offset, king && king.position.y || 0, true);
-                offset += 4;
-                
-                otherSnake.network.send(Bit8);
-                delete otherSnake.loadedEntities[this.id]
+            if (client.loadedEntities[this.id]) {
+                client.socket.send(Bit8);
+                delete client.loadedEntities[this.id]
             }
         })
         if (snake) {
