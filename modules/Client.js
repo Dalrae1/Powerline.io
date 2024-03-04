@@ -206,7 +206,8 @@ class Client extends EventEmitter {
                                     this.snake.customTalk = message;
                                     this.snake.talkStamina = 0;
                                     setTimeout(() => {
-                                        this.snake.flags &= ~Enums.EntityFlags.SHOW_CUSTOM_TALKING;
+                                        if (!this.dead)
+                                            this.snake.flags &= ~Enums.EntityFlags.SHOW_CUSTOM_TALKING;
                                     }, 5000)
                                 }
                             }
