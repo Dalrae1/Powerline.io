@@ -111,8 +111,6 @@ var Network = function () {
 		}
 
 		var cc = countryCode;
-		if(queryString['cc'])
-		cc = queryString['cc'];
 		if(cc == undefined)
 		{
 			// Did not receive country code yet

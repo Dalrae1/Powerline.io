@@ -235,7 +235,19 @@ if(window.localStorage.lq == 'true'){
 //}
 
 // Country Code
+
+
+
 var countryCode = null;
+
+function updateCCButton() {
+	let button = document.getElementsByClassName(`${countryCode}`)[0]
+	if (!button)
+		countryCode = "01"
+	button = document.getElementsByClassName(`${countryCode}`)[0]
+	button.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+}
+
 var fetchCountryCode = function(){
 	var s = '';
 	if(isSecure)
@@ -244,6 +256,7 @@ var fetchCountryCode = function(){
 		countryCode = data.substring(0, 2);
 		window.localStorage.wingsCC = countryCode;
 		window.localStorage.wingsCCTime = +new Date();
+		updateCCButton()
 		//console.log('Fetched new country code: ' + countryCode);
 	}, 'text');
 }
@@ -264,11 +277,7 @@ var updateCountryCode = function(){
 }
 
 updateCountryCode();
-let button = document.getElementsByClassName(`${countryCode}`)[0]
-if (!button)
-	countryCode = "01"
-button = document.getElementsByClassName(`${countryCode}`)[0]
-button.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+updateCCButton()
 
 var runLoop = function() {
 	now = +new Date();
@@ -1022,7 +1031,7 @@ loadScript("codenzi/Snake.js?v=2");
 loadScript("codenzi/Food.js?v=1");
 loadScript("codenzi/Map.js?v=1");
 loadScript("codenzi/Minimap.js?v=1");
-loadScript("codenzi/Network.js?v=1");
+loadScript("codenzi/Network.js?v=2");
 loadScript("codenzi/App.js?v=1");
 loadScript("codenzi/Camera.js?v=1");
 loadScript("codenzi/Frame.js?v=1");
