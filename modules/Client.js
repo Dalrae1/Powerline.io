@@ -197,16 +197,18 @@ class Client extends EventEmitter {
                             break;
                         case "say":
                             if (commandArgs[1]) {
-                                if (this.snake.talkStamina < 255)
-                                    return
-                                let message = commandArgs.slice(1).join(" ");
-                                message = message.substring(0, 25);
-                                this.snake.flags |= Enums.EntityFlags.SHOW_CUSTOM_TALKING
-                                this.snake.customTalk = message;
-                                this.snake.talkStamina = 0;
-                                setTimeout(() => {
-                                    this.snake.flags &= ~Enums.EntityFlags.SHOW_CUSTOM_TALKING;
-                                }, 5000)
+                                if (!this.dead) {
+                                    if (this.snake.talkStamina < 255)
+                                        return
+                                    let message = commandArgs.slice(1).join(" ");
+                                    message = message.substring(0, 25);
+                                    this.snake.flags |= Enums.EntityFlags.SHOW_CUSTOM_TALKING
+                                    this.snake.customTalk = message;
+                                    this.snake.talkStamina = 0;
+                                    setTimeout(() => {
+                                        this.snake.flags &= ~Enums.EntityFlags.SHOW_CUSTOM_TALKING;
+                                    }, 5000)
+                                }
                             }
                             break;
 
