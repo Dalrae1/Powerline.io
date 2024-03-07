@@ -132,7 +132,7 @@ class Snake {
         if (this.direction == direction || this.direction + 2 == direction || this.direction - 2 == direction) { // If the direction is the same or opposite
             return;
         }
-        let goingUp = direction = Enums.Directions.UP || direction == Enums.Directions.RIGHT;
+        let goingUp = this.direction = Enums.Directions.UP || this.direction == Enums.Directions.RIGHT;
         let secondPoint = this.points[0];
         if (Math.abs(secondPoint[whatVector] - vector) < 0.1) { // Attempting to turn in place
             vector += goingUp ? 0.22 : -0.22;
