@@ -1,5 +1,6 @@
 const Enums = require('./Enums.js');
 const Snake = require('./Snake.js');
+const Food = require('./Food.js');
 const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
 const EventEmitter = require("events");
 
