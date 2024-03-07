@@ -213,6 +213,15 @@ class Client extends EventEmitter {
                                 }
                             }
                             break;
+                        case "debug":
+                            let snake = this.snake;
+                            if (commandArgs[1]) {
+                                let commandSnake = entities[parseInt(commandArgs[1])];
+                                if (commandSnake) {
+                                    snake = commandSnake;
+                                }
+                            }
+                            snake.flags ^= Enums.EntityFlags.DEBUG;
 
                     }
                 }
@@ -266,7 +275,7 @@ class Client extends EventEmitter {
                             case Enums.EntityTypes.ENTITY_PLAYER:
                                 calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
                                 calculatedTotalBits += 2 // For 16b flags
-                                if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
                                     calculatedTotalBits += entity.points.length*8
                                 }
@@ -311,7 +320,7 @@ class Client extends EventEmitter {
                             case Enums.EntityTypes.ENTITY_PLAYER:
                                 calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
                                 calculatedTotalBits += 2 // For 16b flags
-                                if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
                                     calculatedTotalBits += entity.points.length*8
                                 }
@@ -397,9 +406,15 @@ class Client extends EventEmitter {
                                 is16Bit |= 0x80;
                                 Bit8.setUint8(offset, is16Bit, true);
                                 offset += 1;
-                                Bit8.setUint16(offset, entity.flags, true);
+                                if (entity.debugEnabled && !(entity.flags & Enums.EntityFlags.DEBUG)) {
+                                    let tempFlags = entity.flags;
+                                    tempFlags |= Enums.EntityFlags.DEBUG;
+                                    Bit8.setUint16(offset, tempFlags, true);
+                                } else {
+                                    Bit8.setUint16(offset, entity.flags, true);
+                                }
                                 offset += 2;
-                                if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
                                     Bit8.setFloat32(offset, 0, true);
@@ -418,13 +433,21 @@ class Client extends EventEmitter {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
 
-                                    Bit8.setUint16(offset, entity.points.length, true);
-                                    offset += 2;
-                                    for (let i = 0; i < entity.points.length; i++) {
-                                        Bit8.setFloat32(offset, entity.points[i].x, true);
-                                        offset += 4;
-                                        Bit8.setFloat32(offset, entity.points[i].y, true);
-                                        offset += 4;
+                                    if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                        entity.debugEnabled = true
+                                        Bit8.setUint16(offset, entity.points.length, true);
+                                        offset += 2;
+                                        for (let i = 0; i < entity.points.length; i++) {
+                                            Bit8.setFloat32(offset, entity.points[i].x, true);
+                                            offset += 4;
+                                            Bit8.setFloat32(offset, entity.points[i].y, true);
+                                            offset += 4;
+                                        }
+                                    }
+                                    else { // Debug is disabling
+                                        Bit8.setUint16(offset, 0, true);
+                                        offset += 2;
+                                        entity.debugEnabled = false
                                     }
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
@@ -528,9 +551,15 @@ class Client extends EventEmitter {
                                 is16Bit |= 0x80;
                                 Bit8.setUint8(offset, is16Bit, true);
                                 offset += 1;
-                                Bit8.setUint16(offset, entity.flags, true);
+                                if (entity.debugEnabled && !(entity.flags & Enums.EntityFlags.DEBUG)) {
+                                    let tempFlags = entity.flags;
+                                    tempFlags |= Enums.EntityFlags.DEBUG;
+                                    Bit8.setUint16(offset, tempFlags, true);
+                                } else {
+                                    Bit8.setUint16(offset, entity.flags, true);
+                                }
                                 offset += 2;
-                                if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
                                     Bit8.setFloat32(offset, 0, true);
@@ -549,13 +578,21 @@ class Client extends EventEmitter {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
 
-                                    Bit8.setUint16(offset, entity.points.length, true);
-                                    offset += 2;
-                                    for (let i = 0; i < entity.points.length; i++) {
-                                        Bit8.setFloat32(offset, entity.points[i].x, true);
-                                        offset += 4;
-                                        Bit8.setFloat32(offset, entity.points[i].y, true);
-                                        offset += 4;
+                                    if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                        entity.debugEnabled = true
+                                        Bit8.setUint16(offset, entity.points.length, true);
+                                        offset += 2;
+                                        for (let i = 0; i < entity.points.length; i++) {
+                                            Bit8.setFloat32(offset, entity.points[i].x, true);
+                                            offset += 4;
+                                            Bit8.setFloat32(offset, entity.points[i].y, true);
+                                            offset += 4;
+                                        }
+                                    }
+                                    else { // Debug is disabling
+                                        Bit8.setUint16(offset, 0, true);
+                                        offset += 2;
+                                        entity.debugEnabled = false
                                     }
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_RUBBING) {

@@ -819,7 +819,7 @@ var Snake = function () {
 		}
 		context.shadowBlur = 0; // Only blur line
 
-		/*
+		
 		// DEBUG: Draw Server Snake Info
 		var serverPointsCount = allServerPoints.length;
 		context.beginPath();
@@ -834,7 +834,7 @@ var Snake = function () {
 		context.strokeStyle = '#FFFFFF';
 		context.lineWidth = 5;
 		context.stroke();
-		*/
+
 
 		// =================
 		// Draw Head and effects
