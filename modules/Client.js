@@ -414,7 +414,7 @@ class Client extends EventEmitter {
                                 is16Bit |= 0x80;
                                 Bit8.setUint8(offset, is16Bit, true);
                                 offset += 1;
-                                if (entity.debugEnabled && !(entity.flags & Enums.EntityFlags.DEBUG)) {
+                                if (entity.debugEnabled) {
                                     let tempFlags = entity.flags;
                                     tempFlags |= Enums.EntityFlags.DEBUG;
                                     Bit8.setUint16(offset, tempFlags, true);
