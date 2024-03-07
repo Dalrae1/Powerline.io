@@ -19,7 +19,7 @@ class Snake {
         this.ip = network.ip;
         this.client.dead = false;
         this.client.sendConfig();
-        //this.flags |= Enums.EntityFlags.DEBUG
+        this.flags |= Enums.EntityFlags.DEBUG
         if (customPlayerColors[name]) {
             this.customHead = customPlayerColors[name].customHead;
             this.customBody = customPlayerColors[name].customBody;
