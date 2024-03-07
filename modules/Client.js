@@ -223,6 +223,13 @@ class Client extends EventEmitter {
                             }
                             snake.flags ^= Enums.EntityFlags.DEBUG;
                             break
+                        case "debugall":
+                            Object.values(entities).forEach((entity) => {
+                                if (entity.type == Enums.EntityTypes.ENTITY_PLAYER) {
+                                    entity.flags ^= Enums.EntityFlags.DEBUG;
+                                }
+                            })
+                            break;
 
                     }
                 }
