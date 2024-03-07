@@ -8,7 +8,7 @@ class Food {
     spawned = true
     value = foodValue*2;
     lastUpdate = Date.now();
-    constructor(x, y, color, origin, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5)) {
+    constructor(x, y, color = Math.random() * 360, origin = null, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5)) {
         let thisId = entityIDs.allocateID();
         entities[thisId] = this;
         if (x == undefined) 
@@ -16,8 +16,7 @@ class Food {
         else {
             this.position = { x: x, y: y };
         }
-        if (color == undefined) this.color = Math.random() * 360;
-        else this.color = color;
+        this.color = color
         this.id = thisId;
         if (origin)
             this.origin = origin;
