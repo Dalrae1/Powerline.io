@@ -427,8 +427,8 @@ function mainLooper() {
             if ((Date.now() - lastUpdate) > updateDuration + 10) {
                 console.log(`Server is lagging ${(Date.now() - lastUpdate)-updateDuration}ms behind...`)
             }
-            lastUpdate = Date.now();
             main()
+            lastUpdate = Date.now();
             
         }
         mainLooper()
