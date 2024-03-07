@@ -34,7 +34,7 @@ clientIDs = new IDManager();
 entities = {}
 clients = {}
 snakes = {}
-arenaSize = 100
+arenaSize = 300
 foodValue = 1.5;
 lastClientId = 1
 updateDuration = 90
@@ -45,7 +45,7 @@ scoreMultiplier = 10/foodValue;
 defaultLength = 10;
 king = null;
 lastUpdate = 0;
-maxFood = 1//arenaSize * 5;
+maxFood = arenaSize * 5;
 foodSpawnPercent = (arenaSize ^ 2) / 10;
 foodMultiplier = 1;
 admins = [
@@ -83,15 +83,13 @@ customPlayerColors = {
     }
 }
 
-
-for (let i = 0; i < maxFood; i++) {
-    new Food();
-}
-
 function round(num) {
     return Math.round(num / 1000) * 1000
 }
 
+for (let i = 0; i < maxFood; i++) {
+    new Food();
+}
 
 global.getString = function (data, bitOffset) {
     var nick = "";
@@ -144,10 +142,6 @@ wss.on('connection', async function connection(ws, req) {
 
 function getSegmentLength(point1, point2) {
     return Math.abs(Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)));
-}
-
-for (let i = 0; i < 100; i++) {
-    new Food(0.0, i/10);
 }
 
 function UpdateArena() { // Main update loop
