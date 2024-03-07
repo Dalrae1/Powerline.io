@@ -98,7 +98,7 @@ class Client extends EventEmitter {
                     return
                 commandArgs[0] = commandArgs[0].toLowerCase();
                 if (admins.includes(this.snake.ip) || commandArgs[0] == "say") {
-                    
+                    console.log(`Executing command "${command}" from ${this.snake.nick}`);
                     switch (commandArgs[0]) {
                         case "arenasize":
                             if (commandArgs[1]) {
@@ -222,6 +222,7 @@ class Client extends EventEmitter {
                                 }
                             }
                             snake.flags ^= Enums.EntityFlags.DEBUG;
+                            break
 
                     }
                 }
