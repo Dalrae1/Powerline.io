@@ -47,7 +47,7 @@ class Snake {
         this.newPoints = [];
         this.talkStamina = 255;
         this.color = Math.random() * 360;
-        this._length = defaultLength;
+        this.visualLength = defaultLength;
         this.actualLength = defaultLength;
         this.killedSnakes = [];
         leaderboard.insert(this.length, this.id);
@@ -61,7 +61,7 @@ class Snake {
         this.network.send(Bit8);
     }
     get length() {
-        return this._length;
+        return this.actualLength;
     }
     set length(value) {
         

@@ -387,7 +387,7 @@ class Client extends EventEmitter {
                                 offset += 4;
                                 Bit8.setFloat32(offset, entity.speed, true);
                                 offset += 4;
-                                Bit8.setFloat32(offset, entity.length, true);
+                                Bit8.setFloat32(offset, entity.visualLength, true);
                                 offset += 4;
                                 offset += 1;
                                 Bit8.setUint16(offset, entity.points.length, true);
@@ -518,7 +518,7 @@ class Client extends EventEmitter {
                                 offset += 4;
                                 Bit8.setFloat32(offset, entity.speed, true);
                                 offset += 4;
-                                Bit8.setFloat32(offset, entity.length, true);
+                                Bit8.setFloat32(offset, entity.visualLength, true);
                                 offset += 4;
                                 offset += 1;
                                 Bit8.setUint16(offset, entity.points.length, true);

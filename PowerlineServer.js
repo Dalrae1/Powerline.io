@@ -146,6 +146,9 @@ function getSegmentLength(point1, point2) {
     return Math.abs(Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)));
 }
 
+for (let i = 0; i < 100; i++) {
+    new Food(0.0, i/10);
+}
 
 function UpdateArena() { // Main update loop
     let numSnak = 0;
@@ -164,12 +167,13 @@ function UpdateArena() { // Main update loop
             snake.position.x += totalSpeed * UPDATE_EVERY_N_TICKS;
         }
 
-        if (snake.actualLength > snake._length) {
-            let setTo = snake._length + (totalSpeed * UPDATE_EVERY_N_TICKS);
+        /* Update visual length */
+        if (snake.actualLength > snake.visualLength) {
+            let setTo = snake.visualLength + (totalSpeed * UPDATE_EVERY_N_TICKS);
             if (setTo > snake.actualLength)
-                snake._length = snake.actualLength;
+                snake.visualLength = snake.actualLength;
             else
-                snake._length += totalSpeed * UPDATE_EVERY_N_TICKS;
+                snake.visualLength += totalSpeed * UPDATE_EVERY_N_TICKS;
         }
 
         // Collision Checks
@@ -388,12 +392,12 @@ async function main() {
                 totalPointLength += segmentLength;
             }
             
-            if (totalPointLength > snake.length) {
+            if (totalPointLength > snake.visualLength) {
                 let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
                 let lastPoint = snake.points[snake.points.length - 1] || snake.position;
                 let direction = MapFunctions.GetNormalizedDirection(secondToLastPoint, lastPoint);
 
-                let amountOverLength = totalPointLength - snake.length;
+                let amountOverLength = totalPointLength - snake.visualLength;
                 let lastSegmentLength = getSegmentLength(secondToLastPoint, lastPoint);
 
                 if (lastSegmentLength > amountOverLength) { // Last segment can be decreased to fit length
