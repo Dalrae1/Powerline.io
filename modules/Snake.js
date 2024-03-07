@@ -289,10 +289,7 @@ class Snake {
             return
         }
         Object.values(clients).forEach((client) => {
-            if (!client.snake)
-                return
-            let snake = client.snake;
-            if (snake.client.loadedEntities[this.id]) {
+            if (client.loadedEntities[this.id]) {
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
                 var offset = 1;
@@ -319,8 +316,8 @@ class Snake {
                 offset += 4;
                 Bit8.setFloat32(offset, king && king.position.y || 0, true);
                 offset += 4;
-                snake.network.send(Bit8);
-                delete snake.client.loadedEntities[this.id]
+                client.socket.send(Bit8);
+                delete client.loadedEntities[this.id]
             }
         });
 
