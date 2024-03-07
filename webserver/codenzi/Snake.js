@@ -821,19 +821,20 @@ var Snake = function () {
 
 		
 		// DEBUG: Draw Server Snake Info
-		var serverPointsCount = allServerPoints.length;
-		context.beginPath();
-		for(var i = 0; i < serverPointsCount; i++)
-		{
-			var point = allServerPoints[i];
-			if(i == 0)
-				context.moveTo(point.x, point.y);
-			else
-				context.lineTo(point.x, point.y);
+		if (nick == "DebugSnake") {
+			var serverPointsCount = allServerPoints.length;
+			context.beginPath();
+			for (var i = 0; i < serverPointsCount; i++) {
+				var point = allServerPoints[i];
+				if (i == 0)
+					context.moveTo(point.x, point.y);
+				else
+					context.lineTo(point.x, point.y);
+			}
+			context.strokeStyle = '#FFFFFF';
+			context.lineWidth = 5;
+			context.stroke();
 		}
-		context.strokeStyle = '#FFFFFF';
-		context.lineWidth = 5;
-		context.stroke();
 
 
 		// =================
