@@ -821,7 +821,7 @@ var Snake = function () {
 
 		
 		// DEBUG: Draw Server Snake Info
-		if (nick == "DebugSnake") {
+		if (this.nick == "DebugSnake") {
 			var serverPointsCount = allServerPoints.length;
 			context.beginPath();
 			for (var i = 0; i < serverPointsCount; i++) {
