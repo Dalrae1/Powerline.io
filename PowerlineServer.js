@@ -352,14 +352,11 @@ async function main() {
         client.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities);
 
         if (isSpawned) {
-            snake.killedSnakes.forEach((killedSnake, index) => { // Sync all spectating snakes
+            snake.killedSnakes.forEach((killedSnake, index) => {
                 if (killedSnake.client.snake || !clients[killedSnake.client.id]) {// If the snake respawned or disconnected, remove it from the list
                     delete snake.killedSnakes[index]
                     return
                 }
-                killedSnake.client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities)
-                killedSnake.client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, removeEntities)
-                killedSnake.client.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities)
             })
         }
 
