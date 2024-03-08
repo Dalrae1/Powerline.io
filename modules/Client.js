@@ -233,6 +233,9 @@ class Client extends EventEmitter {
                         case "length":
                             if (commandArgs[1]) {
                                 Object.values(clients).forEach((client) => {
+                                    if (client.dead) {
+                                        return
+                                    }
                                     if (client.snake.nick.toLowerCase() == commandArgs.concat().splice(1).join(" ").toLowerCase()) {
                                         client.snake.length += SnakeFunctions.ScoreToLength(1000);
                                     }
