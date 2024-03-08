@@ -200,7 +200,7 @@ function UpdateArena() { // Main update loop
 
             //for (let i = -1; i < otherSnake.points.length - 1; i++) {
             let nearbyPoints = SnakeFunctions.GetPointsNearSnake(snake, otherSnake, 30);
-            snake.pointsNearby[otherSnake.id] = nearbyPoints;
+            snake.client.pointsNearby[otherSnake.id] = nearbyPoints;
             for (let i = 0; i < nearbyPoints.length - 1; i++) {
                 numPoints++
                 let point, nextPoint;

@@ -14,6 +14,7 @@ class Client extends EventEmitter {
         this.windowSizeX = 128;
         this.windowSizeY = 64;
         this.dead = true
+        this.pointsNearby = {};
         clients[this.id] = this;
         if (ip.toString() == "::1") // Set IP to local
             ip = "::ffff:127.0.0.1"
@@ -298,7 +299,7 @@ class Client extends EventEmitter {
                                 if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
                                     //calculatedTotalBits += entity.points.length*8
-                                    let points = this.snake.pointsNearby && this.snake.pointsNearby[entity.id] || []
+                                    let points = this.pointsNearby && this.pointsNearby[entity.id] || []
                                     calculatedTotalBits += points && points.length * 8 || 0
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
@@ -345,7 +346,7 @@ class Client extends EventEmitter {
                                 if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
                                     //calculatedTotalBits += entity.points.length*8
-                                    let points = this.snake.pointsNearby && this.snake.pointsNearby[entity.id] || []
+                                    let points = this.pointsNearby && this.pointsNearby[entity.id] || []
                                     calculatedTotalBits += points && points.length * 8 || 0
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
@@ -470,7 +471,7 @@ class Client extends EventEmitter {
                                     }*/
                                     if (entity.flags & Enums.EntityFlags.DEBUG) {
                                         entity.debugEnabled = true
-                                        let pointsss = this.snake.pointsNearby && this.snake.pointsNearby[entity.id] || []
+                                        let pointsss = this.pointsNearby && this.pointsNearby[entity.id] || []
                                         Bit8.setUint16(offset, pointsss.length, true);
                                         offset += 2;
                                         for (let i = 0; i < pointsss.length; i++) {
@@ -627,7 +628,7 @@ class Client extends EventEmitter {
                                     }*/
                                     if (entity.flags & Enums.EntityFlags.DEBUG) {
                                         entity.debugEnabled = true
-                                        let pointsss = this.snake.pointsNearby && this.snake.pointsNearby[entity.id] || []
+                                        let pointsss = this.pointsNearby && this.pointsNearby[entity.id] || []
                                         Bit8.setUint16(offset, pointsss.length, true);
                                         offset += 2;
                                         for (let i = 0; i < pointsss.length; i++) {
