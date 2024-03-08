@@ -11,7 +11,6 @@ const ServerToClient = {
     // CUSTOM
 
     OPCODE_DEBUGCIRCLE: 0xA7,
-    OPCODE_CUSTOMTALK: 0xA8,
 };
 
 const ClientToServer = {

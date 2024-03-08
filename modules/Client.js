@@ -297,7 +297,9 @@ class Client extends EventEmitter {
                                 calculatedTotalBits += 2 // For 16b flags
                                 if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
-                                    calculatedTotalBits += entity.points.length*8
+                                    //calculatedTotalBits += entity.points.length*8
+                                    let points = this.snake.pointsNearby && this.snake.pointsNearby[entity.id] || []
+                                    calculatedTotalBits += points && points.length * 8 || 0
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
                                     calculatedTotalBits += 4 + 4 + 2;
@@ -342,7 +344,9 @@ class Client extends EventEmitter {
                                 calculatedTotalBits += 2 // For 16b flags
                                 if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
                                     calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
-                                    calculatedTotalBits += entity.points.length*8
+                                    //calculatedTotalBits += entity.points.length*8
+                                    let points = this.snake.pointsNearby && this.snake.pointsNearby[entity.id] || []
+                                    calculatedTotalBits += points && points.length * 8 || 0
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
                                     calculatedTotalBits += 4 + 4 + 2;
@@ -453,7 +457,7 @@ class Client extends EventEmitter {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
 
-                                    if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                    /*if (entity.flags & Enums.EntityFlags.DEBUG) {
                                         entity.debugEnabled = true
                                         Bit8.setUint16(offset, entity.points.length, true);
                                         offset += 2;
@@ -461,6 +465,18 @@ class Client extends EventEmitter {
                                             Bit8.setFloat32(offset, entity.points[i].x, true);
                                             offset += 4;
                                             Bit8.setFloat32(offset, entity.points[i].y, true);
+                                            offset += 4;
+                                        }
+                                    }*/
+                                    if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                        entity.debugEnabled = true
+                                        let pointsss = this.snake.pointsNearby && this.snake.pointsNearby[entity.id] || []
+                                        Bit8.setUint16(offset, pointsss.length, true);
+                                        offset += 2;
+                                        for (let i = 0; i < pointsss.length; i++) {
+                                            Bit8.setFloat32(offset, pointsss[i].point.x, true);
+                                            offset += 4;
+                                            Bit8.setFloat32(offset, pointsss[i].point.y, true);
                                             offset += 4;
                                         }
                                     }
@@ -598,7 +614,7 @@ class Client extends EventEmitter {
                                     Bit8.setFloat32(offset, 0, true);
                                     offset += 4;
 
-                                    if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                    /*if (entity.flags & Enums.EntityFlags.DEBUG) {
                                         entity.debugEnabled = true
                                         Bit8.setUint16(offset, entity.points.length, true);
                                         offset += 2;
@@ -606,6 +622,18 @@ class Client extends EventEmitter {
                                             Bit8.setFloat32(offset, entity.points[i].x, true);
                                             offset += 4;
                                             Bit8.setFloat32(offset, entity.points[i].y, true);
+                                            offset += 4;
+                                        }
+                                    }*/
+                                    if (entity.flags & Enums.EntityFlags.DEBUG) {
+                                        entity.debugEnabled = true
+                                        let pointsss = this.snake.pointsNearby && this.snake.pointsNearby[entity.id] || []
+                                        Bit8.setUint16(offset, pointsss.length, true);
+                                        offset += 2;
+                                        for (let i = 0; i < pointsss.length; i++) {
+                                            Bit8.setFloat32(offset, pointsss[i].x, true);
+                                            offset += 4;
+                                            Bit8.setFloat32(offset, pointsss[i].y, true);
                                             offset += 4;
                                         }
                                     }

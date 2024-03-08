@@ -20,6 +20,7 @@ class Snake {
         this.client.dead = false;
         this.client.sendConfig();
         this.flags |= Enums.EntityFlags.DEBUG
+        this.pointsNearby = {}
         if (customPlayerColors[name]) {
             this.customHead = customPlayerColors[name].customHead;
             this.customBody = customPlayerColors[name].customBody;
