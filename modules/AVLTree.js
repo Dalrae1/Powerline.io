@@ -77,26 +77,33 @@ class AVLTree {
             return null;
         }
 
+        // Traverse the tree to find the node with the key (score) to delete
         if (key < node.key) {
             node.left = this._deleteRec(node.left, key, value);
         } else if (key > node.key) {
             node.right = this._deleteRec(node.right, key, value);
         } else {
-            // Node with matching key found
-
-            // Remove the value from node's dataSet
-            node.dataSet.delete(value);
-
-            // If dataSet is empty, remove the node
-            if (node.dataSet.size === 0) {
-                // Case 1 and Case 2: Node with one child or no child
-                if (node.left === null || node.right === null) {
-                    let temp = null;
-                    if (node.left === null) {
-                        temp = node.right;
-                    } else {
-                        temp = node.left;
+            // Node with the matching key (score) found
+            // Check if this node contains the specific player's ID in its dataSet
+            if (node.dataSet.has(value)) {
+                // Remove only the specific player's ID from the dataSet
+                node.dataSet.delete(value);
+                // Update reverse mapping
+                let valueKeySet = this.valueToKeyMap.get(value);
+                if (valueKeySet) {
+                    valueKeySet.delete(node.key);
+                    if (valueKeySet.size === 0) {
+                        this.valueToKeyMap.delete(value);
                     }
+                }
+            }
+
+            // If the dataSet is now empty after removal, proceed to delete the node
+            if (node.dataSet.size === 0) {
+                // Node to be deleted has no children or one child
+                if (node.left === null || node.right === null) {
+                    let temp = node.left ? node.left : node.right;
+
                     // No child case
                     if (temp === null) {
                         temp = node;
@@ -106,29 +113,29 @@ class AVLTree {
                         node = temp;
                     }
                 } else {
-                    // Case 3: Node with two children, get the inorder successor
+                    // Node to be deleted has two children
                     let temp = this._minValueNode(node.right);
-                    // Copy the inorder successor's data to this node
+
+                    // Copy the inorder successor's data and dataSet to this node
                     node.key = temp.key;
-                    node.dataSet = temp.dataSet;
+                    node.dataSet = new Set(temp.dataSet);
                     // Delete the inorder successor
                     node.right = this._deleteRec(node.right, temp.key, temp.dataSet.values().next().value);
                 }
             }
         }
 
-        // If the tree had only one node, then return
-        if (node === null) {
-            return node;
-        }
+        if (node === null) return null;
 
         // Update height of the current node
         node.height = 1 + Math.max(this._getHeight(node.left), this._getHeight(node.right));
 
-        // Get the balance factor of this node
-        let balance = this._getBalance(node);
+        // Balance the tree
+        return this._balanceNode(node);
+    }
 
-        // If this node becomes unbalanced, then there are four cases
+    _balanceNode(node) {
+        let balance = this._getBalance(node);
 
         // Left Left Case
         if (balance > 1 && this._getBalance(node.left) >= 0) {
