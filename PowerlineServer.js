@@ -51,7 +51,6 @@ foodMultiplier = 1;
 admins = [
     "73.96.77.58",
     "127.0.0.1",
-    "64.112.210.252"
 ]
 customPlayerColors = {
     "Dracula": {
