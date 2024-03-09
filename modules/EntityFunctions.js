@@ -58,7 +58,7 @@ class SnakeFunctions {
         const entitiesInRadius = EntityFunctions.GetEntitiesInRadius({ x: position.x, y: position.y}, Object.values(entities), client);
         const loadedEntitiesSet = new Set(Object.values(client.loadedEntities));
         const entitiesToAdd = entitiesInRadius.filter(entity => !loadedEntitiesSet.has(entity));
-        const entitiesToRemove = Object.values(client.loadedEntities).filter(entity => !entitiesInRadius.includes(entity));
+        const entitiesToRemove = Object.values(client.loadedEntities).filter(entity => !entitiesInRadius.includes(entity) && entity != client.snake);
         return { entitiesToAdd, entitiesToRemove };
     }
 
