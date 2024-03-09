@@ -209,6 +209,7 @@ class Snake {
         
     }
     stopRubbing() {
+        this.RubSnake = undefined;
         this.flags &= ~Enums.EntityFlags.IS_RUBBING;
         this.speeding = false
     }
