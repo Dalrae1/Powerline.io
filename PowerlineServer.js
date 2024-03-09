@@ -190,12 +190,13 @@ function UpdateArena() { // Main update loop
         let shouldRub = false;
         let secondPoint = snake.points[0];
         // Other snake collision checks
+        let closestRubLine
         Object.values(snake.client.loadedEntities).forEach(function (otherSnake) {
             if (otherSnake.type != Enums.EntityTypes.ENTITY_PLAYER)
                 return
             // Check if head of snake of near body of other snake
 
-            let closestRubLine
+            
 
             //for (let i = -1; i < otherSnake.points.length - 1; i++) {
             let nearbyPoints = SnakeFunctions.GetPointsNearSnake(snake, otherSnake, 30);
