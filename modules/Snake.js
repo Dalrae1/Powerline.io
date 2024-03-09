@@ -64,8 +64,8 @@ class Snake {
         return this.actualLength;
     }
     set length(value) {
-        
-        leaderboard.delete(this.actualLength, this.id);
+        console.log("Setting length to " + value + " deleting " + this.actualLength)
+        leaderboard.deleteByValue(this.id);
         this.actualLength = value;
         leaderboard.insert(this.actualLength, this.id);
 
@@ -449,7 +449,7 @@ class Snake {
         this.client.deadPosition = this.position;
         this.client.dead = true;
         this.client.snake = undefined;
-        leaderboard.delete(this.actualLength, this.id);
+        leaderboard.deleteByValue(this.id);
         entityIDs.releaseID(this.id);
         delete snakes[this.id];
         delete entities[this.id]

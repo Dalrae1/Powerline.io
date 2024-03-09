@@ -134,6 +134,77 @@ class AVLTree {
         return this._balanceNode(node);
     }
 
+    deleteByValue(value) {
+        // Check if the value exists in the valueToKeyMap
+        if (!this.valueToKeyMap.has(value)) {
+            return; // Value does not exist in the tree
+        }
+
+        // Get all keys associated with the value
+        const keysToDelete = this.valueToKeyMap.get(value);
+
+        // Delete the value for each associated key
+        keysToDelete.forEach(key => {
+            // Delete value from nodes
+            this.root = this._deleteValueRec(this.root, key, value);
+        });
+
+        // Clean up the valueToKeyMap
+        this.valueToKeyMap.delete(value);
+    }
+
+    _deleteValueRec(node, key, value) {
+        if (node === null) {
+            return null;
+        }
+
+        if (key < node.key) {
+            node.left = this._deleteValueRec(node.left, key, value);
+        } else if (key > node.key) {
+            node.right = this._deleteValueRec(node.right, key, value);
+        } else {
+            // When the key matches, remove the value from the dataSet
+            if (node.dataSet.has(value)) {
+                node.dataSet.delete(value);
+
+                // If the dataSet is empty, remove the node
+                if (node.dataSet.size === 0) {
+                    // Node with only one child or no child
+                    if ((node.left === null) || (node.right === null)) {
+                        let temp = node.left ? node.left : node.right;
+
+                        // No child case
+                        if (temp === null) {
+                            temp = node;
+                            node = null;
+                        } else { // One child case
+                            node = temp; // Copy the contents of the non-empty child
+                        }
+                    } else {
+                        // Node with two children: Get the inorder successor
+                        let temp = this._minValueNode(node.right);
+
+                        // Copy the inorder successor's data and dataSet to this node
+                        node.key = temp.key;
+                        node.dataSet = new Set(temp.dataSet);
+
+                        // Delete the inorder successor
+                        node.right = this._deleteRec(node.right, temp.key, temp.dataSet.values().next().value);
+                    }
+                }
+            }
+        }
+
+        // If the tree had only one node then return
+        if (node === null) {
+            return node;
+        }
+
+        // Update height and balance the tree
+        node.height = 1 + Math.max(this._getHeight(node.left), this._getHeight(node.right));
+        return this._balanceNode(node);
+    }
+
     _balanceNode(node) {
         let balance = this._getBalance(node);
 
