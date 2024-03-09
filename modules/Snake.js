@@ -219,6 +219,9 @@ class Snake {
         if (killedBy != this) {
             if (!killedBy)
                 return
+            if (killedBy.client.dead) {
+                return
+            }
             //
             killedBy.killstreak += 1;
             if (killedBy.killstreak >= 8) {
