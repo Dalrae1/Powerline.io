@@ -64,7 +64,6 @@ class Snake {
         return this.actualLength;
     }
     set length(value) {
-        console.log("Setting length to " + value + " deleting " + this.actualLength)
         leaderboard.deleteByValue(this.id);
         this.actualLength = value;
         leaderboard.insert(this.actualLength, this.id);

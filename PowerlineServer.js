@@ -143,11 +143,16 @@ function getSegmentLength(point1, point2) {
     return Math.abs(Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)));
 }
 
+let moveTime = visualLengthTime = getNearbyPointsTime = collisionCheckTime = rubCheckTime = talkStaminaTime = tailLengthTime = leaderboardTime = 0
+let tempStart = 0;
+
+
 function UpdateArena() { // Main update loop
     let numSnak = 0;
     let numPoints = 0;
     Object.values(snakes).forEach(function (snake) {
         numSnak++
+        tempStart = Date.now();
         // Make snakes move
         let totalSpeed = snake.speed //+ (snake.extraSpeed/255);
         if (snake.direction == Enums.Directions.UP) {
@@ -159,6 +164,8 @@ function UpdateArena() { // Main update loop
         } else if (snake.direction == Enums.Directions.RIGHT) {
             snake.position.x += totalSpeed * UPDATE_EVERY_N_TICKS;
         }
+        moveTime += Date.now() - tempStart;
+        tempStart = Date.now();
 
         /* Update visual length */
         if (snake.actualLength > snake.visualLength) {
@@ -168,6 +175,8 @@ function UpdateArena() { // Main update loop
             else
                 snake.visualLength += totalSpeed * UPDATE_EVERY_N_TICKS;
         }
+        visualLengthTime += Date.now() - tempStart;
+        
 
         // Collision Checks
         if (
@@ -199,7 +208,9 @@ function UpdateArena() { // Main update loop
             
 
             //for (let i = -1; i < otherSnake.points.length - 1; i++) {
+            tempStart = Date.now();
             let nearbyPoints = SnakeFunctions.GetPointsNearSnake(snake, otherSnake, 30);
+            getNearbyPointsTime += Date.now() - tempStart;
             snake.client.pointsNearby[otherSnake.id] = nearbyPoints;
             for (let i = 0; i < nearbyPoints.length - 1; i++) {
                 numPoints++
@@ -214,6 +225,7 @@ function UpdateArena() { // Main update loop
                 point = point.point;
                 nextPoint = nextPoint.point;
 
+                tempStart = Date.now();
                 // Rubbing Mechanics
                 if (otherSnake.id != snake.id) {
                     if (otherSnake.RubSnake != snake.id) {
@@ -244,10 +256,12 @@ function UpdateArena() { // Main update loop
                     }
                     
                 }
+                rubCheckTime += Date.now() - tempStart;
                 
 
                 // Collision Mechanics
 
+                tempStart = Date.now();
                 if (snake.position != nextPoint && secondPoint != point && snake.position != secondPoint && snake.position != point) {
                     if (MapFunctions.DoIntersect(snake.position, secondPoint, point, nextPoint)) {
                         setTimeout(() => { // Make sure they didn't move out of the way
@@ -263,6 +277,7 @@ function UpdateArena() { // Main update loop
                         }, snake.ping || 50)
                     }
                 }
+                collisionCheckTime += Date.now() - tempStart;
 
                 // Check if any points are colliding
 
@@ -290,6 +305,7 @@ function UpdateArena() { // Main update loop
 }
 
 async function main() {
+    moveTime = visualLengthTime = getNearbyPointsTime = collisionCheckTime = rubCheckTime = talkStaminaTime = tailLengthTime = leaderboardTime = 0
     UpdateArena()
 
     // Add random food spawns
@@ -315,6 +331,7 @@ async function main() {
         
         let nearbyEntities = entQuery.entitiesToAdd;
         let removeEntities = entQuery.entitiesToRemove;
+        let entitiesInRadius = entQuery.entitiesInRadius;
 
         
         
@@ -364,15 +381,18 @@ async function main() {
         if (isSpawned) {
 
             /* HANDLE TALK STAMINA */
+            tempStart = Date.now();
             if (snake.talkStamina < 255) {
                 snakes[snake.id].talkStamina += 5;
                 if (snake.talkStamina > 255)
                     snakes[snake.id].talkStamina = 255;
             }
+            talkStaminaTime += Date.now() - tempStart;
 
 
 
 
+            tempStart = Date.now();
             /* CALCULATE TAIL LENGTH */
             let totalPointLength = 0;
             for (let i = -1; i < snake.points.length - 1; i++) {
@@ -406,11 +426,14 @@ async function main() {
                     snake.points.pop();
                 }
             }
+            tailLengthTime = Date.now() - tempStart;
             
 
             /* HANDLE LEADERBOARD */
             
+            tempStart = Date.now();
             snake.updateLeaderboard();
+            leaderboardTime = Date.now() - tempStart;
         }
         
     })
@@ -427,7 +450,19 @@ function mainLooper() {
     setTimeout(() => {
         if (Date.now() - lastUpdate >= updateDuration) {
             if ((Date.now() - lastUpdate) > updateDuration + 10) {
-                console.log(`Server is lagging ${(Date.now() - lastUpdate)-updateDuration}ms behind...`)
+                console.log(`Server is lagging ${(Date.now() - lastUpdate) - updateDuration}ms behind...`)
+                console.log(`\tMove: ${moveTime}ms`)
+                console.log(`\tVisual Length: ${visualLengthTime}ms`)
+                console.log(`\tGet Nearby Points: ${getNearbyPointsTime}ms`)
+                console.log(`\tCollision Check: ${collisionCheckTime}ms`)
+                console.log(`\tRub Check: ${rubCheckTime}ms`)
+                console.log(`\tTalk Stamina: ${talkStaminaTime}ms`)
+                console.log(`\tTail Length: ${tailLengthTime}ms`)
+                console.log(`\tLeaderboard: ${leaderboardTime}ms`)
+
+
+
+
             }
             main()
             lastUpdate = Date.now();

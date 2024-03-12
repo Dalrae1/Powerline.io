@@ -59,7 +59,7 @@ class SnakeFunctions {
         const loadedEntitiesSet = new Set(Object.values(client.loadedEntities));
         const entitiesToAdd = entitiesInRadius.filter(entity => !loadedEntitiesSet.has(entity));
         const entitiesToRemove = Object.values(client.loadedEntities).filter(entity => !entitiesInRadius.includes(entity) && entity != client.snake);
-        return { entitiesToAdd, entitiesToRemove };
+        return { entitiesToAdd, entitiesToRemove, entitiesInRadius };
     }
 
     static GetPointsNearSnake(player1, player2, distance) {
