@@ -1,0 +1,1 @@
+net stop wampapache64 && net start wampapache64
