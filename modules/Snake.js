@@ -91,12 +91,12 @@ class Snake {
                 offset += 2;
                 BitView.setUint32(offset, (snake.actualLength - defaultLength) * scoreMultiplier, true);
                 offset += 4;
-                const nameBytes = new TextEncoder().encode(snake.nick);
-                const nameLength = nameBytes.length;
-                for (let j = 0; j < nameLength; j++) {
-                    BitView.setUint16(offset + j * 2, nameBytes[j], true);
+
+
+                for (var characterIndex = 0; characterIndex < snake.nick.length; characterIndex++) {
+                    BitView.setUint16(offset + characterIndex * 2, snake.nick.charCodeAt(characterIndex), true);
                 }
-                offset += nameLength * 2;
+                offset += (1 + snake.nick.length) * 2;
                 BitView.setUint16(offset, 0, true);
                 offset += 2;
             }
