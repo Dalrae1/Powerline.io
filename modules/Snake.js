@@ -71,40 +71,37 @@ class Snake {
     }
     
     updateLeaderboard() {
+        let count = 0;
+        let myRank = 0;
+
         const BitView = new DataView(new ArrayBuffer(1000));
         let offset = 0;
         BitView.setUint8(offset, Enums.ServerToClient.OPCODE_LEADERBOARD);
         offset += 1;
-
-        let count = 1;
-        let myRank = 1;
         for (let pair of leaderboard.reverseOrderTraversal()) {
+            count++;
             let snake = entities[pair.data]
             if (!snake || !snake.spawned)
                 continue
             if (snake.id == this.id)
                 myRank = count;
-            if (count <= 10) {
-                if (count == 1)
-                    king = snake;
-                BitView.setUint16(offset, snake.id, true);
-                offset += 2;
-                BitView.setUint32(offset, (snake.actualLength - defaultLength) * scoreMultiplier, true);
-                offset += 4;
-
-
-                for (var characterIndex = 0; characterIndex < snake.nick.length; characterIndex++) {
-                    BitView.setUint16(offset + characterIndex * 2, snake.nick.charCodeAt(characterIndex), true);
-                }
-                offset += (1 + snake.nick.length) * 2;
-                BitView.setUint16(offset, 0, true);
-                offset += 2;
-            }
-            count++
-        }
-        if (myRank) {
-            BitView.setUint16(offset, 0, true);
+            if (count > 10)
+                continue
+            if (count == 1)
+                king = snake;
+            BitView.setUint16(offset, snake.id, true);
             offset += 2;
+            BitView.setUint32(offset, (snake.actualLength - defaultLength) * scoreMultiplier, true);
+            offset += 4;
+            for (var characterIndex = 0; characterIndex < snake.nick.length; characterIndex++) {
+                BitView.setUint16(offset + characterIndex * 2, snake.nick.charCodeAt(characterIndex), true);
+            }
+            offset += (1 + snake.nick.length) * 2;
+            BitView.setUint16(offset, 0, true);
+        }
+        BitView.setUint16(offset, 0x0, true);
+        offset += 2;
+        if (myRank) {
             BitView.setUint16(offset, this.id, true);
             offset += 2;
             BitView.setUint32(offset, (this.length - defaultLength) * scoreMultiplier, true);
@@ -112,7 +109,7 @@ class Snake {
             BitView.setUint16(offset, myRank, true);
             offset += 2;
         }
-        this.network.send(BitView);
+        this.network.send(BitView)
 
     }
     addPoint(x, y) {
