@@ -6,7 +6,7 @@ class Food {
     subtype = Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD;
     position = { x: 0, y: 0 };
     spawned = true
-    value = foodValue*2;
+    value = foodValue;
     lastUpdate = Date.now();
     constructor(x, y, color = Math.random() * 360, origin = null, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5)) {
         let thisId = entityIDs.allocateID();
