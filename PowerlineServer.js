@@ -1,7 +1,7 @@
 const WebSocket = require('ws');
 const HttpsServer = require('https').createServer;
 const fs = require("fs");
-
+arenaSize = 300
 
 /* Required */
 const IDManager = require("./modules/IDManager.js");
@@ -10,6 +10,7 @@ const Food = require("./modules/Food.js");
 const Snake = require("./modules/Snake.js");
 const MapFunctions = require("./modules/MapFunctions.js");
 const { EntityFunctions, SnakeFunctions } = require("./modules/EntityFunctions.js");
+const Quadtree = require("./modules/Quadtree.js");
 const Client = require("./modules/Client.js");
 
 let server, wssSecure
@@ -31,10 +32,17 @@ const wss = new WebSocket.Server({ port: 1337});
 // Global variables
 entityIDs = new IDManager();
 clientIDs = new IDManager();
+entityQuadTree = new Quadtree({
+    x: -arenaSize / 2,
+    y: -arenaSize / 2,
+    width: arenaSize,
+    height: arenaSize
+}, 10);
+    
 entities = {}
 clients = {}
 snakes = {}
-arenaSize = 300
+
 foodValue = 1.5;
 lastClientId = 1
 updateDuration = 90
@@ -143,7 +151,7 @@ function getSegmentLength(point1, point2) {
     return Math.abs(Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)));
 }
 
-let moveTime = visualLengthTime = getNearbyPointsTime = collisionCheckTime = rubCheckTime = talkStaminaTime = tailLengthTime = leaderboardTime = 0
+let moveTime = visualLengthTime = getNearbyPointsTime = collisionCheckTime = rubCheckTime = talkStaminaTime = tailLengthTime = leaderboardTime = entitiesNearClientTime = 0
 let tempStart = 0;
 
 
@@ -305,7 +313,7 @@ function UpdateArena() { // Main update loop
 }
 
 async function main() {
-    moveTime = visualLengthTime = getNearbyPointsTime = collisionCheckTime = rubCheckTime = talkStaminaTime = tailLengthTime = leaderboardTime = 0
+    moveTime = visualLengthTime = getNearbyPointsTime = collisionCheckTime = rubCheckTime = talkStaminaTime = tailLengthTime = leaderboardTime = entitiesNearClientTime = 0
     UpdateArena()
 
     // Add random food spawns
@@ -324,8 +332,9 @@ async function main() {
             //return
         let isSpawned = !client.dead;
         
-        
+        tempStart = Date.now();
         let entQuery = SnakeFunctions.GetEntitiesNearClient(client);
+        entitiesNearClientTime += Date.now() - tempStart;
         
         
         
@@ -426,14 +435,14 @@ async function main() {
                     snake.points.pop();
                 }
             }
-            tailLengthTime = Date.now() - tempStart;
+            tailLengthTime += Date.now() - tempStart;
             
 
             /* HANDLE LEADERBOARD */
             
             tempStart = Date.now();
             snake.updateLeaderboard();
-            leaderboardTime = Date.now() - tempStart;
+            leaderboardTime += Date.now() - tempStart;
         }
         
     })
@@ -459,6 +468,7 @@ function mainLooper() {
                 console.log(`\tTalk Stamina: ${talkStaminaTime}ms`)
                 console.log(`\tTail Length: ${tailLengthTime}ms`)
                 console.log(`\tLeaderboard: ${leaderboardTime}ms`)
+                console.log(`\tEntities Near Client: ${entitiesNearClientTime}ms`)
 
 
 

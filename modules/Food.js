@@ -24,6 +24,7 @@ class Food {
         setTimeout(() => {
             this.eat();
         }, timeToLive);
+        entityQuadTree.insert(this);
         return this;
         }
     
@@ -76,6 +77,7 @@ class Food {
             snake.lastAte = Date.now();
         }
         entityIDs.releaseID(this.id);
+        entityQuadTree.delete(this);
         delete entities[this.id]; 
     }
 }

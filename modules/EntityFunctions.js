@@ -2,31 +2,29 @@ const MapFunctions = require("./MapFunctions.js");
 const Enums = require("./Enums.js");
 
 class EntityFunctions {
-    static GetEntitiesInRadius(center, entities, client) {
+    static GetEntitiesInRadius(center, client) {
         const windowSizeX = client.windowSizeX;
         const windowSizeY = client.windowSizeY;
-        const xMin = center.x - windowSizeX / 2;
-        const xMax = center.x + windowSizeX / 2;
-        const yMin = center.y - windowSizeY / 2;
-        const yMax = center.y + windowSizeY / 2;
         const foundEntities = [];
 
-        entities.forEach(entity => {
-            if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
-                for (let i = -1; i < entity.points.length - 1; i++) {
-                    const point = (i === -1) ? entity.position : entity.points[i];
-                    const nextPoint = entity.points[i + 1];
-                    if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
-                        foundEntities.push(entity);
-                        break;
-                    }
-                }
-            } else if (entity.type === Enums.EntityTypes.ENTITY_ITEM) {
-                if (entity.position.x >= xMin && entity.position.x <= xMax && entity.position.y >= yMin && entity.position.y <= yMax) {
-                    foundEntities.push(entity);
+        Object.values(snakes).forEach(snake => {
+            for (let i = -1; i < snake.points.length - 1; i++) {
+                const point = (i === -1) ? snake.position : snake.points[i];
+                const nextPoint = snake.points[i + 1];
+                if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
+                    foundEntities.push(snake);
+                    break;
                 }
             }
-        });
+        })
+        const queryArea = { x: center.x-(windowSizeX/2), y: center.y-(windowSizeY/2), width: windowSizeX, height: windowSizeY};
+        const foundEntities2 = entityQuadTree.query(queryArea); // Finds entities within queryArea
+
+        foundEntities2.forEach(entity => {
+            //if (entity.position.x >= xMin && entity.position.x <= xMax && entity.position.y >= yMin && entity.position.y <= yMax) {
+                foundEntities.push(entity);
+            //}
+        })
 
         return foundEntities;
     }
@@ -55,7 +53,7 @@ class SnakeFunctions {
     static GetEntitiesNearClient(client) {
         let position = client.dead ? client.deadPosition : (client.snake ? client.snake.position : null)
         if (!position) return { entitiesToAdd: [], entitiesToRemove: [] };
-        const entitiesInRadius = EntityFunctions.GetEntitiesInRadius({ x: position.x, y: position.y}, Object.values(entities), client);
+        const entitiesInRadius = EntityFunctions.GetEntitiesInRadius({ x: position.x, y: position.y}, client);
         const loadedEntitiesSet = new Set(Object.values(client.loadedEntities));
         const entitiesToAdd = entitiesInRadius.filter(entity => !loadedEntitiesSet.has(entity));
         const entitiesToRemove = Object.values(client.loadedEntities).filter(entity => !entitiesInRadius.includes(entity) && entity != client.snake);
