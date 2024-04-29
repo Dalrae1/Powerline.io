@@ -138,7 +138,7 @@ class Snake {
                 vector += goingUp ? 0.22 : -0.22;
             }
         }
-        let distanceTravelledInPing = this.speed * (this.client.ping) / 1000;
+        let distanceTravelledInPing = (this.speed + this.extraSpeed/255) * (this.client.ping/1000) * UPDATE_EVERY_N_TICKS;
         if (goingUp) {
             vector += distanceTravelledInPing;
         } else {
