@@ -455,18 +455,7 @@ class Snake {
         delete entities[this.id]
 
     }
-    doPong() {
-        this.pingStart = Date.now();
-        var Bit8 = new DataView(new ArrayBuffer(3));
-        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PING);
-        Bit8.setUint16(1, this.ping || 0, true);
-        this.network.send(Bit8);
-    }
-    doPing() {
-        var Bit8 = new DataView(new ArrayBuffer(1));
-        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PONG);
-        this.network.send(Bit8);
-    }
+    
 
     numDebugCircle = 0
     DrawDebugCircle(x, y, color = 100, size = 4) {

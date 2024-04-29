@@ -21,15 +21,33 @@ class Client extends EventEmitter {
             
         this.ip = (ip.toString()).split(":")[3];
         console.log(`Client connected from "${this.ip}"`);
+
+
+    }
+    pingLoop() {
+        this.doPong();
+        setTimeout(() => {
+            this.pingLoop();
+        });
     }
     RecieveMessage(messageType, view) {
-        if (messageType != Enums.ClientToServer.OPCODE_ENTER_GAME && (!this.snake || !this.snake.id)) {
+        if ((!this.snake || !this.snake.id) &&
+        (
+            messageType != Enums.ClientToServer.OPCODE_ENTER_GAME &&
+            messageType != Enums.ClientToServer.OPCODE_HELLO_V4 &&
+            messageType != Enums.ClientToServer.OPCODE_HELLO_DEBUG &&
+            messageType != Enums.ClientToServer.OPCODE_CS_PING &&
+            messageType != Enums.ClientToServer.OPCODE_CS_PONG
+            )) {
             return
         }
         switch (messageType) {
             case Enums.ClientToServer.OPCODE_CS_PING:
-                this.snake.doPong();
-                this.snake.doPing();
+                this.doPong();
+                this.doPing();
+                break;
+            case Enums.ClientToServer.OPCODE_CS_PONG:
+                this.ping = Date.now() - this.pingStart;
                 break;
             case Enums.ClientToServer.OPCODE_ENTER_GAME:
                 var nick = global.getString(view, 1);
@@ -64,10 +82,14 @@ class Client extends EventEmitter {
                 break;
             case Enums.ClientToServer.OPCODE_HELLO_V4:
                 this.windowSizeX = view.getUint16(1, true)/2;
-                this.windowSizeY = view.getUint16(3, true)/2;
+                this.windowSizeY = view.getUint16(3, true) / 2;
+                this.pingLoop();
+                break
             case Enums.ClientToServer.OPCODE_HELLO_DEBUG:
                 this.windowSizeX = view.getUint16(1, true)/2;
                 this.windowSizeY = view.getUint16(3, true) / 2;
+                this.pingLoop();
+                break
             case Enums.ClientToServer.OPCODE_BOOST:
                 if (admins.includes(this.snake.ip)) {
                     let boosting = view.getUint8(1) == 1
@@ -251,6 +273,18 @@ class Client extends EventEmitter {
                 break;
 
         }
+    }
+    doPong() {
+        this.pingStart = Date.now();
+        var Bit8 = new DataView(new ArrayBuffer(3));
+        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PING);
+        Bit8.setUint16(1, this.ping || 0, true);
+        this.socket.send(Bit8);
+    }
+    doPing() {
+        var Bit8 = new DataView(new ArrayBuffer(1));
+        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PONG);
+        this.socket.send(Bit8);
     }
     sendConfig() {
         var Bit8 = new DataView(new ArrayBuffer(49));
