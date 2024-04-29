@@ -28,7 +28,7 @@ class Client extends EventEmitter {
         this.doPong();
         setTimeout(() => {
             this.pingLoop();
-        });
+        }, 150);
     }
     RecieveMessage(messageType, view) {
         if ((!this.snake || !this.snake.id) &&
