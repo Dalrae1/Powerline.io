@@ -47,7 +47,7 @@ class Client extends EventEmitter {
                 this.doPing();
                 break;
             case Enums.ClientToServer.OPCODE_CS_PONG:
-                this.ping = (Date.now() - this.pingStart)*2;
+                this.ping = Date.now() - this.pingStart;
                 console.log(`Ping: ${this.ping}ms`);
                 break;
             case Enums.ClientToServer.OPCODE_ENTER_GAME:
