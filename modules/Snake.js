@@ -145,7 +145,7 @@ class Snake {
         const updateIntervalInSeconds = updateDuration / 1000; // Convert update interval to seconds
 
         // Calculate the number of full update intervals in the total time
-        const numberOfUpdates = Math.floor(pingInSeconds / updateIntervalInSeconds);
+        const numberOfUpdates = pingInSeconds / updateIntervalInSeconds;
         let distanceFullIntervals = totalSpeed * (updateIntervalInSeconds - halfPingInSeconds) * numberOfUpdates;
         
         // Total distance calculation
