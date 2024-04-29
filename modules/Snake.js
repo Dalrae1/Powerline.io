@@ -138,8 +138,23 @@ class Snake {
                 vector += goingUp ? 0.22 : -0.22;
             }
         }
-        let totalSpeed = ((this.speed + (this.extraSpeed/255)) * UPDATE_EVERY_N_TICKS)
-        let distanceTravelledInPing = totalSpeed * ((((this.client.ping/2)/1000)*updateDuration)/2);
+        let totalSpeed = ((this.speed + (this.extraSpeed / 255)) * UPDATE_EVERY_N_TICKS)
+        
+        const pingInSeconds = this.client.ping / 1000; // Convert ping from milliseconds to seconds
+        const halfPingInSeconds = pingInSeconds / 2;  // Half the ping time
+        const updateIntervalInSeconds = updateDuration / 1000; // Convert update interval to seconds
+
+        // Calculate the number of full update intervals in the total time
+        const numberOfUpdates = Math.floor(pingInSeconds / updateIntervalInSeconds);
+        let distanceFullIntervals = totalSpeed * (updateIntervalInSeconds - halfPingInSeconds) * numberOfUpdates;
+        
+        // Total distance calculation
+        let distanceTravelledInPing = distanceFullIntervals;
+        console.log(distanceTravelledInPing)
+
+
+
+        
         if (goingUp) {
             vector += distanceTravelledInPing;
         } else {
