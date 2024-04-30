@@ -138,28 +138,7 @@ class Snake {
                 vector += goingUp ? 0.22 : -0.22;
             }
         }
-        let totalSpeed = ((this.speed + (this.extraSpeed / 255)) * UPDATE_EVERY_N_TICKS)
         
-        const pingInSeconds = this.client.ping / 1000; // Convert ping from milliseconds to seconds
-        const halfPingInSeconds = pingInSeconds / 2;  // Half the ping time
-        const updateIntervalInSeconds = updateDuration / 1000; // Convert update interval to seconds
-
-        // Calculate the number of full update intervals in the total time
-        const numberOfUpdates = pingInSeconds / updateIntervalInSeconds;
-        let distanceFullIntervals = totalSpeed * (updateIntervalInSeconds - halfPingInSeconds) * numberOfUpdates;
-        
-        // Total distance calculation
-        let distanceTravelledInPing = distanceFullIntervals;
-        console.log(distanceTravelledInPing)
-
-
-
-        
-        if (goingUp) {
-            vector += distanceTravelledInPing;
-        } else {
-            vector -= distanceTravelledInPing;
-        }
         this.position[whatVector] = vector;
 
         
@@ -211,6 +190,40 @@ class Snake {
         
         this.direction = direction;
         this.addPoint(this.position.x, this.position.y);
+
+        // Move the snake forward for however long it takes to send
+        let totalSpeed = ((this.speed + (this.extraSpeed / 255)) * UPDATE_EVERY_N_TICKS)
+        
+        const oneWayPingSeconds = (this.client.ping / 1000) / 2; // Half the RTT to get one-way time
+        const updateIntervalInMilliseconds = updateDuration; // Assuming updateDuration is defined in milliseconds
+        const updateIntervalInSeconds = updateIntervalInMilliseconds / 1000;
+
+        // Calculate full intervals during the one-way ping time
+        const fullIntervalsDuringPing = Math.floor(oneWayPingSeconds / updateIntervalInSeconds);
+        const distanceTraveledDuringFullIntervals = totalSpeed * fullIntervalsDuringPing * updateIntervalInSeconds;
+
+        // Calculate remaining time after full intervals
+        const remainingTimeInSeconds = oneWayPingSeconds - (fullIntervalsDuringPing * updateIntervalInSeconds);
+        const distanceTraveledDuringRemainingTime = totalSpeed * remainingTimeInSeconds;
+
+        // Total distance traveled during the one-way ping time
+        let totalDistanceTraveledDuringPing = distanceTraveledDuringFullIntervals + distanceTraveledDuringRemainingTime;
+
+
+        //console.log(`Distance traveled in ${this.client.ping/2}ms: ${totalDistanceTraveledDuringPing}`)
+        if (goingUp)
+            this.position[oppositeVector] += totalDistanceTraveledDuringPing;
+        else
+            this.position[oppositeVector] -= totalDistanceTraveledDuringPing;
+
+
+
+        
+        /*if (goingUp) {
+            this.position += totalDistanceTraveledDuringPing;
+        } else {
+            vector -= totalDistanceTraveledDuringPing;
+        }*/
     }
     rubAgainst(snake, distance) {
         this.flags |= Enums.EntityFlags.IS_RUBBING;
