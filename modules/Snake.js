@@ -207,7 +207,7 @@ class Snake {
         const distanceTraveledDuringRemainingTime = totalSpeed * remainingTimeInSeconds;
 
         // Total distance traveled during the one-way ping time
-        let totalDistanceTraveledDuringPing = distanceTraveledDuringFullIntervals + distanceTraveledDuringRemainingTime;
+        let totalDistanceTraveledDuringPing = (distanceTraveledDuringFullIntervals + distanceTraveledDuringRemainingTime)*10;
 
 
         console.log(`Distance traveled in ${this.client.ping/2}ms with speed ${totalSpeed}: ${totalDistanceTraveledDuringPing}`)
