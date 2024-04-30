@@ -460,7 +460,7 @@ function mainLooper() {
     setTimeout(() => {
         if (Date.now() - lastUpdate >= updateDuration) {
             if ((Date.now() - lastUpdate) > updateDuration + 10) {
-                console.log(`Server is lagging ${(Date.now() - lastUpdate) - updateDuration}ms behind...`)
+                /*console.log(`Server is lagging ${(Date.now() - lastUpdate) - updateDuration}ms behind...`)
                 console.log(`\tMove: ${moveTime}ms`)
                 console.log(`\tVisual Length: ${visualLengthTime}ms`)
                 console.log(`\tGet Nearby Points: ${getNearbyPointsTime}ms`)
@@ -469,7 +469,7 @@ function mainLooper() {
                 console.log(`\tTalk Stamina: ${talkStaminaTime}ms`)
                 console.log(`\tTail Length: ${tailLengthTime}ms`)
                 console.log(`\tLeaderboard: ${leaderboardTime}ms`)
-                console.log(`\tEntities Near Client: ${entitiesNearClientTime}ms`)
+                console.log(`\tEntities Near Client: ${entitiesNearClientTime}ms`)*/
 
 
 

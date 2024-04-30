@@ -210,7 +210,7 @@ class Snake {
         let totalDistanceTraveledDuringPing = distanceTraveledDuringFullIntervals + distanceTraveledDuringRemainingTime;
 
 
-        //console.log(`Distance traveled in ${this.client.ping/2}ms: ${totalDistanceTraveledDuringPing}`)
+        console.log(`Distance traveled in ${this.client.ping/2}ms: ${totalDistanceTraveledDuringPing}`)
         if (goingUp)
             this.position[oppositeVector] += totalDistanceTraveledDuringPing;
         else
