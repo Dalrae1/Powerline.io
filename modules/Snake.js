@@ -194,7 +194,7 @@ class Snake {
         // Move the snake forward for however long it takes to send
         let totalSpeed = ((this.speed + (this.extraSpeed / 255)) * UPDATE_EVERY_N_TICKS)
         
-        const oneWayPingSeconds = (this.client.ping / 1000) / 2; // Half the RTT to get one-way time
+        const oneWayPingSeconds = (this.client.ping / 1000); // Half the RTT to get one-way time
         const updateIntervalInMilliseconds = updateDuration; // Assuming updateDuration is defined in milliseconds
         const updateIntervalInSeconds = updateIntervalInMilliseconds / 1000;
 
