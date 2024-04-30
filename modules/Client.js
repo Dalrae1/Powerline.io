@@ -308,11 +308,11 @@ class Client extends EventEmitter {
         offset += 4;
         Bit8.setFloat32(offset, 10, true); //Zoom Level 2
         offset += 4 + 4;
-        Bit8.setFloat32(offset, 90, true); //Input Delay, If 0 then no input delay calculations will take place
+        Bit8.setFloat32(offset, 0, true); //Input Delay, If 0 then no input delay calculations will take place
         offset += 4;
         Bit8.setFloat32(offset, 60, true); //Not Used
         offset += 4;
-        Bit8.setFloat32(offset, 40, true); //Other Snake Delay
+        Bit8.setFloat32(offset, 0, true); //Other Snake Delay
         offset += 4;
         Bit8.setFloat32(offset, 1, true); //isTalkEnabled
         this.socket.send(Bit8);
