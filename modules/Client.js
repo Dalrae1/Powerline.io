@@ -3,6 +3,7 @@ const Snake = require('./Snake.js');
 const Food = require('./Food.js');
 const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
 const EventEmitter = require("events");
+const { time } = require('console');
 
 
 class Client extends EventEmitter {
@@ -28,9 +29,10 @@ class Client extends EventEmitter {
         this.doPong();
         setTimeout(() => {
             this.pingLoop();
-        }, 150);
+        }, 1000);
     }
-    RecieveMessage(messageType, view) {
+    async RecieveMessage(messageType, view) {
+        await new Promise(r => setTimeout(r, artificialPing/2));
         if ((!this.snake || !this.snake.id) &&
         (
             messageType != Enums.ClientToServer.OPCODE_ENTER_GAME &&
@@ -274,16 +276,19 @@ class Client extends EventEmitter {
 
         }
     }
-    doPong() {
+    async doPong() {
         this.pingStart = Date.now();
         var Bit8 = new DataView(new ArrayBuffer(3));
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PING);
+        console.log("Ping: "+this.ping || 0)
         Bit8.setUint16(1, this.ping || 0, true);
+        await new Promise(r => setTimeout(r, artificialPing/2));
         this.socket.send(Bit8);
     }
-    doPing() {
+    async doPing() {
         var Bit8 = new DataView(new ArrayBuffer(1));
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PONG);
+        await new Promise(r => setTimeout(r, artificialPing/2));
         this.socket.send(Bit8);
     }
     sendConfig() {

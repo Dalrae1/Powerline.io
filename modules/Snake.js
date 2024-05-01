@@ -192,7 +192,7 @@ class Snake {
         this.addPoint(this.position.x, this.position.y);
 
         // Move the snake forward for however long it takes to send
-        let totalSpeed = ((this.speed + (this.extraSpeed / 255)) * UPDATE_EVERY_N_TICKS)
+        let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS//((this.speed + (this.extraSpeed / 255)) * UPDATE_EVERY_N_TICKS)
         
         const oneWayPingSeconds = (this.client.ping / 1000)/2; // Half the RTT to get one-way time
         const updateIntervalInMilliseconds = updateDuration; // Assuming updateDuration is defined in milliseconds
@@ -207,7 +207,7 @@ class Snake {
         const distanceTraveledDuringRemainingTime = totalSpeed * remainingTimeInSeconds;
 
         // Total distance traveled during the one-way ping time
-        let totalDistanceTraveledDuringPing = (distanceTraveledDuringFullIntervals + distanceTraveledDuringRemainingTime)*10;
+        let totalDistanceTraveledDuringPing = (distanceTraveledDuringFullIntervals + distanceTraveledDuringRemainingTime);
 
 
         console.log(`Distance traveled in ${this.client.ping/2}ms with speed ${totalSpeed}: ${totalDistanceTraveledDuringPing}`)

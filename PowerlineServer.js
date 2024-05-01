@@ -30,7 +30,7 @@ if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
 
 const wss = new WebSocket.Server({ port: 1337});
 // Global variables
-artificialLag = 0;
+artificialPing = 0//250;
 entityIDs = new IDManager();
 clientIDs = new IDManager();
 entityQuadTree = new Quadtree({
