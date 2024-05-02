@@ -1,7 +1,6 @@
 const WebSocket = require('ws');
 const HttpsServer = require('https').createServer;
 const fs = require("fs");
-arenaSize = 300
 
 /* Required */
 const IDManager = require("./modules/IDManager.js");
@@ -28,34 +27,49 @@ if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
     
 }
 
+configValues = {
+    // Client config
+    ConfigType: Enums.ServerToClient.OPCODE_CONFIG,
+    ArenaSize: 300,
+    DefaultZoom: 2,
+    MinimumZoom: 1.5,
+    MinimumZoomScore: 100,
+    ZoomLevel2: 10,
+    GlobalWebLag: 90,
+    GlobalMobileLag: 60, // Not used
+    OtherSnakeDelay: 40,
+    IsTalkEnabled: 1,
+
+    // Server config
+    FoodValue: 1.5,
+    UpdateInterval: 100,
+    MaxBoostSpeed: 255,
+    MaxRubSpeed: 200,
+    DefaultLength: 10,
+}
+
 const wss = new WebSocket.Server({ port: 1337});
 // Global variables
 artificialPing = 0;
 entityIDs = new IDManager();
 clientIDs = new IDManager();
 entityQuadTree = new Quadtree({
-    x: -arenaSize / 2,
-    y: -arenaSize / 2,
-    width: arenaSize,
-    height: arenaSize
+    x: -configValues.ArenaSize / 2,
+    y: -configValues.ArenaSize / 2,
+    width: configValues.ArenaSize,
+    height: configValues.ArenaSize
 }, 10);
     
 entities = {}
 clients = {}
 snakes = {}
-globalWeblag = 90;
-foodValue = 1.5;
 lastClientId = 1
-updateInterval = 100
 UPDATE_EVERY_N_TICKS = 3;
-maxBoostSpeed = 255;
-maxRubSpeed = 200;
-scoreMultiplier = 10/foodValue;
-defaultLength = 10;
+scoreMultiplier = 10/configValues.FoodValue;
 king = null;
 lastUpdate = 0;
-maxFood = arenaSize * 5;
-foodSpawnPercent = (arenaSize ^ 2) / 10;
+maxFood = configValues.ArenaSize * 5;
+foodSpawnPercent = (configValues.ArenaSize ^ 2) / 10;
 foodMultiplier = 1;
 admins = [
     "73.96.77.58",
@@ -189,17 +203,17 @@ function UpdateArena() { // Main update loop
 
         // Collision Checks
         if (
-            snake.position.x > arenaSize / 2 ||
-            snake.position.x < -arenaSize / 2 ||
-            snake.position.y > arenaSize / 2 ||
-            snake.position.y < -arenaSize / 2
+            snake.position.x > configValues.ArenaSize / 2 ||
+            snake.position.x < -configValues.ArenaSize / 2 ||
+            snake.position.y > configValues.ArenaSize / 2 ||
+            snake.position.y < -configValues.ArenaSize / 2
         ) {
             setTimeout(() => { // Make sure they didn't move out of the way
                 if (
-                    snake.position.x > arenaSize / 2 ||
-                    snake.position.x < -arenaSize / 2 ||
-                    snake.position.y > arenaSize / 2 ||
-                    snake.position.y < -arenaSize / 2
+                    snake.position.x > configValues.ArenaSize / 2 ||
+                    snake.position.x < -configValues.ArenaSize / 2 ||
+                    snake.position.y > configValues.ArenaSize / 2 ||
+                    snake.position.y < -configValues.ArenaSize / 2
                 ) {
                     snake.kill(Enums.KillReasons.BOUNDARY, snake);
                 }
@@ -458,9 +472,9 @@ async function main() {
 
 function mainLooper() {
     setTimeout(() => {
-        if (Date.now() - lastUpdate >= updateInterval) {
-            if ((Date.now() - lastUpdate) > updateInterval) {
-                /*console.log(`Server is lagging ${(Date.now() - lastUpdate) - updateInterval}ms behind...`)
+        if (Date.now() - lastUpdate >= configValues.UpdateInterval) {
+            if ((Date.now() - lastUpdate) > configValues.UpdateInterval) {
+                /*console.log(`Server is lagging ${(Date.now() - lastUpdate) - configValues.UpdateInterval}ms behind...`)
                 console.log(`\tMove: ${moveTime}ms`)
                 console.log(`\tVisual Length: ${visualLengthTime}ms`)
                 console.log(`\tGet Nearby Points: ${getNearbyPointsTime}ms`)

@@ -143,7 +143,7 @@ class MapFunctions {
     }
 
     static GetRandomPosition() {
-        return { x: Math.random() * arenaSize - arenaSize / 2, y: Math.random() * arenaSize - arenaSize / 2 };
+        return { x: Math.random() * configValues.ArenaSize - configValues.ArenaSize / 2, y: Math.random() * configValues.ArenaSize - configValues.ArenaSize / 2 };
     }
 }
 

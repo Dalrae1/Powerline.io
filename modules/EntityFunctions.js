@@ -17,7 +17,7 @@ class EntityFunctions {
                 }
             }
         })
-        const queryArea = { x: center.x-(windowSizeX/2), y: center.y-(windowSizeY/2), width: windowSizeX, height: windowSizeY};
+        const queryArea = { x: center.x-(windowSizeX), y: center.y-(windowSizeY), width: windowSizeX*2, height: windowSizeY*2};
         const foundEntities2 = entityQuadTree.query(queryArea); // Finds entities within queryArea
 
         foundEntities2.forEach(entity => {
@@ -94,7 +94,7 @@ class SnakeFunctions {
         return foundPoints
     }
     static LengthToScore(length) {
-        return (length - defaultLength)*scoreMultiplier
+        return (length - configValues.DefaultLength)*scoreMultiplier
     }
     static ScoreToLength(score) {
         return score/scoreMultiplier
@@ -103,7 +103,7 @@ class SnakeFunctions {
         return Math.floor(score / 10)
     }
     static GetScoreToDrop(length) {
-        let score = (length - defaultLength)*scoreMultiplier
+        let score = (length - configValues.DefaultLength)*scoreMultiplier
         let x = Math.ceil(Math.random() * 30 * 10) / 10
         return Math.floor(((score - (score - x) / 6) + 70) / 10) * 10
     }

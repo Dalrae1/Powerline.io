@@ -6,7 +6,7 @@ class Food {
     subtype = Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD;
     position = { x: 0, y: 0 };
     spawned = true
-    value = foodValue;
+    value = configValues.FoodValue;
     lastUpdate = Date.now();
     constructor(x, y, color = Math.random() * 360, origin = null, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5)) {
         let thisId = entityIDs.allocateID();
@@ -38,9 +38,9 @@ class Food {
             for (let i = 0; i < 3; i++) {
                 setTimeout(() => {
                     snake.extraSpeed += 2;
-                    if (snake.extraSpeed > maxBoostSpeed && !snake.speedBypass)
-                        snake.extraSpeed = maxBoostSpeed;
-                }, updateInterval * 2 * i)
+                    if (snake.extraSpeed > configValues.MaxBoostSpeed && !snake.speedBypass)
+                        snake.extraSpeed = configValues.MaxBoostSpeed;
+                }, configValues.UpdateInterval * 2 * i)
             }
         }
 

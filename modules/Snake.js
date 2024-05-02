@@ -47,8 +47,8 @@ class Snake {
         this.newPoints = [];
         this.talkStamina = 255;
         this.color = Math.random() * 360;
-        this.visualLength = defaultLength;
-        this.actualLength = defaultLength;
+        this.visualLength = configValues.DefaultLength;
+        this.actualLength = configValues.DefaultLength;
         this.killedSnakes = [];
         leaderboard.insert(this.length, this.id);
 
@@ -91,7 +91,7 @@ class Snake {
                 king = snake;
             BitView.setUint16(offset, snake.id, true);
             offset += 2;
-            BitView.setUint32(offset, (snake.actualLength - defaultLength) * scoreMultiplier, true);
+            BitView.setUint32(offset, (snake.actualLength - configValues.DefaultLength) * scoreMultiplier, true);
             offset += 4;
             for (var characterIndex = 0; characterIndex < snake.nick.length; characterIndex++) {
                 BitView.setUint16(offset + characterIndex * 2, snake.nick.charCodeAt(characterIndex), true);
@@ -104,7 +104,7 @@ class Snake {
         if (myRank) {
             BitView.setUint16(offset, this.id, true);
             offset += 2;
-            BitView.setUint32(offset, (this.length - defaultLength) * scoreMultiplier, true);
+            BitView.setUint32(offset, (this.length - configValues.DefaultLength) * scoreMultiplier, true);
             offset += 4;
             BitView.setUint16(offset, myRank, true);
             offset += 2;
@@ -194,13 +194,13 @@ class Snake {
         let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS
         
         let oneWayPing = this.client.ping / 2; // Half the RTT to get one-way time
-        oneWayPing = Math.max(0, oneWayPing - globalWeblag) // Subtract input delay
+        oneWayPing = Math.max(0, oneWayPing - configValues.GlobalWebLag) // Subtract input delay
 
-        let totalDistanceTraveledDuringPing = totalSpeed * (Math.floor(oneWayPing / updateInterval));
+        let totalDistanceTraveledDuringPing = totalSpeed * (Math.floor(oneWayPing / configValues.UpdateInterval));
 
         let timeSinceLastUpdate = (Date.now() - lastUpdate)
-        let timeUntilNextUpdate = updateInterval - (timeSinceLastUpdate % updateInterval)
-        let currentInterpPosition = (totalSpeed * (timeUntilNextUpdate / updateInterval))
+        let timeUntilNextUpdate = configValues.UpdateInterval - (timeSinceLastUpdate % configValues.UpdateInterval)
+        let currentInterpPosition = (totalSpeed * (timeUntilNextUpdate / configValues.UpdateInterval))
 
         totalDistanceTraveledDuringPing += currentInterpPosition
         
@@ -219,7 +219,7 @@ class Snake {
         let rubSpeed = 4/distance
         if (rubSpeed > 4)
             rubSpeed = 4
-        if (this.extraSpeed + rubSpeed <= maxRubSpeed || this.speedBypass) {
+        if (this.extraSpeed + rubSpeed <= configValues.MaxRubSpeed || this.speedBypass) {
             this.extraSpeed += rubSpeed
             this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
         }

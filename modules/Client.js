@@ -97,13 +97,13 @@ class Client extends EventEmitter {
                     let boosting = view.getUint8(1) == 1
                     if (boosting) {
                         this.snake.extraSpeed += 2;
-                        if (this.snake.extraSpeed > maxBoostSpeed)
+                        if (this.snake.extraSpeed > configValues.MaxBoostSpeed)
                             this.snake.speedBypass = true
                         this.snake.speed = 0.25 + this.snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
                     } else {
                         this.snake.speedBypass = false;
-                        if (this.snake.extraSpeed > maxBoostSpeed)
-                            this.snake.extraSpeed = maxBoostSpeed
+                        if (this.snake.extraSpeed > configValues.MaxBoostSpeed)
+                            this.snake.extraSpeed = configValues.MaxBoostSpeed
                     }
                 }
                 break;
@@ -131,7 +131,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let size = parseInt(commandArgs[1]);
                                 if (size) {
-                                    arenaSize = size;
+                                    configValues.ArenaSize = size;
                                     Object.values(clients).forEach((client) => {
                                         client.sendConfig()
                                     })
@@ -142,7 +142,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let speed = parseInt(commandArgs[1]);
                                 if (speed) {
-                                    maxBoostSpeed = speed;
+                                    configValues.MaxBoostSpeed = speed;
                                 }
                             }
                             break;
@@ -150,7 +150,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let speed = parseInt(commandArgs[1]);
                                 if (speed) {
-                                    maxRubSpeed = speed;
+                                    configValues.MaxRubSpeed = speed;
                                 }
                             }
                             break;
@@ -158,7 +158,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let duration = parseInt(commandArgs[1]);
                                 if (duration) {
-                                    updateInterval = duration;
+                                    configValues.UpdateInterval = duration;
                                 }
                             }
                             break;
@@ -214,10 +214,10 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let value = parseInt(commandArgs[1]);
                                 if (value) {
-                                    foodValue = value;
+                                    configValues.FoodValue = value;
                                     Object.values(entities).forEach((entity) => {
                                         if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
-                                            entity.value = foodValue;
+                                            entity.value = configValues.FoodValue;
 
                                     })
                                 }
@@ -294,9 +294,9 @@ class Client extends EventEmitter {
         var Bit8 = new DataView(new ArrayBuffer(49));
         let cfgType = Enums.ServerToClient.OPCODE_CONFIG;
         let offset = 0;
-        Bit8.setUint8(offset, cfgType); // 176 or 160
+        Bit8.setUint8(offset, configValues.ConfigType); // 176 or 160
         offset += 1;
-        Bit8.setFloat32(offset, arenaSize, true); //Arena Size
+        Bit8.setFloat32(offset, configValues.ArenaSize, true); //Arena Size
         offset += 4;
         if (cfgType == Enums.ServerToClient.OPCODE_CONFIG_2) {
             Bit8.setFloat32(offset, 0, true); //Minimap Entities X Offset
@@ -304,21 +304,21 @@ class Client extends EventEmitter {
             Bit8.setFloat32(offset, 0, true); //Minimap Entities Y Offset
             offset += 4;
         }
-        Bit8.setFloat32(offset, 2, true); //Default zoom
+        Bit8.setFloat32(offset, configValues.DefaultZoom, true); //Default zoom
         offset += 4;
-        Bit8.setFloat32(offset, 1.5, true); //Minimum zoom
+        Bit8.setFloat32(offset, configValues.MinimumZoom, true); //Minimum zoom
         offset += 4;
-        Bit8.setFloat32(offset, 100, true); //Minimum zoom score
+        Bit8.setFloat32(offset, configValues.MinimumZoomScore, true); //Minimum zoom score
         offset += 4;
-        Bit8.setFloat32(offset, 10, true); //Zoom Level 2
+        Bit8.setFloat32(offset, configValues.ZoomLevel2, true); //Zoom Level 2
         offset += 4 + 4;
-        Bit8.setFloat32(offset, globalWeblag, true); //Input Delay, If 0 then no input delay calculations will take place
+        Bit8.setFloat32(offset, configValues.GlobalWebLag, true); //Input Delay, If 0 then no input delay calculations will take place
         offset += 4;
-        Bit8.setFloat32(offset, 60, true); //Not Used
+        Bit8.setFloat32(offset, configValues.GlobalMobileLag, true); //Not Used
         offset += 4;
-        Bit8.setFloat32(offset, 40, true); //Other Snake Delay
+        Bit8.setFloat32(offset, configValues.OtherSnakeDelay, true); //Other Snake Delay
         offset += 4;
-        Bit8.setFloat32(offset, 1, true); //isTalkEnabled
+        Bit8.setFloat32(offset, configValues.IsTalkEnabled, true); //isTalkEnabled
         this.socket.send(Bit8);
     }
     update(updateType, entities) {
