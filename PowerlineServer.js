@@ -30,7 +30,7 @@ if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
 
 const wss = new WebSocket.Server({ port: 1337});
 // Global variables
-artificialPing = 0;
+artificialPing = 250;
 entityIDs = new IDManager();
 clientIDs = new IDManager();
 entityQuadTree = new Quadtree({
@@ -54,7 +54,7 @@ scoreMultiplier = 10/foodValue;
 defaultLength = 10;
 king = null;
 lastUpdate = 0;
-maxFood = arenaSize * 5;
+maxFood = 0//arenaSize * 5;
 foodSpawnPercent = (arenaSize ^ 2) / 10;
 foodMultiplier = 1;
 admins = [

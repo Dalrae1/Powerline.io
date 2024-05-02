@@ -190,22 +190,26 @@ class Snake {
         
         this.direction = direction;
         this.addPoint(this.position.x, this.position.y);
-
         // Move the snake forward for however long it takes to send
         let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS
         
         let oneWayPing = this.client.ping / 2; // Half the RTT to get one-way time
-        oneWayPing = oneWayPing - Math.max(0, globalWeblag) // Subtract input delay
+        oneWayPing = Math.max(0, oneWayPing - globalWeblag) // Subtract input delay
 
-        let totalDistanceTraveledDuringPing = totalSpeed * Math.floor(oneWayPing/updateInterval);
+        let totalDistanceTraveledDuringPing = totalSpeed * (Math.floor(oneWayPing / updateInterval));
 
         let timeSinceLastUpdate = (Date.now() - lastUpdate)
-        let currentInterpPosition = (timeSinceLastUpdate/updateInterval) * totalSpeed;
-        console.log(`Distance traveled in ${oneWayPing}ms with speed ${totalSpeed}: ${totalDistanceTraveledDuringPing}`)
+        let timeUntilNextUpdate = updateInterval - (timeSinceLastUpdate % updateInterval)
+        let currentInterpPosition = (totalSpeed * (timeUntilNextUpdate / updateInterval))
+
+        totalDistanceTraveledDuringPing += currentInterpPosition
+        
+        
+        //console.log(`Distance traveled in ${oneWayPing}ms with speed ${totalSpeed}: ${totalDistanceTraveledDuringPing}`)
         if (goingUp)
-            this.position[oppositeVector] += (currentInterpPosition+totalDistanceTraveledDuringPing);
+            this.position[oppositeVector] += totalDistanceTraveledDuringPing;
         else
-            this.position[oppositeVector] -= (currentInterpPosition+totalDistanceTraveledDuringPing);
+            this.position[oppositeVector] -= totalDistanceTraveledDuringPing;
     }
     rubAgainst(snake, distance) {
         this.flags |= Enums.EntityFlags.IS_RUBBING;
