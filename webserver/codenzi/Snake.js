@@ -1394,11 +1394,6 @@ var Snake = function () {
 
 			if(newPointCount > 0)
 			{
-				if (this == localPlayer) {
-					console.log(`Server: (${curX}, ${curY})`);
-					console.log(`Client: (${this.x}, ${this.y})`);
-					console.log(`Difference: (${curX - this.x}, ${curY - this.y})`);
-				}
 				var newPoints = [];
 				for(var i = 0; i < newPointCount; i++)
 				{
