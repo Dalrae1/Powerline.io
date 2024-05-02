@@ -85,7 +85,7 @@ class Server {
             let cert = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")
             let key = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\privkey.pem")
             let chain = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\fullchain.pem")
-            server = HttpsServer({
+            let server = HttpsServer({
                 cert: fs.readFileSync(cert),
                 key: fs.readFileSync(key)
             })
