@@ -40,7 +40,7 @@ class Food {
                     snake.extraSpeed += 2;
                     if (snake.extraSpeed > maxBoostSpeed && !snake.speedBypass)
                         snake.extraSpeed = maxBoostSpeed;
-                }, updateDuration * 2 * i)
+                }, updateInterval * 2 * i)
             }
         }
 

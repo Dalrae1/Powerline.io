@@ -30,7 +30,7 @@ if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
 
 const wss = new WebSocket.Server({ port: 1337});
 // Global variables
-artificialPing = 0//250;
+artificialPing = 0;
 entityIDs = new IDManager();
 clientIDs = new IDManager();
 entityQuadTree = new Quadtree({
@@ -43,10 +43,10 @@ entityQuadTree = new Quadtree({
 entities = {}
 clients = {}
 snakes = {}
-
+globalWeblag = 90;
 foodValue = 1.5;
 lastClientId = 1
-updateDuration = 100
+updateInterval = 100
 UPDATE_EVERY_N_TICKS = 3;
 maxBoostSpeed = 255;
 maxRubSpeed = 200;
@@ -458,9 +458,9 @@ async function main() {
 
 function mainLooper() {
     setTimeout(() => {
-        if (Date.now() - lastUpdate >= updateDuration) {
-            if ((Date.now() - lastUpdate) > updateDuration) {
-                /*console.log(`Server is lagging ${(Date.now() - lastUpdate) - updateDuration}ms behind...`)
+        if (Date.now() - lastUpdate >= updateInterval) {
+            if ((Date.now() - lastUpdate) > updateInterval) {
+                /*console.log(`Server is lagging ${(Date.now() - lastUpdate) - updateInterval}ms behind...`)
                 console.log(`\tMove: ${moveTime}ms`)
                 console.log(`\tVisual Length: ${visualLengthTime}ms`)
                 console.log(`\tGet Nearby Points: ${getNearbyPointsTime}ms`)

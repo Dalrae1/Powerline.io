@@ -154,11 +154,11 @@ class Client extends EventEmitter {
                                 }
                             }
                             break;
-                        case "updateduration":
+                        case "updateinterval":
                             if (commandArgs[1]) {
                                 let duration = parseInt(commandArgs[1]);
                                 if (duration) {
-                                    updateDuration = duration;
+                                    updateInterval = duration;
                                 }
                             }
                             break;
@@ -280,7 +280,6 @@ class Client extends EventEmitter {
         this.pingStart = Date.now();
         var Bit8 = new DataView(new ArrayBuffer(3));
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PING);
-        console.log("Ping: "+this.ping || 0)
         Bit8.setUint16(1, this.ping || 0, true);
         await new Promise(r => setTimeout(r, artificialPing/2));
         this.socket.send(Bit8);
@@ -313,7 +312,7 @@ class Client extends EventEmitter {
         offset += 4;
         Bit8.setFloat32(offset, 10, true); //Zoom Level 2
         offset += 4 + 4;
-        Bit8.setFloat32(offset, 90, true); //Input Delay, If 0 then no input delay calculations will take place
+        Bit8.setFloat32(offset, globalWeblag, true); //Input Delay, If 0 then no input delay calculations will take place
         offset += 4;
         Bit8.setFloat32(offset, 60, true); //Not Used
         offset += 4;
