@@ -6,13 +6,14 @@ class Food {
     subtype = Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD;
     position = { x: 0, y: 0 };
     spawned = true
-    value = configValues.FoodValue;
     lastUpdate = Date.now();
-    constructor(x, y, color = Math.random() * 360, origin = null, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5)) {
-        let thisId = entityIDs.allocateID();
-        entities[thisId] = this;
+    constructor(server, x, y, color = Math.random() * 360, origin = null, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5)) {
+        this.server = server
+        this.value = server.config.FoodValue;
+        let thisId = this.server.entityIDs.allocateID();
+        this.server.entities[thisId] = this;
         if (x == undefined) 
-            this.position = MapFunctions.GetRandomPosition();
+            this.position = MapFunctions.GetRandomPosition(this.server);
         else {
             this.position = { x: x, y: y };
         }
@@ -24,9 +25,9 @@ class Food {
         setTimeout(() => {
             this.eat();
         }, timeToLive);
-        entityQuadTree.insert(this);
+        this.server.entityQuadtree.insert(this);
         return this;
-        }
+    }
     
     eat(snake) {
         this.lastUpdate = Date.now();
@@ -38,9 +39,9 @@ class Food {
             for (let i = 0; i < 3; i++) {
                 setTimeout(() => {
                     snake.extraSpeed += 2;
-                    if (snake.extraSpeed > configValues.MaxBoostSpeed && !snake.speedBypass)
-                        snake.extraSpeed = configValues.MaxBoostSpeed;
-                }, configValues.UpdateInterval * 2 * i)
+                    if (snake.extraSpeed > this.server.MaxBoostSpeed && !snake.speedBypass)
+                        snake.extraSpeed = this.server.MaxBoostSpeed;
+                }, this.server.UpdateInterval * 2 * i)
             }
         }
 
@@ -59,14 +60,14 @@ class Food {
         // King
         Bit8.setUint16(offset, 0, true);
         offset += 2;
-        Bit8.setUint16(offset, king && king.id || 0, true);
+        Bit8.setUint16(offset, this.server.king && this.server.king.id || 0, true);
         offset += 2;
-        Bit8.setFloat32(offset, king && king.position.x || 0, true);
+        Bit8.setFloat32(offset, this.server.king && this.server.king.position.x || 0, true);
         offset += 4;
-        Bit8.setFloat32(offset, king && king.position.y || 0, true);
+        Bit8.setFloat32(offset, this.server.king && this.server.king.position.y || 0, true);
         offset += 4;
         
-        Object.values(clients).forEach((client) => {
+        Object.values(this.server.clients).forEach((client) => {
             if (client.loadedEntities[this.id]) {
                 client.socket.send(Bit8);
                 delete client.loadedEntities[this.id]
@@ -76,9 +77,9 @@ class Food {
             snake.length += this.value;
             snake.lastAte = Date.now();
         }
-        entityIDs.releaseID(this.id);
-        entityQuadTree.delete(this);
-        delete entities[this.id]; 
+        this.server.entityIDs.releaseID(this.id);
+        this.server.entityQuadtree.delete(this);
+        delete this.server.entities[this.id]; 
     }
 }
 

@@ -7,7 +7,7 @@ class EntityFunctions {
         const windowSizeY = client.windowSizeY;
         const foundEntities = [];
 
-        Object.values(snakes).forEach(snake => {
+        Object.values(client.server.snakes).forEach(snake => {
             for (let i = -1; i < snake.points.length - 1; i++) {
                 const point = (i === -1) ? snake.position : snake.points[i];
                 const nextPoint = snake.points[i + 1];
@@ -18,7 +18,7 @@ class EntityFunctions {
             }
         })
         const queryArea = { x: center.x-(windowSizeX), y: center.y-(windowSizeY), width: windowSizeX*2, height: windowSizeY*2};
-        const foundEntities2 = entityQuadTree.query(queryArea); // Finds entities within queryArea
+        const foundEntities2 = client.server.entityQuadtree.query(queryArea); // Finds entities within queryArea
 
         foundEntities2.forEach(entity => {
             //if (entity.position.x >= xMin && entity.position.x <= xMax && entity.position.y >= yMin && entity.position.y <= yMax) {
@@ -93,17 +93,17 @@ class SnakeFunctions {
         }
         return foundPoints
     }
-    static LengthToScore(length) {
-        return (length - configValues.DefaultLength)*scoreMultiplier
+    static LengthToScore(server, length) {
+        return (length - server.config.DefaultLength)*server.scoreMultiplier
     }
-    static ScoreToLength(score) {
-        return score/scoreMultiplier
+    static ScoreToLength(server, score) {
+        return score/server.scoreMultiplier
     }
     static ScoreToFood(score) {
         return Math.floor(score / 10)
     }
-    static GetScoreToDrop(length) {
-        let score = (length - configValues.DefaultLength)*scoreMultiplier
+    static GetScoreToDrop(server, length) {
+        let score = (length - server.config.DefaultLength)*server.scoreMultiplier
         let x = Math.ceil(Math.random() * 30 * 10) / 10
         return Math.floor(((score - (score - x) / 6) + 70) / 10) * 10
     }

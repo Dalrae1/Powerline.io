@@ -142,8 +142,8 @@ class MapFunctions {
         return { point: { x: xx, y: yy }, distance: Math.sqrt(dx * dx + dy * dy) };
     }
 
-    static GetRandomPosition() {
-        return { x: Math.random() * configValues.ArenaSize - configValues.ArenaSize / 2, y: Math.random() * configValues.ArenaSize - configValues.ArenaSize / 2 };
+    static GetRandomPosition(server) {
+        return { x: Math.random() * server.config.ArenaSize - server.config.ArenaSize / 2, y: Math.random() * server.config.ArenaSize - server.config.ArenaSize / 2 };
     }
 }
 

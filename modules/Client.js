@@ -7,16 +7,17 @@ const { time } = require('console');
 
 
 class Client extends EventEmitter {
-    constructor(websocket, ip) {
+    constructor(server, websocket, ip) {
         super();
+        this.server = server
         this.socket = websocket;
-        this.id = clientIDs.allocateID();
+        this.id = server.clientIDs.allocateID();
         this.loadedEntities = {};
         this.windowSizeX = 128;
         this.windowSizeY = 64;
         this.dead = true
         this.pointsNearby = {};
-        clients[this.id] = this;
+        server.clients[this.id] = this;
         if (ip.toString() == "::1") // Set IP to local
             ip = "::ffff:127.0.0.1"
             
@@ -32,7 +33,7 @@ class Client extends EventEmitter {
         }, 1000);
     }
     async RecieveMessage(messageType, view) {
-        await new Promise(r => setTimeout(r, artificialPing/2));
+        await new Promise(r => setTimeout(r, this.server.artificialPing/2));
         if ((!this.snake || !this.snake.id) &&
         (
             messageType != Enums.ClientToServer.OPCODE_ENTER_GAME &&
@@ -93,26 +94,26 @@ class Client extends EventEmitter {
                 this.pingLoop();
                 break
             case Enums.ClientToServer.OPCODE_BOOST:
-                if (admins.includes(this.snake.ip)) {
+                if (this.server.admins.includes(this.snake.ip)) {
                     let boosting = view.getUint8(1) == 1
                     if (boosting) {
                         this.snake.extraSpeed += 2;
-                        if (this.snake.extraSpeed > configValues.MaxBoostSpeed)
+                        if (this.snake.extraSpeed > this.server.config.MaxBoostSpeed)
                             this.snake.speedBypass = true
                         this.snake.speed = 0.25 + this.snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
                     } else {
                         this.snake.speedBypass = false;
-                        if (this.snake.extraSpeed > configValues.MaxBoostSpeed)
-                            this.snake.extraSpeed = configValues.MaxBoostSpeed
+                        if (this.snake.extraSpeed > this.server.config.MaxBoostSpeed)
+                            this.snake.extraSpeed = this.server.config.MaxBoostSpeed
                     }
                 }
                 break;
             case Enums.ClientToServer.OPCODE_DEBUG_GRAB:
-                if (admins.includes(this.snake.ip))
-                    this.snake.length += SnakeFunctions.ScoreToLength(1000);
+                if (this.server.admins.includes(this.snake.ip))
+                    this.snake.length += SnakeFunctions.ScoreToLength(this.server, 1000);
                 break;
             case 0x0d: // Invincible
-                if (admins.includes(this.snake.ip))
+                if (this.server.admins.includes(this.snake.ip))
                     this.snake.invincible = view.getUint8(1, true) == 1;
             
                 break;
@@ -124,15 +125,15 @@ class Client extends EventEmitter {
                 if (!commandArgs[0])
                     return
                 commandArgs[0] = commandArgs[0].toLowerCase();
-                if (admins.includes(this.snake.ip) || commandArgs[0] == "say") {
+                if (this.server.admins.includes(this.snake.ip) || commandArgs[0] == "say") {
                     console.log(`Executing command "${command}" from ${this.snake.nick}`);
                     switch (commandArgs[0]) {
                         case "arenasize":
                             if (commandArgs[1]) {
                                 let size = parseInt(commandArgs[1]);
                                 if (size) {
-                                    configValues.ArenaSize = size;
-                                    Object.values(clients).forEach((client) => {
+                                    this.server.config.ArenaSize = size;
+                                    Object.values(this.server.clients).forEach((client) => {
                                         client.sendConfig()
                                     })
                                 }
@@ -142,7 +143,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let speed = parseInt(commandArgs[1]);
                                 if (speed) {
-                                    configValues.MaxBoostSpeed = speed;
+                                    this.server.config.MaxBoostSpeed = speed;
                                 }
                             }
                             break;
@@ -150,7 +151,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let speed = parseInt(commandArgs[1]);
                                 if (speed) {
-                                    configValues.MaxRubSpeed = speed;
+                                    this.server.config.MaxRubSpeed = speed;
                                 }
                             }
                             break;
@@ -158,7 +159,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let duration = parseInt(commandArgs[1]);
                                 if (duration) {
-                                    configValues.UpdateInterval = duration;
+                                    this.server.config.UpdateInterval = duration;
                                 }
                             }
                             break;
@@ -166,7 +167,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let max = parseInt(commandArgs[1]);
                                 if (max) {
-                                    maxFood = max;
+                                    this.server.maxFood = max;
                                 }
                             }
                             break;
@@ -174,7 +175,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let rate = parseInt(commandArgs[1]);
                                 if (rate) {
-                                    foodSpawnPercent = rate;
+                                    this.server.foodSpawnPercent = rate;
                                 }
                             }
                             break;
@@ -191,13 +192,13 @@ class Client extends EventEmitter {
                                 let num = parseInt(commandArgs[1]);
                                 if (num) {
                                     for (let i = 0; i < num; i++) {
-                                        new Food();
+                                        new Food(this.server);
                                     }
                                 }
                             }
                             break;
                         case "clearfood":
-                            Object.values(entities).forEach((entity) => {
+                            Object.values(this.server.entities).forEach((entity) => {
                                 if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
                                     entity.eat();
                             })
@@ -206,7 +207,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let multiplier = parseInt(commandArgs[1]);
                                 if (multiplier) {
-                                    foodMultiplier = multiplier;
+                                    this.server.foodMultiplier = multiplier;
                                 }
                             }
                             break;
@@ -214,10 +215,10 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let value = parseInt(commandArgs[1]);
                                 if (value) {
-                                    configValues.FoodValue = value;
-                                    Object.values(entities).forEach((entity) => {
+                                    this.server.config.FoodValue = value;
+                                    Object.values(this.server.entities).forEach((entity) => {
                                         if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
-                                            entity.value = configValues.FoodValue;
+                                            entity.value = this.server.config.FoodValue;
 
                                     })
                                 }
@@ -243,7 +244,7 @@ class Client extends EventEmitter {
                         case "debug":
                             let snake = this.snake;
                             if (commandArgs[1]) {
-                                let commandSnake = entities[parseInt(commandArgs[1])];
+                                let commandSnake = this.server.entities[parseInt(commandArgs[1])];
                                 if (commandSnake) {
                                     snake = commandSnake;
                                 }
@@ -251,7 +252,7 @@ class Client extends EventEmitter {
                             snake.flags ^= Enums.EntityFlags.DEBUG;
                             break
                         case "debugall":
-                            Object.values(entities).forEach((entity) => {
+                            Object.values(this.server.entities).forEach((entity) => {
                                 if (entity.type == Enums.EntityTypes.ENTITY_PLAYER) {
                                     entity.flags ^= Enums.EntityFlags.DEBUG;
                                 }
@@ -259,12 +260,12 @@ class Client extends EventEmitter {
                             break;
                         case "length":
                             if (commandArgs[1]) {
-                                Object.values(clients).forEach((client) => {
+                                Object.values(this.server.clients).forEach((client) => {
                                     if (client.dead) {
                                         return
                                     }
                                     if (client.snake.nick.toLowerCase() == commandArgs.concat().splice(1).join(" ").toLowerCase()) {
-                                        client.snake.length += SnakeFunctions.ScoreToLength(1000);
+                                        client.snake.length += SnakeFunctions.ScoreToLength(this.server, 1000);
                                     }
                                 })
                             }
@@ -281,22 +282,22 @@ class Client extends EventEmitter {
         var Bit8 = new DataView(new ArrayBuffer(3));
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PING);
         Bit8.setUint16(1, this.ping || 0, true);
-        await new Promise(r => setTimeout(r, artificialPing/2));
+        await new Promise(r => setTimeout(r, this.server.artificialPing/2));
         this.socket.send(Bit8);
     }
     async doPing() {
         var Bit8 = new DataView(new ArrayBuffer(1));
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PONG);
-        await new Promise(r => setTimeout(r, artificialPing/2));
+        await new Promise(r => setTimeout(r, this.server.artificialPing/2));
         this.socket.send(Bit8);
     }
     sendConfig() {
         var Bit8 = new DataView(new ArrayBuffer(49));
         let cfgType = Enums.ServerToClient.OPCODE_CONFIG;
         let offset = 0;
-        Bit8.setUint8(offset, configValues.ConfigType); // 176 or 160
+        Bit8.setUint8(offset, this.server.config.ConfigType); // 176 or 160
         offset += 1;
-        Bit8.setFloat32(offset, configValues.ArenaSize, true); //Arena Size
+        Bit8.setFloat32(offset, this.server.config.ArenaSize, true); //Arena Size
         offset += 4;
         if (cfgType == Enums.ServerToClient.OPCODE_CONFIG_2) {
             Bit8.setFloat32(offset, 0, true); //Minimap Entities X Offset
@@ -304,21 +305,21 @@ class Client extends EventEmitter {
             Bit8.setFloat32(offset, 0, true); //Minimap Entities Y Offset
             offset += 4;
         }
-        Bit8.setFloat32(offset, configValues.DefaultZoom, true); //Default zoom
+        Bit8.setFloat32(offset, this.server.config.DefaultZoom, true); //Default zoom
         offset += 4;
-        Bit8.setFloat32(offset, configValues.MinimumZoom, true); //Minimum zoom
+        Bit8.setFloat32(offset, this.server.config.MinimumZoom, true); //Minimum zoom
         offset += 4;
-        Bit8.setFloat32(offset, configValues.MinimumZoomScore, true); //Minimum zoom score
+        Bit8.setFloat32(offset, this.server.config.MinimumZoomScore, true); //Minimum zoom score
         offset += 4;
-        Bit8.setFloat32(offset, configValues.ZoomLevel2, true); //Zoom Level 2
+        Bit8.setFloat32(offset, this.server.config.ZoomLevel2, true); //Zoom Level 2
         offset += 4 + 4;
-        Bit8.setFloat32(offset, configValues.GlobalWebLag, true); //Input Delay, If 0 then no input delay calculations will take place
+        Bit8.setFloat32(offset, this.server.config.GlobalWebLag, true); //Input Delay, If 0 then no input delay calculations will take place
         offset += 4;
-        Bit8.setFloat32(offset, configValues.GlobalMobileLag, true); //Not Used
+        Bit8.setFloat32(offset, this.server.config.GlobalMobileLag, true); //Not Used
         offset += 4;
-        Bit8.setFloat32(offset, configValues.OtherSnakeDelay, true); //Other Snake Delay
+        Bit8.setFloat32(offset, this.server.config.OtherSnakeDelay, true); //Other Snake Delay
         offset += 4;
-        Bit8.setFloat32(offset, configValues.IsTalkEnabled, true); //isTalkEnabled
+        Bit8.setFloat32(offset, this.server.config.IsTalkEnabled, true); //isTalkEnabled
         this.socket.send(Bit8);
     }
     update(updateType, entities) {
@@ -781,11 +782,11 @@ class Client extends EventEmitter {
         })
         Bit8.setUint16(offset, 0, true);
         offset += 2;
-        Bit8.setUint16(offset, king && king.id || 0, true);
+        Bit8.setUint16(offset, this.server.king && this.server.king.id || 0, true);
         offset += 2;
-        Bit8.setFloat32(offset, king && king.position.x || 0, true);
+        Bit8.setFloat32(offset, this.server.king && this.server.king.position.x || 0, true);
         offset += 4;
-        Bit8.setFloat32(offset, king && king.position.y || 0, true);
+        Bit8.setFloat32(offset, this.server.king && this.server.king.position.y || 0, true);
         offset += 4;
       this.socket.send(Bit8);
     }

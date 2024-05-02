@@ -7,7 +7,6 @@ const AVLTree = require("./AVLTree.js");
 leaderboard = new AVLTree();
 
 
-
 class Snake {
     network = null;
     nick = "";
@@ -15,6 +14,7 @@ class Snake {
     
     constructor(network, name) {
         this.client = network;
+        this.server = network.server;
         this.network = network.socket;
         this.ip = network.ip;
         this.client.dead = false;
@@ -28,7 +28,7 @@ class Snake {
 
         }
 
-        let thisId = entityIDs.allocateID();
+        let thisId = this.server.entityIDs.allocateID();
         console.log("Spawning snake " + name + " with ID " + thisId)
         this.spawned = true;
         var Bit8 = new DataView(new ArrayBuffer(1000));
@@ -36,7 +36,7 @@ class Snake {
         Bit8.setUint32(1, thisId, true);
         this.id = thisId;
         this.nick = name
-        let randomPos = MapFunctions.GetRandomPosition();
+        let randomPos = MapFunctions.GetRandomPosition(this.server);
         this.position = { x: randomPos.x, y: randomPos.y };
         this.direction = Enums.Directions.UP;
         this.speed = 0.25;
@@ -47,15 +47,15 @@ class Snake {
         this.newPoints = [];
         this.talkStamina = 255;
         this.color = Math.random() * 360;
-        this.visualLength = configValues.DefaultLength;
-        this.actualLength = configValues.DefaultLength;
+        this.visualLength = this.server.config.DefaultLength;
+        this.actualLength = this.server.config.DefaultLength;
         this.killedSnakes = [];
         leaderboard.insert(this.length, this.id);
 
 
 
-        snakes[this.id] = this;
-        entities[this.id] = this;
+        this.server.snakes[this.id] = this;
+        this.server.entities[this.id] = this;
 
         
         this.network.send(Bit8);
@@ -80,7 +80,7 @@ class Snake {
         offset += 1;
         for (let pair of leaderboard.reverseOrderTraversal()) {
             count++;
-            let snake = entities[pair.data]
+            let snake = this.server.entities[pair.data]
             if (!snake || !snake.spawned)
                 continue
             if (snake.id == this.id)
@@ -88,10 +88,10 @@ class Snake {
             if (count > 10)
                 continue
             if (count == 1)
-                king = snake;
+                this.server.king = snake;
             BitView.setUint16(offset, snake.id, true);
             offset += 2;
-            BitView.setUint32(offset, (snake.actualLength - configValues.DefaultLength) * scoreMultiplier, true);
+            BitView.setUint32(offset, (snake.actualLength - this.server.config.DefaultLength) * this.server.scoreMultiplier, true);
             offset += 4;
             for (var characterIndex = 0; characterIndex < snake.nick.length; characterIndex++) {
                 BitView.setUint16(offset + characterIndex * 2, snake.nick.charCodeAt(characterIndex), true);
@@ -104,7 +104,7 @@ class Snake {
         if (myRank) {
             BitView.setUint16(offset, this.id, true);
             offset += 2;
-            BitView.setUint32(offset, (this.length - configValues.DefaultLength) * scoreMultiplier, true);
+            BitView.setUint32(offset, (this.length - this.server.config.DefaultLength) * this.server.scoreMultiplier, true);
             offset += 4;
             BitView.setUint16(offset, myRank, true);
             offset += 2;
@@ -147,7 +147,7 @@ class Snake {
         
 
         if (secondPoint)
-            Object.values(clients).forEach((client) => {
+            Object.values(this.server.clients).forEach((client) => {
                 if (!client.snake)
                     return
                 let snake = client.snake;
@@ -194,13 +194,13 @@ class Snake {
         let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS
         
         let oneWayPing = this.client.ping / 2; // Half the RTT to get one-way time
-        oneWayPing = Math.max(0, oneWayPing - configValues.GlobalWebLag) // Subtract input delay
+        oneWayPing = Math.max(0, oneWayPing - this.server.config.GlobalWebLag) // Subtract input delay
 
-        let totalDistanceTraveledDuringPing = totalSpeed * (Math.floor(oneWayPing / configValues.UpdateInterval));
+        let totalDistanceTraveledDuringPing = totalSpeed * (Math.floor(oneWayPing / this.server.config.UpdateInterval));
 
-        let timeSinceLastUpdate = (Date.now() - lastUpdate)
-        let timeUntilNextUpdate = configValues.UpdateInterval - (timeSinceLastUpdate % configValues.UpdateInterval)
-        let currentInterpPosition = (totalSpeed * (timeUntilNextUpdate / configValues.UpdateInterval))
+        let timeSinceLastUpdate = (Date.now() - this.server.lastUpdate)
+        let timeUntilNextUpdate = this.server.config.UpdateInterval - (timeSinceLastUpdate % this.server.config.UpdateInterval)
+        let currentInterpPosition = (totalSpeed * (timeUntilNextUpdate / this.server.config.UpdateInterval))
 
         totalDistanceTraveledDuringPing += currentInterpPosition
         
@@ -219,7 +219,7 @@ class Snake {
         let rubSpeed = 4/distance
         if (rubSpeed > 4)
             rubSpeed = 4
-        if (this.extraSpeed + rubSpeed <= configValues.MaxRubSpeed || this.speedBypass) {
+        if (this.extraSpeed + rubSpeed <= this.server.config.MaxRubSpeed || this.speedBypass) {
             this.extraSpeed += rubSpeed
             this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
         }
@@ -251,7 +251,7 @@ class Snake {
                         killedBy.flags &= ~Enums.EntityFlags.KILLSTREAK;
                 }, 5000)
             }
-            if (king && king == this) {
+            if (this.server.king && this.server.king == this) {
                 killedBy.flags |= Enums.EntityFlags.KILLED_KING;
                 setTimeout(() => {
                     if (!killedBy)
@@ -309,7 +309,7 @@ class Snake {
         if (!this.spawned) {
             return
         }
-        Object.values(clients).forEach((client) => {
+        Object.values(this.server.clients).forEach((client) => {
             if (client.loadedEntities[this.id]) {
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
@@ -332,11 +332,11 @@ class Snake {
                 // King
                 Bit8.setUint16(offset, 0, true);
                 offset += 2;
-                Bit8.setUint16(offset, king && king.id || 0, true);
+                Bit8.setUint16(offset, this.server.king && this.server.king.id || 0, true);
                 offset += 2;
-                Bit8.setFloat32(offset, king && king.position.x || 0, true);
+                Bit8.setFloat32(offset, this.server.king && this.server.king.position.x || 0, true);
                 offset += 4;
-                Bit8.setFloat32(offset, king && king.position.y || 0, true);
+                Bit8.setFloat32(offset, this.server.king && this.server.king.position.y || 0, true);
                 offset += 4;
                 client.socket.send(Bit8);
                 delete client.loadedEntities[this.id]
@@ -404,8 +404,8 @@ class Snake {
 
 
 
-        let scoreToDrop = SnakeFunctions.GetScoreToDrop(actualLength);
-        let foodToDrop = SnakeFunctions.ScoreToFood(scoreToDrop)*foodMultiplier;
+        let scoreToDrop = SnakeFunctions.GetScoreToDrop(this.server, actualLength);
+        let foodToDrop = SnakeFunctions.ScoreToFood(scoreToDrop) * this.server.foodMultiplier;
         let dropAtInterval = actualLength / (foodToDrop);
         for (let i = 0; i < actualLength; i += dropAtInterval) {
             let point = SnakeFunctions.GetPointAtDistance(this, i);
@@ -414,7 +414,7 @@ class Snake {
                 nextPoint = this.position;
             else
                 nextPoint = SnakeFunctions.GetPointAtDistance(this, i + 1);
-            let food = new Food(point.x, point.y, this.color - 25 + Math.random() * 50, this, 20000 + (Math.random() * 60 * 1000 * 5));
+            let food = new Food(this.server, point.x, point.y, this.color - 25 + Math.random() * 50, this, 20000 + (Math.random() * 60 * 1000 * 5));
             
             // Move food forward the direction that the line was going
             
@@ -459,7 +459,7 @@ class Snake {
 
         }
         this.killedSnakes.forEach((snake, index) => {
-            if (snake.client.snake || !clients[snake.client.id]) {// If the snake respawned or disconnected, remove it from the list
+            if (snake.client.snake || !this.server.clients[snake.client.id]) {// If the snake respawned or disconnected, remove it from the list
                 delete this.killedSnakes[index]
                 return
             }
@@ -473,9 +473,9 @@ class Snake {
         this.client.dead = true;
         this.client.snake = undefined;
         leaderboard.deleteByValue(this.id);
-        entityIDs.releaseID(this.id);
-        delete snakes[this.id];
-        delete entities[this.id]
+        this.server.entityIDs.releaseID(this.id);
+        delete this.server.snakes[this.id];
+        delete this.server.entities[this.id]
 
     }
     
