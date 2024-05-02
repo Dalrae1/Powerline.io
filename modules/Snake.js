@@ -317,6 +317,7 @@ class Snake {
             
                 Bit8.setUint16(offset, this.id, true);
                 offset += 2;
+                console.log("0Killed snake " + this.nick + " with ID " + this.id)
                 Bit8.setUint8(offset, Enums.UpdateTypes.UPDATE_TYPE_DELETE, true);
                 offset += 1;
                 Bit8.setUint16(offset, killedBy.id, true);
@@ -462,6 +463,7 @@ class Snake {
                 delete this.killedSnakes[index]
                 return
             }
+            console.log("2Killed snake " + snake.nick + " with ID " + snake.id)
             snake.client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, [entitiesToRemove]);
             snake.client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, [entitiesToAdd]);
         })
