@@ -1,5 +1,20 @@
 debugCircle = {}
 
+const cyrb53 = (str, seed = 0) => {
+    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+    for(let i = 0, ch; i < str.length; i++) {
+        ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1  = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+    h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2  = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  
+    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+};
+
 
 var Network = function () {
 	var webSocket;
@@ -83,153 +98,44 @@ var Network = function () {
 	}
 	//console.log('Master URL is: ' + MASTER_URL);
 
-	this.getServerAndConnect = function() {
-		var room = null;
-		var roomPart = '';
-
-		var locationHash;
-
-		if(!inIframe())
-		locationHash = parent.location.hash
-
-		if(locationHash)
-		{
-			var hash = locationHash;
-			room = hash.substring(1, hash.length);
-			roomPart = ';'+room;
-			network.directed = true;
-		}else{
-			if(queryString['ip'])
-			{
-				var ip = queryString['ip'];
-				ip = ip.replace("%3A", ":");
-				network.remoteHost = ip;
-				network.connect();
-				//console.log('call connect 1');
-				return;
+	this.connect = function (serverId) {
+		if (!serverListLoaded) return
+		if (network.serverId == serverId && serverId != null) return;
+		if (!serverId) { // If no port is provided, find the last connected to server
+			let lastServer = window.localStorage.lastServer;
+			if (!lastServer) {
+				console.log("No last server found, connecting to default server")
+				serverId = 1337;
+			}
+			else {
+				serverId = lastServer;
 			}
 		}
+		window.localStorage.lastServer = serverId;
+		console.log("Attempting to connect to " + serverId)
+		var protocol = isSecure ? 'wss' : 'ws';
+		let remoteHost = window.location.href.split('/')[2].split(":")[0];
+		network.remoteHost = remoteHost
+		
+		let port = isSecure ? serverId+1 : serverId;
 
-		var cc = countryCode;
-		if(cc == undefined)
-		{
-			// Did not receive country code yet
-			setTimeout(network.getServerAndConnect, 200);
-			return;
-		}
-		if (Number(cc) > 0) {
-			let but = document.getElementsByClassName(`${cc}`)[0]
-			let port = but.getAttribute("port")
-			let actualDomain = window.location.href.split('/')[2].split(":")[0];
-			network.remoteHost = `${actualDomain}`
-			let fullhost
-			if (isSecure)
-				fullhost = `wss://${network.remoteHost}:${Number(port)+1}`;
-			else
-				fullhost = `ws://${network.remoteHost}:${port}`;
-			console.log('Connecting to ' + fullhost + '...');
-			webSocket = new WebSocket(fullhost);
-			webSocket.binaryType 	= "arraybuffer";
-			webSocket.onopen 		= network.onSocketOpen;
-			webSocket.onclose		= network.onSocketClose;
-			webSocket.onmessage 	= network.onSocketMessage;
-			webSocket.onerror = network.onError;
-			return
-		}
+		let oldServerElm = document.getElementById(`server${network.serverId}`);
+		let serverElm = document.getElementById(`server${serverId}`);
+		if (oldServerElm)
+			oldServerElm.classList.remove("selected");
+		serverElm.classList.add("selected");
+		var fullhost = `${protocol}://${remoteHost}:${port}`
 
-		var s = '';
-		if(isSecure)
-		s = 's';
-		$.ajax({
-			url: 'http'+s+'://'+MASTER_URL,
-			type: 'PUT',
-			success: function(result) {
-				if(result == '0')
-				{
-					$('#topGui').hide();
-					$('#topGuiConnecting').hide();
-					$('#roomFailed').show();
-					return;
-				}
+		network.serverId = serverId;
 
-				var splitID = result.split('!');
-				network.roomID = 0;
-				if(splitID.length > 1)
-				{
-					network.roomID = splitID[1];
-				}
-
-				var remaining = splitID[0];
-				var splitRoom = remaining.split('/');
-				network.roomNumber = 0;
-				var host = remaining;
-				if(splitRoom.length > 1){
-					network.roomNumber = splitRoom[1];
-					host = splitRoom[0];
-				}
-				network.remoteHost = host;
-				network.connect();
-
-			},
-			error: function(){
-				network.connectVar = setTimeout(network.getServerAndConnect, 1000);
-			},
-			'dataType': "text", // was json
-			'contentType': "text/plain",
-			'method': "PUT",
-			'cache': false,
-			'crossDomain': true,
-			'data': cc+roomPart
-		});
-
-	};
-
-	this.connect = function() {
-		// WebSocket
-
-		if(!focus && !debug)
-		{
-			setTimeout(network.getServerAndConnect, 100);
-			return;
-		}
-
-		var fullhost = 'ws://' + network.remoteHost;
-
-		if(isSecure){
-			var addr = network.remoteHost;
-			var splt = addr.split(':');
-			var ip = splt[0];
-			var port = splt[1];
-			var brip = ip.split('.');
-			var sslPort;
-			sslPort = parseInt(port)+1000;
-			if(network.roomNumber > 0)
-				sslPort = parseInt(network.roomNumber)+8080+1000;
-			fullhost = 'wss://'+brip[0]+'-'+brip[1]+'-'+brip[2]+'-'+brip[3]+'.'+gameName+':'+sslPort;
-		}else{
-			if(network.roomNumber > 0){
-				var addrSplit = fullhost.split(':');
-				fullhost = 'ws:'+addrSplit[1] + ':' + (parseInt(network.roomNumber)+8080);
-
-				// For some reason, some people compain about "Connecting" forever because of this.
-				//fullhost = fullhost + '/' + network.roomNumber;
-			}
-		}
-		if(debug)
-			console.log('Connecting to ' + fullhost + '...');
-		try{
-			webSocket = new WebSocket(fullhost);
-		}catch(e)
-		{
-			setTimeout(network.getServerAndConnect, 1000);
-			return;
-		}
+		webSocket = new WebSocket(fullhost);
 		webSocket.binaryType 	= "arraybuffer";
 		webSocket.onopen 		= network.onSocketOpen;
 		webSocket.onclose		= network.onSocketClose;
 		webSocket.onmessage 	= network.onSocketMessage;
-		webSocket.onerror 		= network.onError;
-	};
+		webSocket.onerror = network.onError;
+	}
+	
 
 	this.disconnect = function() {
 		if(network.directed){
@@ -742,8 +648,7 @@ var Network = function () {
 			retryIn = 5;
 
 		if(focus){
-			//console.log('getServerAndConnect 3');
-			setTimeout(this.getServerAndConnect, 1000 + retryIn*1000);
+			setTimeout(this.connect, 1000 + retryIn*1000);
 		}
 		network.connectRetry++;
 	};

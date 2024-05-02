@@ -1,0 +1,53 @@
+{
+    "servers": [
+        {
+            "name": "Custom Server",
+            "id": 1337,
+            "maxPlayers": 100,
+            "owner": "Dalrae",
+            "ipHash": "1",
+            "config:": {
+                "ConfigType": 100,
+                "ArenaSize": 300,
+                "DefaultZoom": 2,
+                "MinimumZoom": 1.5,
+                "MinimumZoomScore": 100,
+                "ZoomLevel2": 10,
+                "GlobalWebLag": 90,
+                "GlobalMobileLag": 60,
+                "OtherSnakeDelay": 40,
+                "IsTalkEnabled": 1,
+
+                "FoodValue": 1.5, 
+                "UpdateInterval": 100,
+                "MaxBoostSpeed": 255,
+                "MaxRubSpeed": 200,
+                "DefaultLength": 10
+            }
+        },
+        {
+            "name": "Modded Server",
+            "id": 1339,
+            "maxPlayers": 100,
+            "owner": "Dalrae",
+            "ipHash": "1",
+            "config:": {
+                "ConfigType": 100,
+                "ArenaSize": 300,
+                "DefaultZoom": 2,
+                "MinimumZoom": 1.5,
+                "MinimumZoomScore": 100,
+                "ZoomLevel2": 10,
+                "GlobalWebLag": 90,
+                "GlobalMobileLag": 60,
+                "OtherSnakeDelay": 40,
+                "IsTalkEnabled": 1,
+                "FoodValue": 1.5,
+                "UpdateInterval": 100,
+                "MaxBoostSpeed": 255,
+                "MaxRubSpeed": 200,
+                "DefaultLength": 10
+            }
+        }
+    ]
+}

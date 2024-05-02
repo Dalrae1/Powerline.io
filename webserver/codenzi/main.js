@@ -13,6 +13,7 @@ var domainSplitLen = domainSplit.length;
 var gameName = 'powerline.io';
 var protocol = window.location.protocol;
 var isSecure = (protocol == 'https:');
+var serverListLoaded = false;
 
 // Performance Stats
 var statsFPS, statsLAG;
@@ -276,8 +277,15 @@ var updateCountryCode = function(){
 	}
 }
 
-updateCountryCode();
-updateCCButton()
+function selectServer(serverIp, port) {
+	console.log("pressed")
+	network.disconnect();
+	network.connect(serverIp, port);
+
+}
+
+//updateCountryCode();
+//updateCCButton()
 
 var runLoop = function() {
 	now = +new Date();
@@ -479,7 +487,7 @@ window['setContinue'] = function(){
 	$('#roomFailed').hide();
 	if(!inIframe())
 		parent.location.hash = '';
-	network.getServerAndConnect();
+	network.connect();
 }
 
 function updateGraphicsLabel()
@@ -646,7 +654,7 @@ window.onfocus = function(element) {
 
 	if(network && !network.hasConnection && !inIframe())
 	{
-		network.getServerAndConnect();
+		network.connect();
 	}else{
 		if(UIVisible)
 			$('#nick').focus();
@@ -1017,6 +1025,34 @@ document.getElementById("overlay").onmousedown = function (e) {
     }
     return false; // Not needed, as long as you don't return false
 };
+
+fetch('./servers.json')
+    .then((response) => response.json())
+	.then((json) => {
+		json.servers.forEach(server => {
+			let serverTable = document.getElementsByClassName("server-table")[0]
+			let tableBody = serverTable.getElementsByTagName("tbody")[0]
+			let row = tableBody.insertRow()
+			row.id = `server${server.id}`
+			row.insertCell().innerText = server.name
+			row.insertCell().innerText = `0/${server.maxPlayers}`
+			row.insertCell().innerText = server.owner
+			let buttonCell = row.insertCell()
+			let button = document.createElement("button")
+			button.type = "submit"
+			button.innerText = "Join"
+			button.classList.add("btn")
+			button.classList.add("btn-play")
+			button.classList.add("btn-primary")
+			button.addEventListener('click', () => {
+				selectServer(server.id)
+			});
+			buttonCell.appendChild(button)
+				
+		})
+		serverListLoaded = true
+		network.connect()
+	});
 
 refreshAd();
 

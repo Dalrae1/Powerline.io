@@ -137,18 +137,6 @@
 							<center>
 							<div class="basic-text">
 								<h4><center><div id="linkText" style="font-size:15px;">[ PRESS ENTER TO PLAY ]</div></center></h4>
-                                <h4><center><div id="linkText" style="font-size:15px; margin-top: 10%">SELECT A SERVER:</div></center></h4>
-                                <form role="form">
-                                    <div class="form-group">
-                                        <center>
-                                        <button type="submit" id="continueButton" onclick="window.localStorage.wingsCC='US'" class="btn btn-play btn-primary US"><div class="basic-text">Americas</div></button>
-                                        <button type="submit" id="continueButton" onclick="window.localStorage.wingsCC='FR'" class="btn btn-play btn-primary FR"><div class="basic-text">Europe</div></button>
-                                        <button type="submit" id="continueButton" onclick="window.localStorage.wingsCC='SG'" class="btn btn-play btn-primary SG"><div class="basic-text">Asia</div></button>
-                                        <button type="submit" id="continueButton" port="1337" onclick="window.localStorage.wingsCC='01'" class="btn btn-play btn-primary 01"><div class="basic-text">Custom</div></button>
-										<button type="submit" id="continueButton" port="1339" onclick="window.localStorage.wingsCC='02'" class="btn btn-play btn-primary 02"><div class="basic-text">Modded</div></button>
-                                        </center>
-                                    </div>
-                                </form>
 							</div>
 							</center>
 							<br clear="both" />
@@ -173,6 +161,21 @@
 					</div>
 				</form>
 			</div>
+		</div>
+		<div class="scroll-window basic-text">
+			<h4 style="margin-bottom: 10px;">SELECT A SERVER:</h4>
+			<table class="table server-table">
+				<thead>
+					<tr>
+						<th>Server Name</th>
+						<th>Player Count</th>
+						<th>Owner</th>
+						<th>Select</th>
+					</tr>
+				</thead>
+				<tbody>
+				</tbody>
+			</table>
 		</div>
 			<script>
 				if(hasMiddleAd)

@@ -525,7 +525,7 @@ var App = function(aCanvas) {
 
 		// WebSocket
 		network = new Network();
-		network.getServerAndConnect();
+		network.connect();
 
 		// Speed Up Tutorial
 		speedupTutorial = new SpeedupTutorial();
