@@ -90,7 +90,7 @@ class Server {
                 key: fs.readFileSync(key)
             })
             this.secureServer = new WebSocket.Server({ server: server });
-            server.listen(serverId+1);
+            server.listen(ParseInt(serverId)+1);
         }
         this.unsecureServer = new WebSocket.Server({ port: serverId });
         
