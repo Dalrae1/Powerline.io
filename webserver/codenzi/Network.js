@@ -117,7 +117,7 @@ var Network = function () {
 		let remoteHost = window.location.href.split('/')[2].split(":")[0];
 		network.remoteHost = remoteHost
 		
-		let port = isSecure ? serverId+1 : serverId;
+		let port = isSecure ? parseInt(serverId)+1 : serverId;
 
 		let oldServerElm = document.getElementById(`server${network.serverId}`);
 		let serverElm = document.getElementById(`server${serverId}`);
