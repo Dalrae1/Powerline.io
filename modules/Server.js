@@ -84,7 +84,6 @@ class Server {
         let httpsServer
         let httpServer = HttpServer((req, res) => {
             if (req.method === "GET") {
-                console.log(req.url, `/server/${serverId}/info`,req.url === `/server/${serverId}/info`)
                 if (req.url === `/server/${serverId}/info`) {
                     res.writeHead(200, {
                         "Content-Type": "text/html",
