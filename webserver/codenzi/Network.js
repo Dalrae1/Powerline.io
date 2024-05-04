@@ -103,7 +103,7 @@ var Network = function () {
 		if (network.serverId == serverId && serverId != null) return;
 		if (!serverId) { // If no port is provided, find the last connected to server
 			let lastServer = window.localStorage.lastServer;
-			if (!lastServer) {
+			if (!lastServer || !document.getElementById(`server${serverId}`)) {
 				console.log("No last server found, connecting to default server")
 				serverId = 1337;
 			}
