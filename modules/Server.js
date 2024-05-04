@@ -111,7 +111,26 @@ class Server {
             httpsServer = HttpsServer({
                 cert: fs.readFileSync(cert),
                 key: fs.readFileSync(key)
-            })
+            }, (req, res) => {
+                if (req.method === "GET") {
+                    if (req.url === `/server/${serverId}/info`) {
+                        res.writeHead(200, {
+                            "Content-Type": "text/html",
+                            "Access-Control-Allow-Origin": "*"
+                        });
+                        let serverInfo = {
+                            playerCount: Object.keys(this.clients).length,
+                        }
+                        res.end(JSON.stringify(serverInfo));
+                    } else {
+                        res.writeHead(200, {
+                            "Content-Type": "text/html",
+                            "Access-Control-Allow-Origin": "*"
+                        });
+                        res.end("Salzling poo head");
+                    }
+                }
+            }).listen(86)
             this.secureServer = new WebSocket.Server({ server: httpsServer });
             httpsServer.listen(parseInt(serverId)+1);
         }

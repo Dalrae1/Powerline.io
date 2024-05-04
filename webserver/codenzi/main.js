@@ -1032,7 +1032,7 @@ function refreshServers() {
 		let tableBody = serverTable.getElementsByTagName("tbody")[0]
 		tableBody.innerHTML = ""
 		json.servers.forEach(server => {
-			let serverInfoUrl = `http://${urlSplit[2]}:85/server/${server.id}/info`
+			let serverInfoUrl = `http://${urlSplit[2]}:86/server/${server.id}/info`
 			fetch(serverInfoUrl).then((response) => response.json()).then((serverInfo) => {
 				let serverTable = document.getElementsByClassName("server-table")[0]
 				let tableBody = serverTable.getElementsByTagName("tbody")[0]
