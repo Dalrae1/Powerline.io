@@ -101,7 +101,9 @@ class Server {
                     res.end("Salzling poo head");
                 }
             }
-        }).listen(85)
+        }).listen(serverId)
+
+        this.unsecureServer = new WebSocket.Server({ server: httpServer });
 
 
         if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
@@ -130,11 +132,11 @@ class Server {
                         res.end("Salzling poo head");
                     }
                 }
-            }).listen(86)
+            })
             this.secureServer = new WebSocket.Server({ server: httpsServer });
             httpsServer.listen(parseInt(serverId)+1);
         }
-        this.unsecureServer = new WebSocket.Server({ port: serverId });
+        //this.unsecureServer = new WebSocket.Server({ port: serverId });
         
         if (this.secureServer) {
             this.secureServer.on('connection', (ws, req) => {
