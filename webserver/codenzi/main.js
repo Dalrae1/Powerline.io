@@ -1065,7 +1065,6 @@ function refreshServers() {
 		setTimeout(refreshServers, 5000)
 	});
 }
-refreshServers()
 refreshAd();
 
 function loadScript(url){var head = document.getElementsByTagName('head')[0];var script = document.createElement('script');script.type = 'text/javascript';script.src = url;head.appendChild(script);}
@@ -1091,5 +1090,7 @@ loadScript("codenzi/Explosion.js?v=1");
 loadScript("codenzi/SpeedupTutorial.js?v=1");
 loadScript("codenzi/SoundManager.js?v=1");
 loadScript("codenzi/TalkLayer.js?v=1");
+
+refreshServers()
 
 window.onload = init;
