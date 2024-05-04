@@ -24,6 +24,30 @@
                 "MaxRubSpeed": 200,
                 "DefaultLength": 10
             }
+        },
+        {
+            "name": "Modded Server",
+            "id": 1339,
+            "maxPlayers": 100,
+            "owner": "Dalrae",
+            "ipHash": "1",
+            "config:": {
+                "ConfigType": 100,
+                "ArenaSize": 50,
+                "DefaultZoom": 2,
+                "MinimumZoom": 1.5,
+                "MinimumZoomScore": 100,
+                "ZoomLevel2": 10,
+                "GlobalWebLag": 0,
+                "GlobalMobileLag": 60,
+                "OtherSnakeDelay": 40,
+                "IsTalkEnabled": 1,
+                "FoodValue": 3.0,
+                "UpdateInterval": 100,
+                "MaxBoostSpeed": 255,
+                "MaxRubSpeed": 200,
+                "DefaultLength": 10
+            }
         }
     ]
 }
