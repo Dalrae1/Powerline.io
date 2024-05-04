@@ -1024,6 +1024,8 @@ document.getElementById("overlay").onmousedown = function (e) {
     }
     return false; // Not needed, as long as you don't return false
 };
+
+let serverListDeb = false
 function refreshServers() {
 	if (!network) {
 		setTimeout(refreshServers, 500)
@@ -1062,9 +1064,12 @@ function refreshServers() {
 				buttonCell.appendChild(button)
 			})
 		})
-		if (!serverListLoaded)
-			network.connect()
 		serverListLoaded = true
+		if (!serverListDeb) {
+			serverListDeb = true
+			network.connect()
+		}
+		
 
 		setTimeout(refreshServers, 5000)
 	});
