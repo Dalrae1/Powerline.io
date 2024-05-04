@@ -39,8 +39,8 @@ class Food {
             for (let i = 0; i < 3; i++) {
                 setTimeout(() => {
                     snake.extraSpeed += 2;
-                    if (snake.extraSpeed > this.server.MaxBoostSpeed && !snake.speedBypass)
-                        snake.extraSpeed = this.server.MaxBoostSpeed;
+                    if (snake.extraSpeed > this.server.config.MaxBoostSpeed && !snake.speedBypass)
+                        snake.extraSpeed = this.server.config.MaxBoostSpeed;
                 }, this.server.UpdateInterval * 2 * i)
             }
         }

@@ -19,27 +19,11 @@ function getSegmentLength(point1, point2) {
 }
 
 class Server {
-    constructor(serverId) {
-        this.config = {
-            // Client config
-            ConfigType: Enums.ServerToClient.OPCODE_CONFIG,
-            ArenaSize: 300,
-            DefaultZoom: 2,
-            MinimumZoom: 1.5,
-            MinimumZoomScore: 100,
-            ZoomLevel2: 10,
-            GlobalWebLag: 90,
-            GlobalMobileLag: 60, // Not used
-            OtherSnakeDelay: 40,
-            IsTalkEnabled: 1,
-
-            // Server config
-            FoodValue: 1.5,
-            UpdateInterval: 100,
-            MaxBoostSpeed: 255,
-            MaxRubSpeed: 200,
-            DefaultLength: 10,
-        }
+    constructor(serverInfo) {
+        this.id = serverInfo.id;
+        this.name = serverInfo.name;
+        this.MaxPlayers = serverInfo.maxPlayers;
+        this.config = serverInfo.config;
 
         this.entityIDs = new IDManager();
         this.clientIDs = new IDManager();
@@ -84,7 +68,7 @@ class Server {
         let httpsServer
         let httpServer = HttpServer((req, res) => {
             if (req.method === "GET") {
-                if (req.url === `/server/${serverId}/info`) {
+                if (req.url === `/server/${this.id}/info`) {
                     res.writeHead(200, {
                         "Content-Type": "text/html",
                         "Access-Control-Allow-Origin": "*"
@@ -101,7 +85,7 @@ class Server {
                     res.end("Salzling poo head");
                 }
             }
-        }).listen(serverId)
+        }).listen(this.id)
 
         this.unsecureServer = new WebSocket.Server({ server: httpServer });
 
@@ -115,7 +99,7 @@ class Server {
                 key: fs.readFileSync(key)
             }, (req, res) => {
                 if (req.method === "GET") {
-                    if (req.url === `/server/${serverId}/info`) {
+                    if (req.url === `/server/${this.id}/info`) {
                         res.writeHead(200, {
                             "Content-Type": "text/html",
                             "Access-Control-Allow-Origin": "*"
@@ -134,9 +118,8 @@ class Server {
                 }
             })
             this.secureServer = new WebSocket.Server({ server: httpsServer });
-            httpsServer.listen(parseInt(serverId)+1);
+            httpsServer.listen(parseInt(this.id)+1);
         }
-        //this.unsecureServer = new WebSocket.Server({ port: serverId });
         
         if (this.secureServer) {
             this.secureServer.on('connection', (ws, req) => {

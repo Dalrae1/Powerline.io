@@ -22,7 +22,7 @@ class Client extends EventEmitter {
             ip = "::ffff:127.0.0.1"
             
         this.ip = (ip.toString()).split(":")[3];
-        console.log(`Client connected from "${this.ip}"`);
+        console.log(`Client connected to server ${server.name} from "${this.ip}"`);
 
 
     }
