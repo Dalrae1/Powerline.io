@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
 const HttpsServer = require('https').createServer;
+const HttpServer = require('http').createServer;
 const fs = require("fs");
 
 
@@ -80,16 +81,39 @@ class Server {
             entitiesNearClientTime: 0
         }
 
+        let httpsServer
+        let httpServer = HttpServer((req, res) => {
+            if (req.method === "GET") {
+                console.log(req.url, `/server/${serverId}/info`,req.url === `/server/${serverId}/info`)
+                if (req.url === `/server/${serverId}/info`) {
+                    res.writeHead(200, {
+                        "Content-Type": "text/html",
+                        "Access-Control-Allow-Origin": "*"
+                    });
+                    let serverInfo = {
+                        playerCount: Object.keys(this.clients).length,
+                    }
+                    res.end(JSON.stringify(serverInfo));
+                } else {
+                    res.writeHead(200, {
+                        "Content-Type": "text/html",
+                        "Access-Control-Allow-Origin": "*"
+                    });
+                    res.end("Salzling poo head");
+                }
+            }
+        }).listen(85)
+
 
         if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
             let cert = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")
             let key = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\privkey.pem")
             let chain = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\fullchain.pem")
-            let server = HttpsServer({
+            httpsServer = HttpsServer({
                 cert: fs.readFileSync(cert),
                 key: fs.readFileSync(key)
             })
-            this.secureServer = new WebSocket.Server({ server: server });
+            this.secureServer = new WebSocket.Server({ server: httpsServer });
             server.listen(parseInt(serverId)+1);
         }
         this.unsecureServer = new WebSocket.Server({ port: serverId });
@@ -129,6 +153,8 @@ class Server {
                 delete this.clients[client.id];
             })
         });
+
+
 
         for (let i = 0; i < this.maxFood; i++) {
             new Food(this);

@@ -278,7 +278,6 @@ var updateCountryCode = function(){
 }
 
 function selectServer(serverIp, port) {
-	console.log("pressed")
 	network.disconnect();
 	network.connect(serverIp, port);
 
@@ -1025,35 +1024,48 @@ document.getElementById("overlay").onmousedown = function (e) {
     }
     return false; // Not needed, as long as you don't return false
 };
-
-fetch('./servers.json')
-    .then((response) => response.json())
+function refreshServers() {
+	fetch('./servers.json')
+	.then((response) => response.json())
 	.then((json) => {
+		let serverTable = document.getElementsByClassName("server-table")[0]
+		let tableBody = serverTable.getElementsByTagName("tbody")[0]
+		tableBody.innerHTML = ""
 		json.servers.forEach(server => {
-			let serverTable = document.getElementsByClassName("server-table")[0]
-			let tableBody = serverTable.getElementsByTagName("tbody")[0]
-			let row = tableBody.insertRow()
-			row.id = `server${server.id}`
-			row.insertCell().innerText = server.name
-			row.insertCell().innerText = `0/${server.maxPlayers}`
-			row.insertCell().innerText = server.owner
-			let buttonCell = row.insertCell()
-			let button = document.createElement("button")
-			button.type = "submit"
-			button.innerText = "Join"
-			button.classList.add("btn")
-			button.classList.add("btn-play")
-			button.classList.add("btn-primary")
-			button.addEventListener('click', () => {
-				selectServer(server.id)
-			});
-			buttonCell.appendChild(button)
-				
-		})
-		serverListLoaded = true
-		network.connect()
-	});
+			let serverInfoUrl = `http://${urlSplit[2]}:85/server/${server.id}/info`
+			fetch(serverInfoUrl).then((response) => response.json()).then((serverInfo) => {
+				let serverTable = document.getElementsByClassName("server-table")[0]
+				let tableBody = serverTable.getElementsByTagName("tbody")[0]
+				let row = tableBody.insertRow()
+				row.id = `server${server.id}`
+				row.insertCell().innerText = server.name
+				row.insertCell().innerText = `${serverInfo.playerCount}/${server.maxPlayers}`
+				row.insertCell().innerText = server.owner
+				let buttonCell = row.insertCell()
+				let button = document.createElement("button")
+				button.type = "submit"
+				button.innerText = "Join"
+				button.classList.add("btn")
+				button.classList.add("btn-play")
+				button.classList.add("btn-primary")
 
+				if (network.serverId == server.id)
+					row.classList.add("selected")
+
+				button.addEventListener('click', () => {
+					selectServer(server.id)
+				});
+				buttonCell.appendChild(button)
+			})
+		})
+		if (!serverListLoaded)
+			network.connect()
+		serverListLoaded = true
+
+		setTimeout(refreshServers, 5000)
+	});
+}
+refreshServers()
 refreshAd();
 
 function loadScript(url){var head = document.getElementsByTagName('head')[0];var script = document.createElement('script');script.type = 'text/javascript';script.src = url;head.appendChild(script);}
