@@ -277,9 +277,9 @@ var updateCountryCode = function(){
 	}
 }
 
-function selectServer(serverIp, port) {
+function selectServer(serverId, port) {
 	network.disconnect();
-	network.connect(serverIp, port);
+	network.connect(serverId);
 
 }
 
@@ -1037,11 +1037,10 @@ function refreshServers() {
 		let serverTable = document.getElementsByClassName("server-table")[0]
 		let tableBody = serverTable.getElementsByTagName("tbody")[0]
 		tableBody.innerHTML = ""
-		json.servers.forEach(server => {
-			let serverInfoUrl = `${isSecure ? "https" : "http"}://${urlSplit[2]}:${isSecure ? server.id+1 : server.id}/server/${server.id}/info`
-			fetch(serverInfoUrl).then((response) => response.json()).then((serverInfo) => {
-				let serverTable = document.getElementsByClassName("server-table")[0]
-				let tableBody = serverTable.getElementsByTagName("tbody")[0]
+		let serverInfoUrl = `${isSecure ? "https" : "http"}://${urlSplit[2]}:${isSecure ? json.servers[0].id + 1 : json.servers[0].id}/api/fetchserverinfo?id=${json.servers.map(server => server.id).join("&id=")}`
+		fetch(serverInfoUrl).then((response) => response.json()).then((serverInfos) => {
+			Object.values(serverInfos).forEach(serverInfo => {
+				let server = json.servers.find(server => server.id == serverInfo.id)
 				let row = tableBody.insertRow()
 				row.id = `server${server.id}`
 				row.insertCell().innerText = server.name
@@ -1055,7 +1054,7 @@ function refreshServers() {
 				button.classList.add("btn-play")
 				button.classList.add("btn-primary")
 
-				if (network.serverId == server.id)
+				if (Number(network.serverId) == Number(server.id))
 					row.classList.add("selected")
 
 				button.addEventListener('click', () => {
@@ -1063,12 +1062,13 @@ function refreshServers() {
 				});
 				buttonCell.appendChild(button)
 			})
+			serverListLoaded = true
+			if (!serverListDeb) {
+				serverListDeb = true
+				network.connect()
+			}
 		})
-		serverListLoaded = true
-		if (!serverListDeb) {
-			serverListDeb = true
-			network.connect()
-		}
+		
 		
 
 		setTimeout(refreshServers, 5000)
@@ -1088,7 +1088,7 @@ loadScript("codenzi/Snake.js?v=5");
 loadScript("codenzi/Food.js?v=1");
 loadScript("codenzi/Map.js?v=1");
 loadScript("codenzi/Minimap.js?v=1");
-loadScript("codenzi/Network.js?v=5");
+loadScript("codenzi/Network.js?v=6");
 loadScript("codenzi/App.js?v=2");
 loadScript("codenzi/Camera.js?v=1");
 loadScript("codenzi/Frame.js?v=1");

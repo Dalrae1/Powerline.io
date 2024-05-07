@@ -45,10 +45,12 @@ customPlayerColors = {
 
 
 var obj;
+
+Servers = []
 fs.readFile('./webserver/servers.json', 'utf8', function (err, data) {
   if (err) throw err;
     let servers = JSON.parse(data);
     servers.servers.forEach(server => {
-        new Server(server);
+        Servers[server.id] = new Server(server);
     })
 });

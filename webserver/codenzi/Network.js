@@ -100,17 +100,18 @@ var Network = function () {
 
 	this.connect = function (serverId) {
 		if (!serverListLoaded) return
-		if (network.serverId == serverId && serverId != null) return;
 		if (!serverId) { // If no port is provided, find the last connected to server
 			let lastServer = window.localStorage.lastServer;
-			if (!lastServer || !document.getElementById(`server${serverId}`)) {
+			if (!lastServer || !document.getElementById(`server${lastServer}`)) {
 				console.log("No last server found, connecting to default server")
 				serverId = 1337;
 			}
 			else {
 				serverId = lastServer;
 			}
+			if (network.serverId == serverId) return;
 		}
+		network.disconnect()
 		window.localStorage.lastServer = serverId;
 		console.log("Attempting to connect to " + serverId)
 		var protocol = isSecure ? 'wss' : 'ws';
@@ -125,7 +126,7 @@ var Network = function () {
 			oldServerElm.classList.remove("selected");
 		serverElm.classList.add("selected");
 		var fullhost = `${protocol}://${remoteHost}:${port}`
-
+		
 		network.serverId = serverId;
 
 		webSocket = new WebSocket(fullhost);

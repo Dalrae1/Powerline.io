@@ -18,6 +18,25 @@ function getSegmentLength(point1, point2) {
     return Math.abs(Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)));
 }
 
+let defaultConfig = {
+    "ConfigType": 160,
+    "ArenaSize": 300,
+    "DefaultZoom": 2,
+    "MinimumZoom": 1.5,
+    "MinimumZoomScore": 100,
+    "ZoomLevel2": 10,
+    "GlobalWebLag": 90,
+    "GlobalMobileLag": 60,
+    "OtherSnakeDelay": 40,
+    "IsTalkEnabled": 1,
+
+    "FoodValue": 1.5, 
+    "UpdateInterval": 100,
+    "MaxBoostSpeed": 255,
+    "MaxRubSpeed": 200,
+    "DefaultLength": 10
+}
+
 class Server {
     constructor(serverInfo) {
         this.id = serverInfo.id;
@@ -33,8 +52,8 @@ class Server {
             width: this.config.ArenaSize,
             height: this.config.ArenaSize
         }, 10)
-
-        this.scoreMultiplier = 10/this.config.FoodValue;
+        
+        this.scoreMultiplier = 10/defaultConfig.FoodValue;
         this.foodMultiplier = 1;
         this.maxFood = this.config.ArenaSize * 5;
         this.foodSpawnPercent = (this.config.ArenaSize ^ 2) / 10;
@@ -68,27 +87,45 @@ class Server {
         let httpsServer
         let httpServer = HttpServer((req, res) => {
             if (req.method === "GET") {
-                if (req.url === `/server/${this.id}/info`) {
-                    res.writeHead(200, {
-                        "Content-Type": "text/html",
-                        "Access-Control-Allow-Origin": "*"
-                    });
-                    let serverInfo = {
-                        playerCount: Object.keys(this.clients).length,
-                    }
-                    res.end(JSON.stringify(serverInfo));
-                } else {
-                    res.writeHead(200, {
-                        "Content-Type": "text/html",
-                        "Access-Control-Allow-Origin": "*"
-                    });
-                    res.end(`
-                    <meta property="og:title" content="Dalrae" />
-                    <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
-                    <meta property="og:url" content="https://dalr.ae" />
-                    Salzling poo head
-                    
-                    `);
+                switch (req.url.split("?")[0]) {
+                    case `/server/${this.id}/info`:
+                        res.writeHead(200, {
+                            "Content-Type": "text/html",
+                            "Access-Control-Allow-Origin": "*"
+                        });
+                        var serverInfo = {
+                            playerCount: Object.keys(this.snakes).length,
+                        }
+                        res.end(JSON.stringify(serverInfo));
+                        break
+                    case `/api/fetchserverinfo`:
+                        res.writeHead(200, {
+                            "Content-Type": "text/html",
+                            "Access-Control-Allow-Origin": "*"
+                        });
+                        let serverIds = req.url.split("?")[1].split("&").map((id) => id.split("=")[1]);
+                        var serverInfo = {}
+                        serverIds.forEach((id) => {
+                            serverInfo[id] = {
+                                id: id,
+                                playerCount: Object.keys(Servers[id].snakes).length,
+                            }
+                        })
+                        res.end(JSON.stringify(serverInfo));
+                        break
+                    default:
+                        res.writeHead(200, {
+                            "Content-Type": "text/html",
+                            "Access-Control-Allow-Origin": "*"
+                        });
+                        res.end(`
+                        <meta property="og:title" content="Dalrae" />
+                        <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
+                        <meta property="og:url" content="https://dalr.ae" />
+                        Salzling poo head
+                        
+                        `);
+                        break;
                 }
             }
         }).listen(this.id)
