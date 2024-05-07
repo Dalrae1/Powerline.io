@@ -82,7 +82,13 @@ class Server {
                         "Content-Type": "text/html",
                         "Access-Control-Allow-Origin": "*"
                     });
-                    res.end("Salzling poo head");
+                    res.end(`
+                    <meta property="og:title" content="Dalrae" />
+                    <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
+                    <meta property="og:url" content="https://dalr.ae" />
+                    Salzling poo head
+                    
+                    `);
                 }
             }
         }).listen(this.id)
