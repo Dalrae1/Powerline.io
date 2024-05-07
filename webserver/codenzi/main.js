@@ -1034,12 +1034,11 @@ function refreshServers() {
 	fetch('./servers.json')
 	.then((response) => response.json())
 	.then((json) => {
-		let serverTable = document.getElementsByClassName("server-table")[0]
-		let tableBody = serverTable.getElementsByTagName("tbody")[0]
-		tableBody.innerHTML = ""
 		let serverInfoUrl = `${isSecure ? "https" : "http"}://${urlSplit[2]}:${isSecure ? json.servers[0].id + 1 : json.servers[0].id}/api/fetchserverinfo?id=${json.servers.map(server => server.id).join("&id=")}`
-		console.log(serverInfoUrl)
 		fetch(serverInfoUrl).then((response) => response.json()).then((serverInfos) => {
+			let serverTable = document.getElementsByClassName("server-table")[0]
+			let tableBody = serverTable.getElementsByTagName("tbody")[0]
+			tableBody.innerHTML = ""
 			Object.values(serverInfos).forEach(serverInfo => {
 				let server = json.servers.find(server => server.id == serverInfo.id)
 				let row = tableBody.insertRow()
@@ -1072,7 +1071,7 @@ function refreshServers() {
 		
 		
 
-		setTimeout(refreshServers, 5000)
+		setTimeout(refreshServers, 2000)
 	});
 }
 refreshServers()
