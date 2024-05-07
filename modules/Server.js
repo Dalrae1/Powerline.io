@@ -142,21 +142,45 @@ class Server {
                 key: fs.readFileSync(key)
             }, (req, res) => {
                 if (req.method === "GET") {
-                    if (req.url === `/server/${this.id}/info`) {
-                        res.writeHead(200, {
-                            "Content-Type": "text/html",
-                            "Access-Control-Allow-Origin": "*"
-                        });
-                        let serverInfo = {
-                            playerCount: Object.keys(this.clients).length,
-                        }
-                        res.end(JSON.stringify(serverInfo));
-                    } else {
-                        res.writeHead(200, {
-                            "Content-Type": "text/html",
-                            "Access-Control-Allow-Origin": "*"
-                        });
-                        res.end("Salzling poo head");
+                    switch (req.url.split("?")[0]) {
+                        case `/server/${this.id}/info`:
+                            res.writeHead(200, {
+                                "Content-Type": "text/html",
+                                "Access-Control-Allow-Origin": "*"
+                            });
+                            var serverInfo = {
+                                playerCount: Object.keys(this.snakes).length,
+                            }
+                            res.end(JSON.stringify(serverInfo));
+                            break
+                        case `/api/fetchserverinfo`:
+                            res.writeHead(200, {
+                                "Content-Type": "text/html",
+                                "Access-Control-Allow-Origin": "*"
+                            });
+                            let serverIds = req.url.split("?")[1].split("&").map((id) => id.split("=")[1]);
+                            var serverInfo = {}
+                            serverIds.forEach((id) => {
+                                serverInfo[id] = {
+                                    id: id,
+                                    playerCount: Object.keys(Servers[id].snakes).length,
+                                }
+                            })
+                            res.end(JSON.stringify(serverInfo));
+                            break
+                        default:
+                            res.writeHead(200, {
+                                "Content-Type": "text/html",
+                                "Access-Control-Allow-Origin": "*"
+                            });
+                            res.end(`
+                        <meta property="og:title" content="Dalrae" />
+                        <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
+                        <meta property="og:url" content="https://dalr.ae" />
+                        Salzling poo head
+                        
+                        `);
+                            break;
                     }
                 }
             })
