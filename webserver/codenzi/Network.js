@@ -113,7 +113,6 @@ var Network = function () {
 		}
 		network.disconnect()
 		window.localStorage.lastServer = serverId;
-		console.log("Attempting to connect to " + serverId)
 		var protocol = isSecure ? 'wss' : 'ws';
 		let remoteHost = window.location.href.split('/')[2].split(":")[0];
 		network.remoteHost = remoteHost
@@ -126,6 +125,8 @@ var Network = function () {
 			oldServerElm.classList.remove("selected");
 		serverElm.classList.add("selected");
 		var fullhost = `${protocol}://${remoteHost}:${port}`
+
+		console.log(`Attempting to connect to server id ${serverId} host is "${fullhost}"`)
 		
 		network.serverId = serverId;
 
