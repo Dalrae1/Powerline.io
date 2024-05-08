@@ -38,7 +38,7 @@
                 "MinimumZoom": 1.5,
                 "MinimumZoomScore": 100,
                 "ZoomLevel2": 10,
-                "GlobalWebLag": 10,
+                "GlobalWebLag": 90,
                 "GlobalMobileLag": 60,
                 "OtherSnakeDelay": 40,
                 "IsTalkEnabled": 1,
