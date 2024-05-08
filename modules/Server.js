@@ -119,9 +119,11 @@ class Server {
                             "Access-Control-Allow-Origin": "*"
                         });
                         res.end(`
-                        <meta property="og:title" content="Dalrae" />
-                        <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
-                        <meta property="og:url" content="https://dalr.ae" />
+                        <head>
+                            <meta property="og:title" content="Dalrae" />
+                            <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
+                            <meta property="og:url" content="https://dalr.ae" />
+                        </head>
                         Salzling poo head
                         
                         `);
@@ -174,9 +176,11 @@ class Server {
                                 "Access-Control-Allow-Origin": "*"
                             });
                             res.end(`
-                        <meta property="og:title" content="Dalrae" />
-                        <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
-                        <meta property="og:url" content="https://dalr.ae" />
+                        <head>
+                            <meta property="og:title" content="Dalrae" />
+                            <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
+                            <meta property="og:url" content="https://dalr.ae" />
+                        </head>
                         Salzling poo head
                         
                         `);
