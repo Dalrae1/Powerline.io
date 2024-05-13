@@ -1,6 +1,7 @@
 const Enums = require("./Enums.js");
 const MapFunctions = require("./MapFunctions.js");
 const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
+const GlobalFunctions = require("./GlobalFunctions.js")
 const Food = require("./Food.js");
 const AVLTree = require("./AVLTree.js");
 
@@ -93,10 +94,7 @@ class Snake {
             offset += 2;
             BitView.setUint32(offset, (snake.actualLength - this.server.config.DefaultLength) * this.server.scoreMultiplier, true);
             offset += 4;
-            for (var characterIndex = 0; characterIndex < snake.nick.length; characterIndex++) {
-                BitView.setUint16(offset + characterIndex * 2, snake.nick.charCodeAt(characterIndex), true);
-            }
-            offset += (1 + snake.nick.length) * 2;
+            BitView, offset = GlobalFunctions.SetNick(BitView, offset, this.nick)
             BitView.setUint16(offset, 0, true);
         }
         BitView.setUint16(offset, 0x0, true);
@@ -268,19 +266,7 @@ class Snake {
             offset += 1;
             Bit8.setUint16(offset, 0, true); //(ID?), unused.
             offset += 2;
-            for (
-              var characterIndex = 0;
-              characterIndex < this.nick.length;
-              characterIndex++
-            ) {
-              Bit8.setUint16(
-                offset + characterIndex * 2,
-                this.nick.charCodeAt(characterIndex),
-                true
-              );
-            }
-
-            offset = global.getString(Bit8, offset).offset;
+            Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, this.nick)
             killedBy.network.send(Bit8);
             // Send "Killed By"
             var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
@@ -290,18 +276,7 @@ class Snake {
             offset += 1;
             Bit8.setUint16(offset, 0, true); //(ID?), unused.
             offset += 2;
-            for (
-                var characterIndex = 0;
-                characterIndex < killedBy.nick.length;
-                characterIndex++
-            ) {
-                Bit8.setUint16(
-                offset + characterIndex * 2,
-                killedBy.nick.charCodeAt(characterIndex),
-                true
-                );
-            }
-            offset = global.getString(Bit8, offset).offset;
+            Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, this.nick)
             this.network.send(Bit8);
         }
         // Update other snakes

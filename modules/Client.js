@@ -2,6 +2,7 @@ const Enums = require('./Enums.js');
 const Snake = require('./Snake.js');
 const Food = require('./Food.js');
 const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
+const GlobalFunctions = require("./GlobalFunctions.js")
 const EventEmitter = require("events");
 const { time } = require('console');
 
@@ -603,10 +604,7 @@ class Client extends EventEmitter {
                         Bit8.setUint8(offset, entity.subtype || 0, true);
                         offset += 1;
                         if (entity.type == Enums.EntityTypes.ENTITY_PLAYER) {
-                            for (var characterIndex = 0; characterIndex < entity.nick.length; characterIndex++) {
-                                Bit8.setUint16(offset + characterIndex * 2, entity.nick.charCodeAt(characterIndex), true);
-                            }
-                            offset += (1 + entity.nick.length) * 2;
+                            Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, entity.nick)
                         } else {
                             Bit8.setUint16(offset, 0, true);
                             offset += 2;
