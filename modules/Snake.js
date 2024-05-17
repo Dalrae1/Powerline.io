@@ -94,7 +94,7 @@ class Snake {
             offset += 2;
             BitView.setUint32(offset, (snake.actualLength - this.server.config.DefaultLength) * this.server.scoreMultiplier, true);
             offset += 4;
-            BitView, offset = GlobalFunctions.SetNick(BitView, offset, this.nick)
+            BitView, offset = GlobalFunctions.SetNick(BitView, offset, snake.nick)
             BitView.setUint16(offset, 0, true);
         }
         BitView.setUint16(offset, 0x0, true);
