@@ -276,7 +276,7 @@ class Snake {
             offset += 1;
             Bit8.setUint16(offset, 0, true); //(ID?), unused.
             offset += 2;
-            Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, this.nick)
+            Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, killedBy.nick)
             this.network.send(Bit8);
         }
         // Update other snakes
