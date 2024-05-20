@@ -223,6 +223,10 @@ if(!inGameSpeedTutorial)
 //if(queryString['na']){
 	//showAds = false;
 //}
+nextConnectServer
+if (queryString['server']) {
+	nextConnectServer = queryString['server']
+}
 
 if(window.localStorage.lq == 'true'){
 	highQuality = false;

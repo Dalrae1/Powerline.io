@@ -100,6 +100,10 @@ var Network = function () {
 
 	this.connect = function (serverId) {
 		if (!serverListLoaded) return
+		if (nextConnectServer) {
+			serverId = nextConnectServer;
+			nextConnectServer = null;
+		}
 		if (!serverId) { // If no port is provided, find the last connected to server
 			let lastServer = window.localStorage.lastServer;
 			if (!lastServer || !document.getElementById(`server${lastServer}`)) {
