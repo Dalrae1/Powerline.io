@@ -1,10 +1,16 @@
 <?php
-$json = file_get_contents('php://input');
-$myfile = fopen("testfile.txt", "w");
-fwrite($myfile, $json);
-fclose($myfile);
-// decode the json data
-$data = json_decode($json);
+$json = file_get_contents("testfile.txt");
+$a = json_decode($json);
+$token = $json;
+$jwt = base64_decode(str_replace('_', '/', str_replace('-','+',explode('.', $token)[1])));
+$user_info = json_decode($jwt, true);
+
+
+$usersFile = fopen("users.json", "w");
+$users = json_decode(file_get_contents("users.json"), true);
+$users[$user_info['email']] = $user_info;
+fwrite($usersFile, json_encode($users));
+fclose($usersFile);
 
 
 ?>
