@@ -29,3 +29,9 @@ html{background:#031c1e}a{margin:0;color:#0bf}a:visited{color:#0bf}.input-nick::
 .selected {
     background-color: rgb(0, 133, 133);
 }
+
+#google_login_wrapper {
+    position: absolute;
+    top: 0%;
+    z-index: 3;
+}
