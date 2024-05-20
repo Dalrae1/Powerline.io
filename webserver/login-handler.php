@@ -1,6 +1,6 @@
 <?php
 $json = file_get_contents('php://input');
-$myfile = fopen("testfile.txt", "w") 
+$myfile = fopen("testfile.txt", "w");
 fwrite($myfile, $json);
 fclose($myfile);
 // decode the json data
