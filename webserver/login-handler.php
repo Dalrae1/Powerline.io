@@ -11,4 +11,6 @@ $users = json_decode(file_get_contents("users.json"), true);
 $users[$user_info['email']] = $user_info;
 fwrite($usersFile, json_encode($users));
 fclose($usersFile);
+
+header('Location: https://dalr.ae');
 ?>
