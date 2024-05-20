@@ -223,7 +223,7 @@ if(!inGameSpeedTutorial)
 //if(queryString['na']){
 	//showAds = false;
 //}
-nextConnectServer
+nextConnectServer = null
 if (queryString['server']) {
 	nextConnectServer = queryString['server']
 }
