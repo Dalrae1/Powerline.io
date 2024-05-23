@@ -1,4 +1,4 @@
-var Map = function() {
+var Mapp = function() {
 	var map = this;
 
 	var scale = 10.0;

@@ -507,7 +507,7 @@ var App = function(aCanvas) {
 
 		resizeCanvas();
 
-		map = new Map();
+		map = new Mapp();
 		//map.loadColliders('map.io.client');
 
 		// Animation Manager
