@@ -90,6 +90,8 @@ class Snake {
                 continue
             if (count == 1)
                 this.server.king = snake;
+            if (!snake.nick)
+                continue
             BitView.setUint16(offset, snake.id, true);
             offset += 2;
             BitView.setUint32(offset, (snake.actualLength - this.server.config.DefaultLength) * this.server.scoreMultiplier, true);
