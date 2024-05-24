@@ -61,7 +61,7 @@ class Client extends EventEmitter {
                 if (nick.string.length > 25)
                     return
                 if (!this.snake || !this.snake.spawned) {
-                    this.snake = new Snake(this, nick.string);
+                    this.snake = new Snake(this, nick.string || "");
 
                 }
                 break;
