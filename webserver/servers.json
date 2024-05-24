@@ -33,7 +33,7 @@
             "ipHash": "1",
             "config": {
                 "ConfigType": 160,
-                "ArenaSize": 600,
+                "ArenaSize": 400,
                 "DefaultZoom": 2,
                 "MinimumZoom": 1.5,
                 "MinimumZoomScore": 100,
