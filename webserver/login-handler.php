@@ -359,9 +359,19 @@ try {
         }
     }
 
+    if (isset($_COOKIE['session_id'])) { // If user already has a session on this browser, refresh it
+        $session_id = $_COOKIE['session_id'];
+        $existing_user = GetUserFromSession($session_id);
+        if ($existing_user && $existing_user['userid'] == $user['userid']) {
+            setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
+            header('Location: https://dalr.ae');
+            exit();
+        }
+    }
+
     $session_id = CreateSessionForUser($user['userid']);
     if (strlen($session_id) == 30) {
-        echo "Session created successfully with ID: $session_id<br>";
+        setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
     } else {
         LogError($session_id);
         exit();
