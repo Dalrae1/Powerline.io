@@ -8,7 +8,7 @@ const { time } = require('console');
 
 
 class Client extends EventEmitter {
-    constructor(server, websocket, ip) {
+    constructor(server, websocket, userid) {
         super();
         this.server = server
         this.socket = websocket;
@@ -19,11 +19,9 @@ class Client extends EventEmitter {
         this.dead = true
         this.pointsNearby = {};
         server.clients[this.id] = this;
-        if (ip.toString() == "::1") // Set IP to local
-            ip = "::ffff:127.0.0.1"
             
-        this.ip = (ip.toString()).split(":")[3];
-        console.log(`Client connected to server ${server.name} from "${this.ip}"`);
+        this.userid = userid.toString()
+        console.log(`Client connected to server ${server.name} from user "${this.userid}"`);
 
 
     }
@@ -95,7 +93,7 @@ class Client extends EventEmitter {
                 this.pingLoop();
                 break
             case Enums.ClientToServer.OPCODE_BOOST:
-                if (this.server.admins.includes(this.snake.ip)) {
+                if (this.server.admins.includes(this.snake.userid)) {
                     let boosting = view.getUint8(1) == 1
                     if (boosting) {
                         this.snake.extraSpeed += 2;
@@ -110,11 +108,11 @@ class Client extends EventEmitter {
                 }
                 break;
             case Enums.ClientToServer.OPCODE_DEBUG_GRAB:
-                if (this.server.admins.includes(this.snake.ip))
+                if (this.server.admins.includes(this.snake.userid))
                     this.snake.length += SnakeFunctions.ScoreToLength(this.server, 1000);
                 break;
             case 0x0d: // Invincible
-                if (this.server.admins.includes(this.snake.ip))
+                if (this.server.admins.includes(this.snake.userid))
                     this.snake.invincible = view.getUint8(1, true) == 1;
             
                 break;
@@ -126,7 +124,7 @@ class Client extends EventEmitter {
                 if (!commandArgs[0])
                     return
                 commandArgs[0] = commandArgs[0].toLowerCase();
-                if (this.server.admins.includes(this.snake.ip) || commandArgs[0] == "say") {
+                if (this.server.admins.includes(this.snake.userid) || commandArgs[0] == "say") {
                     console.log(`Executing command "${command}" from ${this.snake.nick}`);
                     switch (commandArgs[0]) {
                         case "arenasize":

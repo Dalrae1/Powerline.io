@@ -12,6 +12,9 @@ const MapFunctions = require("./MapFunctions.js");
 const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
 const Quadtree = require("./Quadtree.js");
 const Client = require("./Client.js");
+const DatabaseFunctions = require("./DatabaseFunctions.js");
+
+let DBFunctions = new DatabaseFunctions();
 
 
 function getSegmentLength(point1, point2) {
@@ -64,8 +67,7 @@ class Server {
         this.king = null;
         this.lastUpdate = 0;
         this.admins = [
-            "73.96.77.58",
-            "127.0.0.1",
+            "1",
         ];
         this.entities = [];
         this.clients = [];
@@ -194,38 +196,100 @@ class Server {
         
         if (this.secureServer) {
             this.secureServer.on('connection', (ws, req) => {
-                let client = new Client(this, ws, req.socket.remoteAddress);
-                ws.on('message', async function incoming(message, req) {
-                    let view = new DataView(new Uint8Array(message).buffer);
-                    let messageType = view.getUint8(0);
-                    client.RecieveMessage(messageType, view)
-                })
-                ws.on('close', () => {
-                    if (client.snake && client.snake.id) {
-                        client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
+                let cookies = req.headers.cookie;
+                let session;
+
+                if (cookies) {
+                    let sessionCookie = cookies.split(";").find((cookie) => cookie.includes("session_id="));
+                    if (sessionCookie) {
+                        session = sessionCookie.split("=")[1];
                     }
-                    this.clientIDs.releaseID(client.id)
-                    delete this.clients[client.id];
-                })
+                }
+                if (session) {
+                    DBFunctions.GetUserFromSession(session).then((userID) => {
+                        let client = new Client(this, ws, userID);
+                        ws.on('message', async function incoming(message, req) {
+                            let view = new DataView(new Uint8Array(message).buffer);
+                            let messageType = view.getUint8(0);
+                            client.RecieveMessage(messageType, view)
+                        })
+                        ws.on('close', () => {
+                            if (client.snake && client.snake.id) {
+                                client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
+                            }
+                            this.clientIDs.releaseID(client.id)
+                            delete this.clients[client.id];
+                        })
+
+                    }).catch((err) => {
+                        console.error("Error: "+err)
+                    })
+                }
+                else {
+                    let client = new Client(this, ws, -1);
+                    ws.on('message', async function incoming(message, req) {
+                        let view = new DataView(new Uint8Array(message).buffer);
+                        let messageType = view.getUint8(0);
+                        client.RecieveMessage(messageType, view)
+                    })
+                    ws.on('close', () => {
+                        if (client.snake && client.snake.id) {
+                            client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
+                        }
+                        this.clientIDs.releaseID(client.id)
+                        delete this.clients[client.id];
+                    })
+                }
             });
         }
 
         this.unsecureServer.on('connection', (ws, req) => {
-            let client = new Client(this, ws, req.socket.remoteAddress);
-            
-            ws.on('message', async function incoming(message, req) {
-                let view = new DataView(new Uint8Array(message).buffer);
-                let messageType = view.getUint8(0);
-                client.RecieveMessage(messageType, view)
-            })
-            ws.on('close', () => {
-                if (client.snake && client.snake.id) {
-                    client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
-                    
+            this.secureServer.on('connection', (ws, req) => {
+                let cookies = req.headers.cookie;
+                let session;
+
+                if (cookies) {
+                    let sessionCookie = cookies.split(";").find((cookie) => cookie.includes("session_id="));
+                    if (sessionCookie) {
+                        session = sessionCookie.split("=")[1];
+                    }
                 }
-                this.clientIDs.releaseID(client.id)
-                delete this.clients[client.id];
-            })
+                if (session) {
+                    DBFunctions.GetUserFromSession(session).then((userID) => {
+                        let client = new Client(this, ws, userID);
+                        ws.on('message', async function incoming(message, req) {
+                            let view = new DataView(new Uint8Array(message).buffer);
+                            let messageType = view.getUint8(0);
+                            client.RecieveMessage(messageType, view)
+                        })
+                        ws.on('close', () => {
+                            if (client.snake && client.snake.id) {
+                                client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
+                            }
+                            this.clientIDs.releaseID(client.id)
+                            delete this.clients[client.id];
+                        })
+
+                    }).catch((err) => {
+                        console.error("Error: "+err)
+                    })
+                }
+                else {
+                    let client = new Client(this, ws, -1);
+                    ws.on('message', async function incoming(message, req) {
+                        let view = new DataView(new Uint8Array(message).buffer);
+                        let messageType = view.getUint8(0);
+                        client.RecieveMessage(messageType, view)
+                    })
+                    ws.on('close', () => {
+                        if (client.snake && client.snake.id) {
+                            client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
+                        }
+                        this.clientIDs.releaseID(client.id)
+                        delete this.clients[client.id];
+                    })
+                }
+            });
         });
 
 

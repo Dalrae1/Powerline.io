@@ -17,7 +17,7 @@ class Snake {
         this.client = network;
         this.server = network.server;
         this.network = network.socket;
-        this.ip = network.ip;
+        this.userid = network.userid;
         this.client.dead = false;
         this.client.sendConfig();
         this.flags |= Enums.EntityFlags.DEBUG
