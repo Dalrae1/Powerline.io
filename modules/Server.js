@@ -207,7 +207,10 @@ class Server {
                 }
                 if (session) {
                     DBFunctions.GetUserFromSession(session).then((userID) => {
-                        let client = new Client(this, ws, userID);
+                        let client = null
+                        if (!userID) {
+                            client = new Client(this, ws, -1);
+                        }
                         ws.on('message', async function incoming(message, req) {
                             let view = new DataView(new Uint8Array(message).buffer);
                             let messageType = view.getUint8(0);
@@ -256,7 +259,11 @@ class Server {
                 }
                 if (session) {
                     DBFunctions.GetUserFromSession(session).then((userID) => {
-                        let client = new Client(this, ws, userID);
+                        let client = null
+                        if (!userID) {
+                            client = new Client(this, ws, -1);
+                        }
+                        client = new Client(this, ws, userID);
                         ws.on('message', async function incoming(message, req) {
                             let view = new DataView(new Uint8Array(message).buffer);
                             let messageType = view.getUint8(0);
