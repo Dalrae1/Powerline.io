@@ -250,44 +250,24 @@ class Server {
         }
 
         this.unsecureServer.on('connection', (ws, req) => {
-            this.secureServer.on('connection', (ws, req) => {
-                let cookies = req.headers.cookie;
-                let session;
+            let cookies = req.headers.cookie;
+            let session;
 
-                if (cookies) {
-                    let sessionCookie = cookies.split(";").find((cookie) => cookie.includes("session_id="));
-                    if (sessionCookie) {
-                        session = sessionCookie.split("=")[1];
+            if (cookies) {
+                let sessionCookie = cookies.split(";").find((cookie) => cookie.includes("session_id="));
+                if (sessionCookie) {
+                    session = sessionCookie.split("=")[1];
+                }
+            }
+            if (session) {
+                DBFunctions.GetUserFromSession(session).then((userID) => {
+                    let client = null
+                    if (userID) {
+                        client = new Client(this, ws, userID);
                     }
-                }
-                if (session) {
-                    DBFunctions.GetUserFromSession(session).then((userID) => {
-                        let client = null
-                        if (userID) {
-                            client = new Client(this, ws, userID);
-                        }
-                        else {
-                            client = new Client(this, ws, -1);
-                        }
-                        ws.on('message', async function incoming(message, req) {
-                            let view = new DataView(new Uint8Array(message).buffer);
-                            let messageType = view.getUint8(0);
-                            client.RecieveMessage(messageType, view)
-                        })
-                        ws.on('close', () => {
-                            if (client.snake && client.snake.id) {
-                                client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
-                            }
-                            this.clientIDs.releaseID(client.id)
-                            delete this.clients[client.id];
-                        })
-
-                    }).catch((err) => {
-                        console.error("Error: "+err)
-                    })
-                }
-                else {
-                    let client = new Client(this, ws, -1);
+                    else {
+                        client = new Client(this, ws, -1);
+                    }
                     ws.on('message', async function incoming(message, req) {
                         let view = new DataView(new Uint8Array(message).buffer);
                         let messageType = view.getUint8(0);
@@ -300,8 +280,26 @@ class Server {
                         this.clientIDs.releaseID(client.id)
                         delete this.clients[client.id];
                     })
-                }
-            });
+
+                }).catch((err) => {
+                    console.error("Error: "+err)
+                })
+            }
+            else {
+                let client = new Client(this, ws, -1);
+                ws.on('message', async function incoming(message, req) {
+                    let view = new DataView(new Uint8Array(message).buffer);
+                    let messageType = view.getUint8(0);
+                    client.RecieveMessage(messageType, view)
+                })
+                ws.on('close', () => {
+                    if (client.snake && client.snake.id) {
+                        client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
+                    }
+                    this.clientIDs.releaseID(client.id)
+                    delete this.clients[client.id];
+                })
+            }
         });
 
 
