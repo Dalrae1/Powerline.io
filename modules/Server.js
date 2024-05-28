@@ -68,6 +68,7 @@ class Server {
         this.lastUpdate = 0;
         this.admins = [
             "1",
+            "3"
         ];
         this.entities = [];
         this.clients = [];
