@@ -32,6 +32,8 @@ html{background:#031c1e}a{margin:0;color:#0bf}a:visited{color:#0bf}.input-nick::
 
 #google_login_wrapper {
     position: absolute;
+    left: 100%;
+    transform:translate(-100%,0);
     top: 0%;
     z-index: 3;
 }

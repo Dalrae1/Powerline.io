@@ -232,6 +232,46 @@ if(window.localStorage.lq == 'true'){
 	highQuality = false;
 }
 
+
+// Google sign in stuff
+var auth2;
+var googleUser; // The current user
+
+gapi.load('auth2', function(){
+    auth2 = gapi.auth2.init({
+        client_id: '173521008548-st7p20himg41f1o1s2j3mgo9851qoj4j.apps.googleusercontent.com'
+    });
+    auth2.attachClickHandler('google_login_wrapper', {}, onSuccess, onFailure);
+
+    auth2.isSignedIn.listen(signinChanged);
+    auth2.currentUser.listen(userChanged); // This is what you use to listen for user changes
+});  
+
+var signinChanged = function (val) {
+    console.log('Signin state changed to ', val);
+};
+
+var onSuccess = function(user) {
+    console.log('Signed in as ' + user.getBasicProfile().getName());
+    // Redirect somewhere
+};
+
+var onFailure = function(error) {
+    console.log(error);
+};
+
+function signOut() {
+    auth2.signOut().then(function () {
+        console.log('User signed out.');
+    });
+}        
+
+var userChanged = function (user) {
+    if(user.getId()){
+      // Do something here
+    }
+};
+
 // Show updated stamp if needed
 //if(window.localStorage.version != undefined || window.localStorage.version < version)
 //{

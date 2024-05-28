@@ -92,6 +92,9 @@
 			});
 		}
 	</script>
+
+	<script src="https://apis.google.com/js/platform.js"></script>
+
 	</head>
 	<body data-feedly-mini="yes">
 		<canvas id="canvas"></canvas>
@@ -213,6 +216,10 @@
 		            	$('#ldr-top').css('bottom', "17%");
 		        }
         	</script>
+
+			<div class="basic-text" style="position:absolute; left:100%; white-space: nowrap; transform: translate(-100%, 0%); display: hidden">
+				Signed in as <span id="google_login_name">NONE</span> (<a href="#" id="google_logout">Sign out</a>)
+			</div>
 
 	        <footer class="leftBottomBox">
 			<a href="http://iogames.space" target="_blank"><font class="basic-text2" style="font-weight:bold;font-size:15px;">MORE IO GAMES</font></a> <font style="font-weight:bold;font-size:15px;"></a> • <a href="javascript:toggleGraphics();"><font id="graphicsID" class="basic-text2"  style="font-weight:bold;font-size:15px;">GRAPHICS: HIGH</font></a>
