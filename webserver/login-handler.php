@@ -161,8 +161,9 @@ function verifyGoogleToken($idToken, $clientId) {
 }
 
 // SQL Functions
+$localIP = getHostByName(getHostName());
 
-$db_host        = 'dalr.ae';
+$db_host        = $localIP == "10.0.0.170" ? 'dalr.ae' : "localhost";
 $db_user        = 'powerline';
 $db_pass        = '';
 $db_database    = 'powerline'; 

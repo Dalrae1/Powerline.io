@@ -1,14 +1,23 @@
 const mysql = require('mysql');
+let os = require('os');
+let networkInterfaces = os.networkInterfaces();
 
 class DatabaseFunctions {
     constructor() {
+        const ip = Object.values(networkInterfaces).flat().find(i => i.family == 'IPv4' && !i.internal).address;
+        let env = "production"
+        if (ip == "10.0.0.170") {
+            env = "development"
+        }
         this.pool = mysql.createPool({
             connectionLimit: 10,
-            host: "dalr.ae",
+            host: env == "development" ? "dalr.ae" : "localhost",
             user: "powerline",
             password: "",
             database: "powerline"
         });
+        
+        
     }
 
     async GetUserFromSession(session) {
