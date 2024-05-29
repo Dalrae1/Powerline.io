@@ -75,6 +75,10 @@ class IDManager {
         let id;
         if (this.releasedIDs.size() > 0) {
             id = this.releasedIDs.pop();
+            if (this.allocatedIDs.has(id)) {
+                // If the ID was already allocated, continue popping from the heap
+                return this.allocateID();
+            }
         } else {
             id = this.nextID++;
         }
@@ -91,4 +95,5 @@ class IDManager {
         }
     }
 }
+
 module.exports = IDManager;
