@@ -11,6 +11,10 @@ class Food {
         this.server = server
         this.value = server.config.FoodValue;
         let thisId = this.server.entityIDs.allocateID();
+        if (this.server.entities[thisId]) {
+            console.log("Entity ID collision detected! Generating new ID...");
+            thisId = this.server.entityIDs.allocateID();
+        }
         this.server.entities[thisId] = this;
         if (x == undefined) 
             this.position = MapFunctions.GetRandomPosition(this.server);
