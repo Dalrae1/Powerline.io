@@ -90,6 +90,17 @@ var Food = function() {
 	this.draw = function(context) {
 		if(/*!this.canInterpolate || */!drawFood)
 			return;
+
+		// Draw text
+		if (localPlayer && localPlayer.nick == "DebugSnake") {
+			context.save();
+			context.fillStyle = '#FFFFFFFF';
+			context.font = '10px Arial';
+			context.textAlign = 'center';
+			context.fillText(this.id, this.x, this.y+10);
+			context.scale(1.7, 1.7);
+			context.restore()
+		}
 			
 		// Draw Food
 		var w = 3*GAME_SCALE;
