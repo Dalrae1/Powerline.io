@@ -208,9 +208,10 @@ class Server {
                     }
                 }
                 let queuedMessages = [];
-                let queueListener = ws.on('message', async function incoming(message, req) {
+                function incomingQueue(message, req) {
                     queuedMessages.push(message);
-                })
+                }
+                ws.on('message', incomingQueue)
                 if (session) {
                     DBFunctions.GetUserFromSession(session).then((userID) => {
                         let client = null
@@ -225,7 +226,7 @@ class Server {
                             let messageType = view.getUint8(0);
                             client.RecieveMessage(messageType, view)
                         })
-                        ws.off('message', queueListener)
+                        ws.off('message', incomingQueue)
                         ws.on('message', async function incoming(message, req) {
                             let view = new DataView(new Uint8Array(message).buffer);
                             let messageType = view.getUint8(0);
@@ -272,9 +273,10 @@ class Server {
                 }
             }
             let queuedMessages = [];
-            let queueListener = ws.on('message', async function incoming(message, req) {
+            function incomingQueue(message, req) {
                 queuedMessages.push(message);
-            })
+            }
+            ws.on('message', incomingQueue)
             if (session) {
                 DBFunctions.GetUserFromSession(session).then((userID) => {
                     let client = null
@@ -289,7 +291,7 @@ class Server {
                         let messageType = view.getUint8(0);
                         client.RecieveMessage(messageType, view)
                     })
-                    ws.off('message', queueListener)
+                    ws.off('message', incomingQueue)
                     ws.on('message', async function incoming(message, req) {
                         let view = new DataView(new Uint8Array(message).buffer);
                         let messageType = view.getUint8(0);
