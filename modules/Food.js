@@ -27,7 +27,8 @@ class Food {
             this.origin = origin;
         
         setTimeout(() => {
-            this.eat();
+            if (this.server.entities[this.id])
+                this.eat();
         }, timeToLive);
         this.server.entityQuadtree.insert(this);
         return this;
