@@ -2,7 +2,8 @@ const mysql = require('mysql');
 
 class DatabaseFunctions {
     constructor() {
-        this.connection = mysql.createConnection({
+        this.pool = mysql.createPool({
+            connectionLimit: 10,
             host: "localhost",
             user: "powerline",
             password: "",
@@ -13,7 +14,7 @@ class DatabaseFunctions {
     async GetUserFromSession(session) {
         try {
             const sessionData = await new Promise((resolve, reject) => {
-                this.connection.query("SELECT * FROM sessions WHERE session = ?", [session], function (err, result) {
+                this.pool.query("SELECT * FROM sessions WHERE session = ?", [session], function (err, result) {
                     if (err) {
                         reject(err);
                     } else {
