@@ -18,6 +18,7 @@ class Client extends EventEmitter {
         this.windowSizeY = 64;
         this.dead = true
         this.pointsNearby = {};
+        this.ping = 20;
         server.clients[this.id] = this;
             
         this.userid = userid.toString()

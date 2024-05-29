@@ -207,6 +207,10 @@ class Server {
                         session = sessionCookie.split("=")[1];
                     }
                 }
+                let queuedMessages = [];
+                let queueListener = ws.on('message', async function incoming(message, req) {
+                    queuedMessages.push(message);
+                })
                 if (session) {
                     DBFunctions.GetUserFromSession(session).then((userID) => {
                         let client = null
@@ -216,6 +220,12 @@ class Server {
                         else {
                             client = new Client(this, ws, -1);
                         }
+                        queuedMessages.forEach((message) => {
+                            let view = new DataView(new Uint8Array(message).buffer);
+                            let messageType = view.getUint8(0);
+                            client.RecieveMessage(messageType, view)
+                        })
+                        ws.off('message', queueListener)
                         ws.on('message', async function incoming(message, req) {
                             let view = new DataView(new Uint8Array(message).buffer);
                             let messageType = view.getUint8(0);
@@ -261,6 +271,10 @@ class Server {
                     session = sessionCookie.split("=")[1];
                 }
             }
+            let queuedMessages = [];
+            let queueListener = ws.on('message', async function incoming(message, req) {
+                queuedMessages.push(message);
+            })
             if (session) {
                 DBFunctions.GetUserFromSession(session).then((userID) => {
                     let client = null
@@ -270,6 +284,12 @@ class Server {
                     else {
                         client = new Client(this, ws, -1);
                     }
+                    queuedMessages.forEach((message) => {
+                        let view = new DataView(new Uint8Array(message).buffer);
+                        let messageType = view.getUint8(0);
+                        client.RecieveMessage(messageType, view)
+                    })
+                    ws.off('message', queueListener)
                     ws.on('message', async function incoming(message, req) {
                         let view = new DataView(new Uint8Array(message).buffer);
                         let messageType = view.getUint8(0);
