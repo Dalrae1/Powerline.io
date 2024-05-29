@@ -5,8 +5,6 @@ const GlobalFunctions = require("./GlobalFunctions.js")
 const Food = require("./Food.js");
 const AVLTree = require("./AVLTree.js");
 
-leaderboard = new AVLTree();
-
 
 class Snake {
     network = null;
@@ -51,7 +49,7 @@ class Snake {
         this.visualLength = this.server.config.DefaultLength;
         this.actualLength = this.server.config.DefaultLength;
         this.killedSnakes = [];
-        leaderboard.insert(this.length, this.id);
+        this.server.leaderboard.insert(this.length, this.id);
 
 
 
@@ -65,9 +63,9 @@ class Snake {
         return this.actualLength;
     }
     set length(value) {
-        leaderboard.deleteByValue(this.id);
+        this.server.leaderboard.deleteByValue(this.id);
         this.actualLength = value;
-        leaderboard.insert(this.actualLength, this.id);
+        this.server.leaderboard.insert(this.actualLength, this.id);
 
     }
     
@@ -79,7 +77,7 @@ class Snake {
         let offset = 0;
         BitView.setUint8(offset, Enums.ServerToClient.OPCODE_LEADERBOARD);
         offset += 1;
-        for (let pair of leaderboard.reverseOrderTraversal()) {
+        for (let pair of this.server.leaderboard.reverseOrderTraversal()) {
             count++;
             let snake = this.server.entities[pair.data]
             if (!snake || !snake.spawned)
@@ -449,7 +447,7 @@ class Snake {
         this.client.deadPosition = this.position;
         this.client.dead = true;
         this.client.snake = undefined;
-        leaderboard.deleteByValue(this.id);
+        this.server.leaderboard.deleteByValue(this.id);
         this.server.entityIDs.releaseID(this.id);
         delete this.server.snakes[this.id];
         delete this.server.entities[this.id]

@@ -13,6 +13,7 @@ const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
 const Quadtree = require("./Quadtree.js");
 const Client = require("./Client.js");
 const DatabaseFunctions = require("./DatabaseFunctions.js");
+const AVLTree = require("./AVLTree.js");
 
 let DBFunctions = new DatabaseFunctions();
 
@@ -49,6 +50,7 @@ class Server {
 
         this.entityIDs = new IDManager();
         this.clientIDs = new IDManager();
+        this.leaderboard = new AVLTree();
         this.entityQuadtree = new Quadtree({
             x: -this.config.ArenaSize / 2,
             y: -this.config.ArenaSize / 2,
