@@ -82,12 +82,14 @@ class IDManager {
         } else {
             id = this.nextID++;
         }
+        console.log(`Allocating ID ${id}`)
         this.allocatedIDs.add(id);
         return id;
     }
 
     releaseID(id) {
         if (this.allocatedIDs.has(id)) {
+            console.log(`Freeing ID ${id}`)
             this.allocatedIDs.delete(id);
             this.releasedIDs.push(id);
         } else {
