@@ -70,6 +70,7 @@ class Server {
             "1",
             "3"
         ];
+        this.debugGrabAmount = 1000;
         this.entities = [];
         this.clients = [];
         this.snakes = [];

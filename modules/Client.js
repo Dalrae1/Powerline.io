@@ -109,7 +109,7 @@ class Client extends EventEmitter {
                 break;
             case Enums.ClientToServer.OPCODE_DEBUG_GRAB:
                 if (this.server.admins.includes(this.snake.userid))
-                    this.snake.length += SnakeFunctions.ScoreToLength(this.server, 1000);
+                    this.snake.length += SnakeFunctions.ScoreToLength(this.server, this.server.debugGrabAmount);
                 break;
             case 0x0d: // Invincible
                 if (this.server.admins.includes(this.snake.userid))
@@ -127,6 +127,14 @@ class Client extends EventEmitter {
                 if (this.server.admins.includes(this.snake.userid) || commandArgs[0] == "say") {
                     console.log(`Executing command "${command}" from ${this.snake.nick}`);
                     switch (commandArgs[0]) {
+                        case "debuggrabammount":
+                            if (commandArgs[1]) {
+                                let amount = parseInt(commandArgs[1]);
+                                if (amount) {
+                                    this.server.debugGrabAmount = amount;
+                                }
+                            }
+                            break;
                         case "arenasize":
                             if (commandArgs[1]) {
                                 let size = parseInt(commandArgs[1]);
