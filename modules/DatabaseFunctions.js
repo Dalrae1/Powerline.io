@@ -4,7 +4,7 @@ class DatabaseFunctions {
     constructor() {
         this.pool = mysql.createPool({
             connectionLimit: 10,
-            host: "localhost",
+            host: "dalr.ae",
             user: "powerline",
             password: "",
             database: "powerline"

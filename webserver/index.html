@@ -103,7 +103,7 @@
 		<div id="google_login_wrapper">
 			<div id="g_id_onload"
 				data-client_id="173521008548-st7p20himg41f1o1s2j3mgo9851qoj4j.apps.googleusercontent.com"
-				data-login_uri="https://dalr.ae/login-handler.php"
+				data-login_uri=""
 				data-auto_prompt="false">
 			</div>
 			<div class="g_id_signin"
@@ -304,6 +304,10 @@
   ga('create', 'UA-103841451-1', 'auto');
   ga('send', 'pageview');
 
+</script>
+
+<script>
+	document.querySelector("#g_id_onload").setAttribute("data-login_uri", window.location.href+"/login-handler.php");
 </script>
 
 

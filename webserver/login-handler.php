@@ -104,7 +104,6 @@ function rsaVerify($header, $payload, $signature, $pem) {
     $data = "$header.$payload";
     $signature = base64UrlDecode($signature);
     $verified = openssl_verify($data, $signature, $publicKey, OPENSSL_ALGO_SHA256);
-    openssl_free_key($publicKey);
     return $verified === 1;
 }
 
@@ -154,16 +153,16 @@ function verifyGoogleToken($idToken, $clientId) {
     if ($jsonPayload['exp'] < time()) {
         throw new Exception("ID token has expired");
     }
-    if ($jsonPayload['iat'] > time()) {
+    /*if ($jsonPayload['iat'] > time()) {
         throw new Exception("ID token issued in the future");
-    }
+    }*/
 
     return $jsonPayload;
 }
 
 // SQL Functions
 
-$db_host        = '127.0.0.1';
+$db_host        = 'dalr.ae';
 $db_user        = 'powerline';
 $db_pass        = '';
 $db_database    = 'powerline'; 
@@ -359,12 +358,16 @@ try {
         }
     }
 
+    $host = $_SERVER['HTTP_HOST'];
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+    echo("Redirecting to $protocol://$host");
+
     if (isset($_COOKIE['session_id'])) { // If user already has a session on this browser, refresh it
         $session_id = $_COOKIE['session_id'];
         $existing_user = GetUserFromSession($session_id);
         if ($existing_user && $existing_user['userid'] == $user['userid']) {
             setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
-            header('Location: https://dalr.ae');
+            header("Location: $protocol://$host");
             exit();
         }
     }
@@ -376,8 +379,7 @@ try {
         LogError($session_id);
         exit();
     }
-
-    header('Location: https://dalr.ae');
+    header("Location: $protocol://$host");
 } catch (Exception $e) {
     LogError("Error: " . $e->getMessage());
 }
