@@ -112,6 +112,8 @@ class Server {
                         let serverIds = req.url.split("?")[1].split("&").map((id) => id.split("=")[1]);
                         var serverInfo = {}
                         serverIds.forEach((id) => {
+                            if (!Servers[id])
+                                return
                             serverInfo[id] = {
                                 id: id,
                                 playerCount: Object.keys(Servers[id].snakes).length,
@@ -169,6 +171,8 @@ class Server {
                             let serverIds = req.url.split("?")[1].split("&").map((id) => id.split("=")[1]);
                             var serverInfo = {}
                             serverIds.forEach((id) => {
+                                if (!Servers[id])
+                                    return
                                 serverInfo[id] = {
                                     id: id,
                                     playerCount: Object.keys(Servers[id].snakes).length,

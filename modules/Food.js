@@ -31,10 +31,6 @@ class Food {
     }
     
     eat(snake) {
-        if (snake)
-            console.log(`Snake ${snake.nick} ate food ${this.id}`)
-        this.lastUpdate = Date.now();
-        this.spawned = false
         if (snake && this.origin == snake) {
             return;
         }
@@ -69,7 +65,7 @@ class Food {
         offset += 4;
         Bit8.setFloat32(offset, this.server.king && this.server.king.position.y || 0, true);
         offset += 4;
-        
+
         Object.values(this.server.clients).forEach((client) => {
             if (client.loadedEntities[this.id]) {
                 client.socket.send(Bit8);
@@ -80,6 +76,8 @@ class Food {
             snake.length += this.value;
             snake.lastAte = Date.now();
         }
+        this.lastUpdate = Date.now();
+        this.spawned = false
         this.server.entityIDs.releaseID(this.id);
         this.server.entityQuadtree.delete(this);
         delete this.server.entities[this.id]; 
