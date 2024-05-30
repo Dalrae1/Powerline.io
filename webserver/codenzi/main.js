@@ -354,6 +354,7 @@ var initApp = function() {
 	}
 
 	$('#overlay').show();
+	$('#google_login_wrapper').show();
 }
 
 var init = function() {
@@ -686,12 +687,14 @@ window.onfocus = function(element) {
 function hideUI()
 {
 	$('#overlay').hide();
+	$('#google_login_wrapper').hide();
 	UIVisible = false;
 }
 
 function showUI()
 {
 	$('#overlay').show();
+	$('#google_login_wrapper').show();
 
 	refreshAd();
 
@@ -809,6 +812,7 @@ function updateStats()
 function fadeinUINow()
 {
 	$('#overlay').fadeIn(500);
+	$('#google_login_wrapper').fadeIn(500);
 	refreshAd();
 	if(focus){
 		$('#nick').focus();
