@@ -103,13 +103,13 @@ class Server {
             httpsServer = HttpsServer({
                 cert: fs.readFileSync(cert),
                 key: fs.readFileSync(key)
-            }, serverListener)
+            }, this.serverListener)
             this.secureServer = new WebSocket.Server({ server: httpsServer });
             httpsServer.listen(parseInt(this.id)+1);
         }
         
         if (this.secureServer) {
-            this.secureServer.on('connection', websocketListener);
+            this.secureServer.on('connection', this.websocketListener);
         }
 
         this.unsecureServer.on('connection', this.websocketListener);
