@@ -1,8 +1,10 @@
+globalEntityQuads = {}
 class Quadtree {
-  constructor(boundary, capacity = 4) {
+  constructor(boundary, capacity = 10) {
     this.boundary = boundary; // { x, y, width, height }
     this.capacity = capacity;
-    this.entities = [];
+    this.entities = {};
+    this.entityCount = 0; // To keep track of the number of entities
     this.divided = false;
   }
 
@@ -25,21 +27,30 @@ class Quadtree {
       return false; // Entity is out of the boundary
     }
 
-    if (this.entities.length < this.capacity) {
-      this.entities.push(entity);
+    if (!globalEntityQuads[entity.server.id]) {
+      globalEntityQuads[entity.server.id] = {};
+    }
+    globalEntityQuads[entity.server.id][entity.id] = this;
+
+    if (this.entityCount < this.capacity) {
+      this.entities[entity.id] = entity;
+      this.entityCount++;
       return true;
     } else {
       if (!this.divided) {
         this.subdivide();
       }
 
-      return this.northwest.insert(entity) || this.northeast.insert(entity) ||
-             this.southwest.insert(entity) || this.southeast.insert(entity);
+      if (this.northwest.insert(entity)) return true;
+      if (this.northeast.insert(entity)) return true;
+      if (this.southwest.insert(entity)) return true;
+      if (this.southeast.insert(entity)) return true;
     }
+
+    return false;
   }
 
   inBoundary(position) {
-    // Check using half-widths and half-heights from the center
     const halfWidth = this.boundary.width / 2;
     const halfHeight = this.boundary.height / 2;
     const centerX = this.boundary.x + halfWidth;
@@ -50,23 +61,17 @@ class Quadtree {
   }
 
   delete(entity) {
-    if (!this.inBoundary(entity.position)) {
+    let serverEntities = globalEntityQuads[entity.server.id];
+    if (!serverEntities) {
       return false;
     }
-
-    for (let i = 0; i < this.entities.length; i++) {
-      if (this.entities[i].id === entity.id) {
-        this.entities.splice(i, 1);
-        return true;
-      }
+    let serverQuad = serverEntities[entity.id];
+    if (!serverQuad) {
+      return false;
     }
-
-    if (this.divided) {
-      return this.northwest.delete(entity) || this.northeast.delete(entity) ||
-             this.southwest.delete(entity) || this.southeast.delete(entity);
-    }
-
-    return false;
+    serverQuad.entityCount--;
+    delete serverQuad.entities[entity.id];
+    return true
   }
 
   query(range, found = []) {
@@ -74,7 +79,8 @@ class Quadtree {
       return found;
     }
 
-    for (let entity of this.entities) {
+    for (let id in this.entities) {
+      let entity = this.entities[id];
       if (this.inRange(entity.position, range)) {
         found.push(entity);
       }
