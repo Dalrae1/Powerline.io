@@ -91,54 +91,7 @@ class Server {
         }
 
         let httpsServer
-        let httpServer = HttpServer((req, res) => {
-            if (req.method === "GET") {
-                switch (req.url.split("?")[0]) {
-                    case `/server/${this.id}/info`:
-                        res.writeHead(200, {
-                            "Content-Type": "text/html",
-                            "Access-Control-Allow-Origin": "*"
-                        });
-                        var serverInfo = {
-                            playerCount: Object.keys(this.snakes).length,
-                        }
-                        res.end(JSON.stringify(serverInfo));
-                        break
-                    case `/api/fetchserverinfo`:
-                        res.writeHead(200, {
-                            "Content-Type": "text/html",
-                            "Access-Control-Allow-Origin": "*"
-                        });
-                        let serverIds = req.url.split("?")[1].split("&").map((id) => id.split("=")[1]);
-                        var serverInfo = {}
-                        serverIds.forEach((id) => {
-                            if (!Servers[id])
-                                return
-                            serverInfo[id] = {
-                                id: id,
-                                playerCount: Object.keys(Servers[id].snakes).length,
-                            }
-                        })
-                        res.end(JSON.stringify(serverInfo));
-                        break
-                    default:
-                        res.writeHead(200, {
-                            "Content-Type": "text/html",
-                            "Access-Control-Allow-Origin": "*"
-                        });
-                        res.end(`
-                        <head>
-                            <meta property="og:title" content="Dalrae" />
-                            <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
-                            <meta property="og:url" content="https://dalr.ae" />
-                        </head>
-                        Salzling poo head
-                        
-                        `);
-                        break;
-                }
-            }
-        }).listen(this.id)
+        let httpServer = HttpServer(this.serverListener).listen(this.id)
 
         this.unsecureServer = new WebSocket.Server({ server: httpServer });
 
@@ -150,173 +103,104 @@ class Server {
             httpsServer = HttpsServer({
                 cert: fs.readFileSync(cert),
                 key: fs.readFileSync(key)
-            }, (req, res) => {
-                if (req.method === "GET") {
-                    switch (req.url.split("?")[0]) {
-                        case `/server/${this.id}/info`:
-                            res.writeHead(200, {
-                                "Content-Type": "text/html",
-                                "Access-Control-Allow-Origin": "*"
-                            });
-                            var serverInfo = {
-                                playerCount: Object.keys(this.snakes).length,
-                            }
-                            res.end(JSON.stringify(serverInfo));
-                            break
-                        case `/api/fetchserverinfo`:
-                            res.writeHead(200, {
-                                "Content-Type": "text/html",
-                                "Access-Control-Allow-Origin": "*"
-                            });
-                            let serverIds = req.url.split("?")[1].split("&").map((id) => id.split("=")[1]);
-                            var serverInfo = {}
-                            serverIds.forEach((id) => {
-                                if (!Servers[id])
-                                    return
-                                serverInfo[id] = {
-                                    id: id,
-                                    playerCount: Object.keys(Servers[id].snakes).length,
-                                }
-                            })
-                            res.end(JSON.stringify(serverInfo));
-                            break
-                        default:
-                            res.writeHead(200, {
-                                "Content-Type": "text/html",
-                                "Access-Control-Allow-Origin": "*"
-                            });
-                            res.end(`
-                        <head>
-                            <meta property="og:title" content="Dalrae" />
-                            <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
-                            <meta property="og:url" content="https://dalr.ae" />
-                        </head>
-                        Salzling poo head
-                        
-                        `);
-                            break;
-                    }
-                }
-            })
+            }, serverListener)
             this.secureServer = new WebSocket.Server({ server: httpsServer });
             httpsServer.listen(parseInt(this.id)+1);
         }
         
         if (this.secureServer) {
-            this.secureServer.on('connection', (ws, req) => {
-                let cookies = req.headers.cookie;
-                let session;
-
-                if (cookies) {
-                    let sessionCookie = cookies.split(";").find((cookie) => cookie.includes("session_id="));
-                    if (sessionCookie) {
-                        session = sessionCookie.split("=")[1];
-                    }
-                }
-                let queuedMessages = [];
-                function incomingQueue(message, req) {
-                    queuedMessages.push(message);
-                }
-                ws.on('message', incomingQueue)
-                if (session) {
-                    DBFunctions.GetUserFromSession(session).then((userID) => {
-                        let client = null
-                        if (userID) {
-                            client = new Client(this, ws, userID);
-                        }
-                        else {
-                            client = new Client(this, ws, -1);
-                        }
-                        queuedMessages.forEach((message) => {
-                            let view = new DataView(new Uint8Array(message).buffer);
-                            let messageType = view.getUint8(0);
-                            client.RecieveMessage(messageType, view)
-                        })
-                        ws.off('message', incomingQueue)
-                        ws.on('message', async function incoming(message, req) {
-                            let view = new DataView(new Uint8Array(message).buffer);
-                            let messageType = view.getUint8(0);
-                            client.RecieveMessage(messageType, view)
-                        })
-                        ws.on('close', () => {
-                            if (client.snake && client.snake.id) {
-                                client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
-                            }
-                            this.clientIDs.releaseID(client.id)
-                            delete this.clients[client.id];
-                        })
-
-                    }).catch((err) => {
-                        console.error("Error: "+err)
-                    })
-                }
-                else {
-                    let client = new Client(this, ws, -1);
-                    ws.on('message', async function incoming(message, req) {
-                        let view = new DataView(new Uint8Array(message).buffer);
-                        let messageType = view.getUint8(0);
-                        client.RecieveMessage(messageType, view)
-                    })
-                    ws.on('close', () => {
-                        if (client.snake && client.snake.id) {
-                            client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
-                        }
-                        this.clientIDs.releaseID(client.id)
-                        delete this.clients[client.id];
-                    })
-                }
-            });
+            this.secureServer.on('connection', websocketListener);
         }
 
-        this.unsecureServer.on('connection', (ws, req) => {
-            let cookies = req.headers.cookie;
-            let session;
+        this.unsecureServer.on('connection', this.websocketListener);
 
-            if (cookies) {
-                let sessionCookie = cookies.split(";").find((cookie) => cookie.includes("session_id="));
-                if (sessionCookie) {
-                    session = sessionCookie.split("=")[1];
-                }
-            }
-            let queuedMessages = [];
-            function incomingQueue(message, req) {
-                queuedMessages.push(message);
-            }
-            ws.on('message', incomingQueue)
-            if (session) {
-                DBFunctions.GetUserFromSession(session).then((userID) => {
-                    let client = null
-                    if (userID) {
-                        client = new Client(this, ws, userID);
+
+
+        for (let i = 0; i < this.maxFood; i++) {
+            new Food(this);
+        }
+
+        this.mainLooper()
+    }
+
+    serverListener = (req, res) => {
+        if (req.method === "GET") {
+            switch (req.url.split("?")[0]) {
+                case `/server/${this.id}/info`:
+                    res.writeHead(200, {
+                        "Content-Type": "text/html",
+                        "Access-Control-Allow-Origin": "*"
+                    });
+                    var serverInfo = {
+                        playerCount: Object.keys(this.snakes).length,
                     }
-                    else {
-                        client = new Client(this, ws, -1);
-                    }
-                    queuedMessages.forEach((message) => {
-                        let view = new DataView(new Uint8Array(message).buffer);
-                        let messageType = view.getUint8(0);
-                        client.RecieveMessage(messageType, view)
-                    })
-                    ws.off('message', incomingQueue)
-                    ws.on('message', async function incoming(message, req) {
-                        let view = new DataView(new Uint8Array(message).buffer);
-                        let messageType = view.getUint8(0);
-                        client.RecieveMessage(messageType, view)
-                    })
-                    ws.on('close', () => {
-                        if (client.snake && client.snake.id) {
-                            client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
+                    res.end(JSON.stringify(serverInfo));
+                    break
+                case `/api/fetchserverinfo`:
+                    res.writeHead(200, {
+                        "Content-Type": "text/html",
+                        "Access-Control-Allow-Origin": "*"
+                    });
+                    let serverIds = req.url.split("?")[1].split("&").map((id) => id.split("=")[1]);
+                    var serverInfo = {}
+                    serverIds.forEach((id) => {
+                        if (!Servers[id])
+                            return
+                        serverInfo[id] = {
+                            id: id,
+                            playerCount: Object.keys(Servers[id].snakes).length,
                         }
-                        this.clientIDs.releaseID(client.id)
-                        delete this.clients[client.id];
                     })
-
-                }).catch((err) => {
-                    console.error("Error: "+err)
-                })
+                    res.end(JSON.stringify(serverInfo));
+                    break
+                default:
+                    res.writeHead(200, {
+                        "Content-Type": "text/html",
+                        "Access-Control-Allow-Origin": "*"
+                    });
+                    res.end(`
+                    <head>
+                        <meta property="og:title" content="Dalrae" />
+                        <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
+                        <meta property="og:url" content="https://dalr.ae" />
+                    </head>
+                    Salzling poo head
+                    
+                    `);
+                    break;
             }
-            else {
-                let client = new Client(this, ws, -1);
+        }
+    }
+    websocketListener = (ws, req) => {
+        let cookies = req.headers.cookie;
+        let session;
+    
+        if (cookies) {
+            let sessionCookie = cookies.split(";").find((cookie) => cookie.includes("session_id="));
+            if (sessionCookie) {
+                session = sessionCookie.split("=")[1];
+            }
+        }
+        let queuedMessages = [];
+        function incomingQueue(message, req) {
+            queuedMessages.push(message);
+        }
+        ws.on('message', incomingQueue)
+        if (session) {
+            DBFunctions.GetUserFromSession(session).then((userID) => {
+                let client = null
+                if (userID) {
+                    client = new Client(this, ws, userID);
+                }
+                else {
+                    client = new Client(this, ws, -1);
+                }
+                queuedMessages.forEach((message) => {
+                    let view = new DataView(new Uint8Array(message).buffer);
+                    let messageType = view.getUint8(0);
+                    client.RecieveMessage(messageType, view)
+                })
+                ws.off('message', incomingQueue)
                 ws.on('message', async function incoming(message, req) {
                     let view = new DataView(new Uint8Array(message).buffer);
                     let messageType = view.getUint8(0);
@@ -329,16 +213,26 @@ class Server {
                     this.clientIDs.releaseID(client.id)
                     delete this.clients[client.id];
                 })
-            }
-        });
-
-
-
-        for (let i = 0; i < this.maxFood; i++) {
-            new Food(this);
+    
+            }).catch((err) => {
+                console.error("Error: "+err)
+            })
         }
-
-        this.mainLooper()
+        else {
+            let client = new Client(this, ws, -1);
+            ws.on('message', async function incoming(message, req) {
+                let view = new DataView(new Uint8Array(message).buffer);
+                let messageType = view.getUint8(0);
+                client.RecieveMessage(messageType, view)
+            })
+            ws.on('close', () => {
+                if (client.snake && client.snake.id) {
+                    client.snake.kill(Enums.KillReasons.LEFT_SCREEN, client.snake);
+                }
+                this.clientIDs.releaseID(client.id)
+                delete this.clients[client.id];
+            })
+        }
     }
 
     UpdateArena() {
