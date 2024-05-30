@@ -334,6 +334,8 @@ var runLoop = function() {
 		lastFocus = false;
 }
 
+$('#overlay').show();
+
 var initApp = function() {
 	if (app!=null) { return; }
 
@@ -1042,8 +1044,19 @@ function refreshAd()
 	}
 }
 
+function createServer() {
+	let serverName = document.getElementById("serverName").value
+	let serverMaxPlayers = document.getElementById("maxPlayers").value
+	let serverFoodValue = document.getElementById("foodValue").value
+	let serverIsPublic = document.getElementById("isPublic").checked
+	let serverDefaultLength = document.getElementById("defaultLength").value
+	let serverArenaSize = document.getElementById("arenaSize").value
+
+
+}
+
 document.getElementById("overlay").onmousedown = function (e) {
-    if(e.target == $('#nick')[0])
+    if(e.target.classList.contains("clickable"))
     {
     	return true;
     }

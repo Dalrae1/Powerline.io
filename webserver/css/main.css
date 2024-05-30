@@ -15,7 +15,7 @@ body {
     /* Define a fixed width */
     height: 400px;
     /* Define a fixed height */
-    overflow-y: auto;
+    overflow-y: hidden;
     /* Allow vertical scrolling */
     border: 2px solid #05ffff;
     border-radius: 10px;
@@ -32,10 +32,215 @@ body {
     background-color: rgb(0, 133, 133);
 }
 
+#createServer {
+    position: absolute;
+    display: none;
+    bottom: 10px;
+    left: 10px;
+    background-color: #05ffff;
+    color: #003a3a;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
 #google_login_wrapper {
     position: absolute;
     left: 100%;
     transform:translate(-100%,0);
     top: 0%;
     z-index: 3;
+}
+
+
+/* Modal styles */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.8); /* Black background with opacity */
+}
+
+.modal-content {
+    background-color: #003a3a;
+    margin: 10% auto;
+    padding: 20px;
+    border: 2px solid #05ffff;
+    width: 80%; /* Could be more or less, depending on screen size */
+    max-width: 500px;
+    border-radius: 10px;
+    color: #05ffff;
+    box-shadow: 0 0 20px #05ffff;
+}
+
+.modal-content h4 {
+    margin-top: 0;
+    text-align: center;
+    font-size: 20px;
+    font-family: 'Arial Black';
+    color: #05ffff;
+}
+
+.modal-content label {
+    display: block;
+    margin-top: 10px;
+    font-size: 16px;
+    font-family: 'Arial Black';
+    color: #05ffff;
+}
+
+.modal-content input[type="text"],
+.modal-content input[type="number"],
+.modal-content input[type="range"] {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    background-color: #003a3a;
+    border-radius: 5px;
+    border: 2px solid #05ffff;
+    color: #05ffff;
+    box-shadow: 0 0 10px #05ffff;
+}
+
+.modal-content input[type="text"]::placeholder {
+    color: #007070;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 16px;
+    font-family: 'Arial Black';
+    color: #05ffff;
+}
+
+.checkbox-container label {
+    margin-right: 10px;
+}
+
+.modal-content input[type="checkbox"] {
+    appearance: none;
+    background-color: #003a3a;
+    border: 2px solid #05ffff;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    position: relative;
+    box-shadow: 0 0 10px #05ffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content input[type="checkbox"]:checked {
+    background-color: #05ffff;
+}
+
+.modal-content input[type="checkbox"]:checked::before {
+    content: "\2714"; /* Unicode check mark character */
+    font-size: 16px;
+    color: #003a3a;
+}
+
+.modal-content input[type="range"] {
+    width: 100%;
+    padding: 0;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    background-color: #003a3a;
+    border: none;
+    color: #05ffff;
+    -webkit-appearance: none; /* Override default range styling in Webkit browsers */
+    appearance: none;
+}
+
+.modal-content input[type="range"]::-webkit-slider-runnable-track {
+    background: #05ffff;
+    height: 5px;
+    border-radius: 5px;
+}
+
+.modal-content input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    margin-top: -5px; /* Align the thumb with the track */
+    background: #05ffff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.modal-content input[type="range"]::-moz-range-track {
+    background: #05ffff;
+    height: 5px;
+    border-radius: 5px;
+}
+
+.modal-content input[type="range"]::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    background: #05ffff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.modal-content input[type="text"]:focus,
+.modal-content input[type="number"]:focus,
+.modal-content input[type="range"]:focus {
+    outline: none;
+    box-shadow: 0 0 20px #05ffff;
+    border-color: #05ffff;
+}
+
+.modal-content button[type="submit"],
+.modal-content button[type="button"] {
+    display: inline-block;
+    background-color: #077;
+    color: #0ff;
+    border: none;
+    padding: 10px 20px;
+    margin-top: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: 'Arial Black';
+}
+
+.modal-content button[type="submit"]:hover,
+.modal-content button[type="button"]:hover {
+    background-color: #0aa;
+    color: #0ff;
+}
+
+.search-results {
+    margin-top: 10px;
+    background-color: #003a3a;
+    border: 1px solid #05ffff;
+    border-radius: 5px;
+    max-height: 150px;
+    overflow-y: auto;
+    padding: 10px;
+    box-shadow: 0 0 10px #05ffff;
+}
+
+.search-results div {
+    padding: 5px;
+    cursor: pointer;
+}
+
+.search-results div:hover {
+    background-color: #05ffff;
+    color: #003a3a;
 }

@@ -96,7 +96,7 @@
 	<script src="https://accounts.google.com/gsi/client"></script>
 
 	</head>
-	<body data-feedly-mini="yes">
+	<body">
 		<canvas id="canvas"></canvas>
 		<div id="commandpallete"></div>
 		<div id="fps"></div>
@@ -150,7 +150,7 @@
 						<div id="topGui" style="height:100px;">
 							<div id="nickInput" style="height:50px;">
 								<center>
-								<input id="nick" type="text" class="form-control input-nick" placeholder="Type a Nickname..." maxlength="15" onkeydown="if (event.keyCode == 13){ clickPlay(document.getElementById('nick').value); return false;} return true;" autofocus/>
+								<input id="nick" type="text" class="form-control input-nick clickable" placeholder="Type a Nickname..." maxlength="15" onkeydown="if (event.keyCode == 13){ clickPlay(document.getElementById('nick').value); return false;} return true;"/>
 								</center>
 							</div>
 							<center>
@@ -195,7 +195,150 @@
 				<tbody>
 				</tbody>
 			</table>
+			<div id="createServer">
+				+
+			</div>
 		</div>
+		
+		<!-- Modal Structure -->
+		<div id="createServerModal" class="modal">
+			<div class="modal-content">
+				<h4>Create a server</h4>
+				<form id="createServerForm">
+					<label for="serverName">Server Name:</label>
+					<input type="text" id="serverName" class="clickable" name="serverName" required>
+		
+					<label for="maxPlayers">Max Player Count: <span id="maxPlayersValue">5</span></label>
+					<input type="range" id="maxPlayers" class="clickable" name="maxPlayers" min="1" max="100" value="5">
+		
+					<label for="foodValue">Food Value:  <span id="foodValueValue">10</span></label>
+					<input type="range" id="foodValue" class="clickable" name="foodValue" min="1" max="100" value="10">
+		
+					<div class="checkbox-container">
+						<label for="isPublic">Public Server:</label>
+						<input type="checkbox" class="clickable" id="isPublic" name="isPublic">
+					</div>
+		
+					<label for="defaultLength">Default Length: <span id="defaultLengthValue">10</span></label>
+					<input type="range" id="defaultLength" class="clickable" name="defaultLength" min="1" max="100" value="10">
+		
+					<label for="arenaSize">Arena Size: <span id="arenaSizeValue">200</span></label>
+					<input type="range" id="arenaSize" class="clickable" name="arenaSize" min="1" max="1000" value="200">
+		
+					<!--<label for="adminSearch">Mark Players as Admins:</label>
+					<input type="text" id="adminSearch" class="clickable" name="adminSearch" placeholder="Search for players">
+					<div id="searchResults" class="search-results"></div>-->
+		
+					<button type="submit" onclick="createServer()">Create</button>
+					<button type="button" class="modal-close">Cancel</button>
+				</form>
+			</div>
+		</div>
+		<script>
+			document.querySelector('#createServer').addEventListener('click', function() {
+				document.getElementById('createServerModal').style.display = 'block';
+			});
+			
+			document.querySelectorAll('.modal-close').forEach(function(element) {
+				element.addEventListener('click', function() {
+					document.getElementById('createServerModal').style.display = 'none';
+				});
+			});
+			
+			// Close the modal when clicking outside of the modal content
+			window.onclick = function(event) {
+				if (event.target == document.getElementById('createServerModal')) {
+					document.getElementById('createServerModal').style.display = 'none';
+				}
+			};
+
+			document.addEventListener('DOMContentLoaded', function() {
+
+				const defaultLengthSlider = document.getElementById('defaultLength');
+				const defaultLengthValue = document.getElementById('defaultLengthValue');
+
+				const arenaSizeSlider = document.getElementById('arenaSize');
+				const arenaSizeValue = document.getElementById('arenaSizeValue');
+
+				const maxPlayerSlider = document.getElementById('maxPlayers');
+				const maxPlayersValue = document.getElementById('maxPlayersValue');
+
+				const foodValueSlider = document.getElementById('foodValue');
+				const foodValueValue = document.getElementById('foodValueValue');
+
+				defaultLengthSlider.addEventListener('input', function() {
+					defaultLengthValue.textContent = defaultLengthSlider.value;
+				});
+
+				arenaSizeSlider.addEventListener('input', function() {
+					arenaSizeValue.textContent = arenaSizeSlider.value;
+				});
+
+				maxPlayerSlider.addEventListener('input', function() {
+					maxPlayersValue.textContent = maxPlayerSlider.value;
+				});
+
+				foodValueSlider.addEventListener('input', function() {
+					foodValueValue.textContent = foodValueSlider.value;
+				});
+			});
+			document.addEventListener('DOMContentLoaded', function() {
+				const players = [
+					'Alice',
+					'Bob',
+					'Charlie',
+					'David',
+					'Eve',
+					'Frank',
+					'Grace',
+					'Heidi',
+					'Ivan',
+					'Judy'
+				];
+
+				const adminSearch = document.getElementById('adminSearch');
+				const searchResults = document.getElementById('searchResults');
+
+				adminSearch.addEventListener('input', function() {
+					const query = adminSearch.value.toLowerCase();
+					searchResults.innerHTML = '';
+
+					if (query) {
+						const filteredPlayers = players.filter(player => player.toLowerCase().includes(query));
+						filteredPlayers.forEach(player => {
+							const div = document.createElement('div');
+							div.textContent = player;
+							div.addEventListener('click', function() {
+								adminSearch.value = player;
+								searchResults.innerHTML = '';
+							});
+							searchResults.appendChild(div);
+						});
+					}
+				});
+
+				const difficultySlider = document.getElementById('difficulty');
+				const difficultyValue = document.getElementById('difficultyValue');
+
+				const defaultLengthSlider = document.getElementById('defaultLength');
+				const defaultLengthValue = document.getElementById('defaultLengthValue');
+
+				const arenaSizeSlider = document.getElementById('arenaSize');
+				const arenaSizeValue = document.getElementById('arenaSizeValue');
+
+				difficultySlider.addEventListener('input', function() {
+					difficultyValue.textContent = difficultySlider.value;
+				});
+
+				defaultLengthSlider.addEventListener('input', function() {
+					defaultLengthValue.textContent = defaultLengthSlider.value;
+				});
+
+				arenaSizeSlider.addEventListener('input', function() {
+					arenaSizeValue.textContent = arenaSizeSlider.value;
+				});
+			});
+			</script>
 			<script>
 				if(hasMiddleAd)
 				{
