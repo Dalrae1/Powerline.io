@@ -1066,7 +1066,7 @@ function createServer() {
 			defaultLength: serverDefaultLength,
 			arenaSize: serverArenaSize
 		}),
-		credentials: "same-origin",
+		credentials: "include",
 		headers: {
 			'Content-Type': 'application/json'
 		}
