@@ -94,7 +94,7 @@ function serverListener(req, res) {
                 });
                 req.on('end', async () => {
                     let cookies = req.headers.cookie ? req.headers.cookie.split("; ") : [];
-                    /*let sessionCookie = cookies.find(cookie => cookie.includes("session_id="));
+                    let sessionCookie = cookies.find(cookie => cookie.includes("session_id="));
                     if (!sessionCookie) {
                         res.writeHead(401, {
                             'Access-Control-Allow-Origin': '*',
@@ -109,8 +109,7 @@ function serverListener(req, res) {
                         res.end(JSON.stringify(jsonRes));
                         return;
                     }
-                    let sessionId = sessionCookie.split("=")[1];*/
-                    let sessionId = `p7lqxEHUGwxQrJlZAxs3ZaqmEpZ3Y6`
+                    let sessionId = sessionCookie.split("=")[1];
 
                     try {
                         let user = await DBFunctions.GetUserFromSession(sessionId);
