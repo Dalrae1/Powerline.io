@@ -1056,7 +1056,7 @@ function createServer() {
 	button.disabled = true
 	button.innerHTML = "Creating..."
 
-	fetch(`http://${domainn}:1335/createserver`, {
+	fetch(`${isSecure ? "https" : "http"}://${domainn}:1335/createserver`, {
 		method: 'POST',
 		body: JSON.stringify({
 			name: serverName,

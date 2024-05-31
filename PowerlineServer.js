@@ -70,9 +70,6 @@ UPDATE_EVERY_N_TICKS = 3;
 SCORE_MULTIPLIER = 10/defaultConfig.FoodValue
 
 
-console.log(SnakeFunctions.ScoreToLength(10))
-
-
 const HttpsServer = require('https').createServer;
 const HttpServer = require('http').createServer;
 
@@ -89,7 +86,6 @@ function serverListener(req, res) {
     }
 
     if (req.method === 'POST') {
-        console.log("Endpoint: " + req.url.split("/")[1])
         switch (req.url.split("/")[1]) {
             case "createserver":
                 let body = '';
