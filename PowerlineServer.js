@@ -76,9 +76,10 @@ const HttpServer = require('http').createServer;
 function serverListener(req, res) {
     if (req.method === 'OPTIONS') {
         res.writeHead(204, {
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': req.headers.origin,
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Allow-Credentials': true,
             'Access-Control-Max-Age': 2592000
         });
         res.end();
@@ -97,9 +98,11 @@ function serverListener(req, res) {
                     let sessionCookie = cookies.find(cookie => cookie.includes("session_id="));
                     if (!sessionCookie) {
                         res.writeHead(401, {
-                            'Access-Control-Allow-Origin': '*',
+                            'Access-Control-Allow-Origin': req.headers.origin,
                             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                            'Access-Control-Allow-Headers': 'Content-Type'
+                            'Access-Control-Allow-Headers': 'Content-Type',
+                            'Access-Control-Allow-Credentials': true
+
                         });
                         let jsonRes = {
                             success: false,
@@ -116,9 +119,10 @@ function serverListener(req, res) {
                         let userID = user.userid;
                         if (!userID) {
                             res.writeHead(401, {
-                                'Access-Control-Allow-Origin': '*',
+                                'Access-Control-Allow-Origin': req.headers.origin,
                                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type'
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
                             });
                             let jsonRes = {
                                 success: false,
@@ -133,9 +137,10 @@ function serverListener(req, res) {
 
                         if (!json.name || json.name.length > 20 || json.name.length < 3) {
                             res.writeHead(400, {
-                                'Access-Control-Allow-Origin': '*',
+                                'Access-Control-Allow-Origin': req.headers.origin,
                                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type'
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
                             });
                             let jsonRes = {
                                 success: false,
@@ -147,9 +152,10 @@ function serverListener(req, res) {
                         }
                         if (json.maxPlayers < 1 || json.maxPlayers > 100) {
                             res.writeHead(400, {
-                                'Access-Control-Allow-Origin': '*',
+                                'Access-Control-Allow-Origin': req.headers.origin,
                                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type'
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
                             });
                             let jsonRes = {
                                 success: false,
@@ -161,9 +167,10 @@ function serverListener(req, res) {
                         }
                         if (json.foodValue < 1 || json.foodValue > 100) {
                             res.writeHead(400, {
-                                'Access-Control-Allow-Origin': '*',
+                                'Access-Control-Allow-Origin': req.headers.origin,
                                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type'
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
                             });
                             let jsonRes = {
                                 success: false,
@@ -175,9 +182,10 @@ function serverListener(req, res) {
                         }
                         if (json.isPublic !== true && json.isPublic !== false) {
                             res.writeHead(400, {
-                                'Access-Control-Allow-Origin': '*',
+                                'Access-Control-Allow-Origin': req.headers.origin,
                                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type'
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
                             });
                             let jsonRes = {
                                 success: false,
@@ -189,9 +197,10 @@ function serverListener(req, res) {
                         }
                         if (json.defaultLength < 1 || json.defaultLength > 1000) {
                             res.writeHead(400, {
-                                'Access-Control-Allow-Origin': '*',
+                                'Access-Control-Allow-Origin': req.headers.origin,
                                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type'
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
                             });
                             let jsonRes = {
                                 success: false,
@@ -203,9 +212,10 @@ function serverListener(req, res) {
                         }
                         if (json.arenaSize < 1 || json.arenaSize > 1000) {
                             res.writeHead(400, {
-                                'Access-Control-Allow-Origin': '*',
+                                'Access-Control-Allow-Origin': req.headers.origin,
                                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type'
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
                             });
                             let jsonRes = {
                                 success: false,
@@ -222,9 +232,10 @@ function serverListener(req, res) {
                                 return
                             if (parseInt(server.owner) == parseInt(userID)) {
                                 res.writeHead(400, {
-                                    'Access-Control-Allow-Origin': '*',
+                                    'Access-Control-Allow-Origin': req.headers.origin,
                                     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                    'Access-Control-Allow-Headers': 'Content-Type'
+                                    'Access-Control-Allow-Headers': 'Content-Type',
+                                    'Access-Control-Allow-Credentials': true
                                 });
                                 let jsonRes = {
                                     success: false,
@@ -268,9 +279,10 @@ function serverListener(req, res) {
                             config: serverConfig
                         });
                         res.writeHead(200, {
-                            'Access-Control-Allow-Origin': '*',
+                            'Access-Control-Allow-Origin': req.headers.origin,
                             'Access-Control-Allow-Methods': 'POST, OPTIONS',
                             'Access-Control-Allow-Headers': 'Content-Type',
+                            'Access-Control-Allow-Credentials': true
                         });
                         res.end(JSON.stringify({
                             success: true,
@@ -292,9 +304,10 @@ function serverListener(req, res) {
 
                     } catch (error) {
                         res.writeHead(500, {
-                            'Access-Control-Allow-Origin': '*',
+                            'Access-Control-Allow-Origin': req.headers.origin,
                             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                            'Access-Control-Allow-Headers': 'Content-Type'
+                            'Access-Control-Allow-Headers': 'Content-Type',
+                            'Access-Control-Allow-Credentials': true
                         });
                         res.end(JSON.stringify({
                             success: false,
@@ -307,9 +320,10 @@ function serverListener(req, res) {
 
             default:
                 res.writeHead(404, {
-                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Origin': req.headers.origin,
                     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type'
+                    'Access-Control-Allow-Headers': 'Content-Type',
+                    'Access-Control-Allow-Credentials': true
                 });
                 res.end(JSON.stringify({
                     success: false,
@@ -320,9 +334,10 @@ function serverListener(req, res) {
         }
     } else {
         res.writeHead(200, {
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': req.headers.origin,
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Credentials': true
         });
         res.end('All glory to WebSockets!\n');
     }
