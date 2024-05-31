@@ -1051,6 +1051,36 @@ function createServer() {
 	let serverIsPublic = document.getElementById("isPublic").checked
 	let serverDefaultLength = document.getElementById("defaultLength").value
 	let serverArenaSize = document.getElementById("arenaSize").value
+	let domainn = window.location.hostname
+	let button = document.querySelector("#createserverbutton")
+	button.disabled = true
+	button.innerHTML = "Creating..."
+
+	fetch(`http://${domainn}:1335/createserver`, {
+		method: 'POST',
+		body: JSON.stringify({
+			name: serverName,
+			maxPlayers: serverMaxPlayers,
+			foodValue: serverFoodValue,
+			isPublic: serverIsPublic,
+			defaultLength: serverDefaultLength,
+			arenaSize: serverArenaSize
+		}),
+		headers: {
+			'Content-Type': 'application/json'
+		}
+	}).then(response => response.json()).then(json => {
+		button.disabled = false
+		button.innerHTML = "Create"
+		if (json.success) {
+			refreshServers()
+			document.getElementById('createServerModal').style.display = 'none';
+		} else {
+			alert(json.message)
+		}
+	
+
+	})
 
 
 }
@@ -1073,6 +1103,7 @@ function refreshServers() {
 	.then((response) => response.json())
 	.then((json) => {
 		let serverInfoUrl = `${isSecure ? "https" : "http"}://${urlSplit[2]}:${isSecure ? json.servers[0].id + 1 : json.servers[0].id}/api/fetchserverinfo?id=${json.servers.map(server => server.id).join("&id=")}`
+		console.log(json)
 		fetch(serverInfoUrl).then((response) => response.json()).then((serverInfos) => {
 			let serverTable = document.getElementsByClassName("server-table")[0]
 			let tableBody = serverTable.getElementsByTagName("tbody")[0]
@@ -1083,7 +1114,7 @@ function refreshServers() {
 				row.id = `server${server.id}`
 				row.insertCell().innerText = server.name
 				row.insertCell().innerText = `${serverInfo.playerCount}/${server.maxPlayers}`
-				row.insertCell().innerText = server.owner
+				row.insertCell().innerText = server.ownerName
 				let buttonCell = row.insertCell()
 				let button = document.createElement("button")
 				button.type = "submit"

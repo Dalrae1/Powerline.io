@@ -110,7 +110,7 @@ class Client extends EventEmitter {
                 break;
             case Enums.ClientToServer.OPCODE_DEBUG_GRAB:
                 if (this.server.admins.includes(this.snake.userid))
-                    this.snake.length += SnakeFunctions.ScoreToLength(this.server, this.server.debugGrabAmount);
+                    this.snake.length += SnakeFunctions.ScoreToLength(this.server.debugGrabAmount);
                 break;
             case 0x0d: // Invincible
                 if (this.server.admins.includes(this.snake.userid))
@@ -273,7 +273,7 @@ class Client extends EventEmitter {
                                         return
                                     }
                                     if (client.snake.nick.toLowerCase() == commandArgs.concat().splice(1).join(" ").toLowerCase()) {
-                                        client.snake.length += SnakeFunctions.ScoreToLength(this.server, 1000);
+                                        client.snake.length += SnakeFunctions.ScoreToLength(1000);
                                     }
                                 })
                             }

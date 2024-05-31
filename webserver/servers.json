@@ -4,7 +4,8 @@
             "name": "Custom Server",
             "id": 1337,
             "maxPlayers": 100,
-            "owner": "Dalrae",
+            "owner": 1,
+            "ownerName": "Dalrae",
             "ipHash": "1",
             "config": {
                 "ConfigType": 160,
@@ -29,7 +30,8 @@
             "name": "Modded Server",
             "id": 1339,
             "maxPlayers": 100,
-            "owner": "Dalrae",
+            "owner": 1,
+            "ownerName": "Dalrae",
             "ipHash": "1",
             "config": {
                 "ConfigType": 160,

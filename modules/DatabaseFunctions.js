@@ -33,7 +33,7 @@ class DatabaseFunctions {
             });
 
             if (sessionData.length > 0) {
-                return sessionData[0].userid;
+                return sessionData[0];
             } else {
                 return null; // No session found
             }

@@ -93,17 +93,18 @@ class SnakeFunctions {
         }
         return foundPoints
     }
-    static LengthToScore(server, length) {
-        return (length - server.config.DefaultLength)*server.scoreMultiplier
+    static LengthToScore(length) {
+        return (length - defaultConfig.DefaultLength)*SCORE_MULTIPLIER
     }
-    static ScoreToLength(server, score) {
-        return score/server.scoreMultiplier
+    static ScoreToLength(score) {
+        let scoreMult = 10/defaultConfig.FoodValue
+        return score/scoreMult
     }
     static ScoreToFood(score) {
         return Math.floor(score / 10)
     }
-    static GetScoreToDrop(server, length) {
-        let score = (length - server.config.DefaultLength)*server.scoreMultiplier
+    static GetScoreToDrop(length) {
+        let score = (length - defaultConfig.DefaultLength)*SCORE_MULTIPLIER
         let x = Math.ceil(Math.random() * 30 * 10) / 10
         return Math.floor(((score - (score - x) / 6) + 70) / 10) * 10
     }

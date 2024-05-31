@@ -22,31 +22,13 @@ function getSegmentLength(point1, point2) {
     return Math.abs(Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)));
 }
 
-let defaultConfig = {
-    "ConfigType": 160,
-    "ArenaSize": 300,
-    "DefaultZoom": 2,
-    "MinimumZoom": 1.5,
-    "MinimumZoomScore": 100,
-    "ZoomLevel2": 10,
-    "GlobalWebLag": 90,
-    "GlobalMobileLag": 60,
-    "OtherSnakeDelay": 40,
-    "IsTalkEnabled": 1,
-
-    "FoodValue": 1.5, 
-    "UpdateInterval": 100,
-    "MaxBoostSpeed": 255,
-    "MaxRubSpeed": 200,
-    "DefaultLength": 10
-}
-
 class Server {
     constructor(serverInfo) {
         this.id = serverInfo.id;
         this.name = serverInfo.name;
         this.MaxPlayers = serverInfo.maxPlayers;
         this.config = serverInfo.config;
+        this.owner = serverInfo.owner;
 
         this.entityIDs = new IDManager();
         this.clientIDs = new IDManager();
@@ -58,7 +40,6 @@ class Server {
             height: this.config.ArenaSize
         }, 10)
         
-        this.scoreMultiplier = 10/defaultConfig.FoodValue;
         this.foodMultiplier = 1;
         this.maxFood = this.config.ArenaSize * 5;
         this.foodSpawnPercent = (this.config.ArenaSize ^ 2) / 10;
@@ -121,6 +102,7 @@ class Server {
         }
 
         this.mainLooper()
+        return this;
     }
 
     serverListener = (req, res) => {
@@ -187,7 +169,8 @@ class Server {
         }
         ws.on('message', incomingQueue)
         if (session) {
-            DBFunctions.GetUserFromSession(session).then((userID) => {
+            DBFunctions.GetUserFromSession(session).then((user) => {
+                let userID = user.userid;
                 let client = null
                 if (userID) {
                     client = new Client(this, ws, userID);

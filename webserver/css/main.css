@@ -34,7 +34,6 @@ body {
 
 #createServer {
     position: absolute;
-    display: none;
     bottom: 10px;
     left: 10px;
     background-color: #05ffff;

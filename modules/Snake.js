@@ -92,7 +92,7 @@ class Snake {
                 continue
             BitView.setUint16(offset, snake.id, true);
             offset += 2;
-            BitView.setUint32(offset, (snake.actualLength - this.server.config.DefaultLength) * this.server.scoreMultiplier, true);
+            BitView.setUint32(offset, (snake.actualLength - this.server.config.DefaultLength) * SCORE_MULTIPLIER, true);
             offset += 4;
             BitView, offset = GlobalFunctions.SetNick(BitView, offset, snake.nick)
             BitView.setUint16(offset, 0, true);
@@ -102,7 +102,7 @@ class Snake {
         if (myRank) {
             BitView.setUint16(offset, this.id, true);
             offset += 2;
-            BitView.setUint32(offset, (this.length - this.server.config.DefaultLength) * this.server.scoreMultiplier, true);
+            BitView.setUint32(offset, (this.length - this.server.config.DefaultLength) * SCORE_MULTIPLIER, true);
             offset += 4;
             BitView.setUint16(offset, myRank, true);
             offset += 2;
@@ -379,7 +379,7 @@ class Snake {
 
 
 
-        let scoreToDrop = SnakeFunctions.GetScoreToDrop(this.server, actualLength);
+        let scoreToDrop = SnakeFunctions.GetScoreToDrop(actualLength);
         let foodToDrop = SnakeFunctions.ScoreToFood(scoreToDrop) * this.server.foodMultiplier;
         let dropAtInterval = actualLength / (foodToDrop);
         for (let i = 0; i < actualLength; i += dropAtInterval) {
