@@ -73,6 +73,21 @@ SCORE_MULTIPLIER = 10/defaultConfig.FoodValue
 const HttpsServer = require('https').createServer;
 const HttpServer = require('http').createServer;
 
+function sendBadResponse(req, res, code, message) {
+    res.writeHead(code, {
+        'Access-Control-Allow-Origin': req.headers.origin,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Credentials': true
+    });
+    res.end(JSON.stringify({
+        success: false,
+        message: message
+    }));
+
+
+}
+
 function serverListener(req, res) {
     if (req.method === 'OPTIONS') {
         res.writeHead(204, {
@@ -97,19 +112,7 @@ function serverListener(req, res) {
                     let cookies = req.headers.cookie ? req.headers.cookie.split("; ") : [];
                     let sessionCookie = cookies.find(cookie => cookie.includes("session_id="));
                     if (!sessionCookie) {
-                        res.writeHead(401, {
-                            'Access-Control-Allow-Origin': req.headers.origin,
-                            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                            'Access-Control-Allow-Headers': 'Content-Type',
-                            'Access-Control-Allow-Credentials': true
-
-                        });
-                        let jsonRes = {
-                            success: false,
-                            error: "Unauthorized",
-                            message: "No session cookie"
-                        }
-                        res.end(JSON.stringify(jsonRes));
+                        sendBadResponse(req, res, 401, "No session cookie");
                         return;
                     }
                     let sessionId = sessionCookie.split("=")[1];
@@ -118,111 +121,34 @@ function serverListener(req, res) {
                         let user = await DBFunctions.GetUserFromSession(sessionId);
                         let userID = user.userid;
                         if (!userID) {
-                            res.writeHead(401, {
-                                'Access-Control-Allow-Origin': req.headers.origin,
-                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type',
-                                'Access-Control-Allow-Credentials': true
-                            });
-                            let jsonRes = {
-                                success: false,
-                                error: "Unauthorized",
-                                message: "Invalid session"
-                            }
-                            res.end(JSON.stringify(jsonRes));
+                            sendBadResponse(req, res, 401, "Invalid session");
                             return;
                         }
 
                         let json = JSON.parse(body);
 
                         if (!json.name || json.name.length > 20 || json.name.length < 3) {
-                            res.writeHead(400, {
-                                'Access-Control-Allow-Origin': req.headers.origin,
-                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type',
-                                'Access-Control-Allow-Credentials': true
-                            });
-                            let jsonRes = {
-                                success: false,
-                                error: "Invalid server name",
-                                message: "Server name must be between 3 and 20 characters"
-                            }
-                            res.end(JSON.stringify(jsonRes));
+                            sendBadResponse(req, res, 400, "Server name must be between 3 and 20 characters");
                             return;
                         }
                         if (json.maxPlayers < 1 || json.maxPlayers > 100) {
-                            res.writeHead(400, {
-                                'Access-Control-Allow-Origin': req.headers.origin,
-                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type',
-                                'Access-Control-Allow-Credentials': true
-                            });
-                            let jsonRes = {
-                                success: false,
-                                error: "Invalid max players",
-                                message: "Max players must be between 1 and 100"
-                            }
-                            res.end(JSON.stringify(jsonRes));
+                            sendBadResponse(req, res, 400, "Max players must be between 1 and 100");
                             return;
                         }
                         if (json.foodValue < 1 || json.foodValue > 100) {
-                            res.writeHead(400, {
-                                'Access-Control-Allow-Origin': req.headers.origin,
-                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type',
-                                'Access-Control-Allow-Credentials': true
-                            });
-                            let jsonRes = {
-                                success: false,
-                                error: "Invalid food value",
-                                message: "Food value must be between 1 and 100"
-                            }
-                            res.end(JSON.stringify(jsonRes));
+                            sendBadResponse(req, res, 400, "Food value must be between 1 and 100");
                             return;
                         }
                         if (json.isPublic !== true && json.isPublic !== false) {
-                            res.writeHead(400, {
-                                'Access-Control-Allow-Origin': req.headers.origin,
-                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type',
-                                'Access-Control-Allow-Credentials': true
-                            });
-                            let jsonRes = {
-                                success: false,
-                                error: "Invalid isPublic",
-                                message: "isPublic must be a boolean"
-                            }
-                            res.end(JSON.stringify(jsonRes));
+                            sendBadResponse(req, res, 400, "isPublic must be a boolean");
                             return;
                         }
                         if (json.defaultLength < 1 || json.defaultLength > 1000) {
-                            res.writeHead(400, {
-                                'Access-Control-Allow-Origin': req.headers.origin,
-                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type',
-                                'Access-Control-Allow-Credentials': true
-                            });
-                            let jsonRes = {
-                                success: false,
-                                error: "Invalid default length",
-                                message: "Default length must be between 1 and 1000"
-                            }
-                            res.end(JSON.stringify(jsonRes));
+                            sendBadResponse(req, res, 400, "Default length must be between 1 and 1000");
                             return;
                         }
                         if (json.arenaSize < 1 || json.arenaSize > 1000) {
-                            res.writeHead(400, {
-                                'Access-Control-Allow-Origin': req.headers.origin,
-                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                'Access-Control-Allow-Headers': 'Content-Type',
-                                'Access-Control-Allow-Credentials': true
-                            });
-                            let jsonRes = {
-                                success: false,
-                                error: "Invalid arena size",
-                                message: "Arena size must be between 1 and 1000"
-                            }
-                            res.end(JSON.stringify(jsonRes));
+                            sendBadResponse(req, res, 400, "Arena size must be between 1 and 1000");
                             return;
                         }
                         
@@ -231,18 +157,7 @@ function serverListener(req, res) {
                             if (alreadyServer)
                                 return
                             if (parseInt(server.owner) == parseInt(userID)) {
-                                res.writeHead(400, {
-                                    'Access-Control-Allow-Origin': req.headers.origin,
-                                    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                                    'Access-Control-Allow-Headers': 'Content-Type',
-                                    'Access-Control-Allow-Credentials': true
-                                });
-                                let jsonRes = {
-                                    success: false,
-                                    error: "Too many servers",
-                                    message: "You already have a server"
-                                }
-                                res.end(JSON.stringify(jsonRes));
+                                sendBadResponse(req, res, 400, "You already have the maximum amount of servers");
                                 alreadyServer = true;
                             }
                         })
@@ -291,6 +206,7 @@ function serverListener(req, res) {
 
                         let serversFile = fs.readFileSync('./webserver/servers.json');
                         let servers = JSON.parse(serversFile);
+                        console.log("Username: " + user.username)
                         servers.servers.push({
                             id: newServerId,
                             name: json.name,
@@ -303,33 +219,13 @@ function serverListener(req, res) {
                         fs.writeFileSync('./webserver/servers.json', JSON.stringify(servers, null, 4));
 
                     } catch (error) {
-                        res.writeHead(500, {
-                            'Access-Control-Allow-Origin': req.headers.origin,
-                            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                            'Access-Control-Allow-Headers': 'Content-Type',
-                            'Access-Control-Allow-Credentials': true
-                        });
-                        res.end(JSON.stringify({
-                            success: false,
-                            error: "Internal Server Error",
-                            message: error.message
-                        }));
+                        sendBadResponse(req, res, 500, "Internal Server Error: " + error.message);
                     }
                 });
                 break;
 
             default:
-                res.writeHead(404, {
-                    'Access-Control-Allow-Origin': req.headers.origin,
-                    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type',
-                    'Access-Control-Allow-Credentials': true
-                });
-                res.end(JSON.stringify({
-                    success: false,
-                    error: "Not Found",
-                    message: "Endpoint not found"
-                }));
+                sendBadResponse(req, res, 404, "Endpoint not found");
                 break;
         }
     } else {
