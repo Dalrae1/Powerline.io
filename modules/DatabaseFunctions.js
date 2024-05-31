@@ -32,11 +32,18 @@ class DatabaseFunctions {
                 });
             });
 
-            if (sessionData.length > 0) {
-                return sessionData[0];
-            } else {
-                return null; // No session found
-            }
+            if (sessionData.length == 0)
+                return null;
+            const userData = await new Promise((resolve, reject) => {
+                this.pool.query("SELECT * FROM users WHERE userid = ?", [sessionData[0].userid], function (err, result) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(result);
+                    }
+                });
+            })
+            return userData[0]
         } catch (err) {
             console.error("Error fetching session data: ", err);
             throw err; // Re-throw the error after logging it
