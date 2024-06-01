@@ -6,26 +6,60 @@ body {
 
 .scroll-window {
     position: fixed;
-    /* Use fixed to keep it in place when scrolling */
     top: 100px;
-    /* Adjust this value based on your header's height or desired position */
     right: 10px;
-    /* Right margin for aesthetics */
-
-    /* Define a fixed width */
-    height: 400px;
-    /* Define a fixed height */
-    overflow-y: hidden;
-    /* Allow vertical scrolling */
+    max-width: 25vw; /* Set a max width to prevent overflow */
+    height: 300px; /* Adjust height as needed */
     border: 2px solid #05ffff;
     border-radius: 10px;
-    padding: 10px;
+    padding-right: 10px;
     background-color: #003a3a;
-    /* Background to match the theme */
     color: #05ffff;
-    /* Text color */
     z-index: 1000;
-    /* Ensure it is on top of other elements */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent overflow */
+    overflow-y: auto; /* Allow vertical scrolling */
+}
+
+.header-text {
+    position: sticky;
+    background-color: #003a3a;
+    z-index: 3; /* Ensure it stays above the table headers */
+    padding-bottom: 10px;
+}
+
+.server-table-container {
+    flex-grow: 1; /* Allow it to grow and take up available space */
+}
+
+.server-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.server-table thead {
+    background-color: #003a3a;
+    position: sticky;
+    top: 0; /* Stick to the top of the container */
+    z-index: 2; /* Ensure it stays above the body content */
+}
+
+.server-table th, .server-table td {
+    padding: 0px 0px; /* Adjust padding as needed */
+    text-align: left;
+    border-bottom: 1px solid #05ffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.server-table tbody {
+    flex-grow: 1;
+}
+
+.server-table th:last-child, .server-table td:last-child {
+    text-align: right;
 }
 
 .selected {
@@ -33,9 +67,9 @@ body {
 }
 
 #createServer {
-    position: absolute;
+    position: sticky;
     bottom: 10px;
-    left: 10px;
+    align-self: flex-end;
     background-color: #05ffff;
     color: #003a3a;
     border: none;
@@ -44,6 +78,10 @@ body {
     height: 30px;
     font-size: 20px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
 }
 
 #google_login_wrapper {
