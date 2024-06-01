@@ -1051,12 +1051,11 @@ function createServer() {
 	let serverIsPublic = document.getElementById("isPublic").checked
 	let serverDefaultLength = document.getElementById("defaultLength").value
 	let serverArenaSize = document.getElementById("arenaSize").value
-	let domainn = window.location.hostname
 	let button = document.querySelector("#createserverbutton")
 	button.disabled = true
 	button.innerHTML = "Creating..."
 
-	fetch(`${isSecure ? "https" : "http"}://${domainn}:${isSecure ? "1336" : "1335"}/createserver`, {
+	fetch(`${isSecure ? "https" : "http"}://${window.location.hostname}:${isSecure ? "1336" : "1335"}/createserver`, {
 		method: 'POST',
 		body: JSON.stringify({
 			name: serverName,
@@ -1095,54 +1094,78 @@ document.getElementById("overlay").onmousedown = function (e) {
 };
 
 let serverListDeb = false
+let isFirstLoad = true;
+let loadedUsernames = new Map();
+
 function refreshServers() {
-	if (!network) {
-		setTimeout(refreshServers, 500)
-		return
-	}
-	fetch('./servers.json')
-	.then((response) => response.json())
-	.then((json) => {
-		let serverInfoUrl = `${isSecure ? "https" : "http"}://${urlSplit[2]}:${isSecure ? json.servers[0].id + 1 : json.servers[0].id}/api/fetchserverinfo?id=${json.servers.map(server => server.id).join("&id=")}`
-		console.log(json)
-		fetch(serverInfoUrl).then((response) => response.json()).then((serverInfos) => {
-			let serverTable = document.getElementsByClassName("server-table")[0]
-			let tableBody = serverTable.getElementsByTagName("tbody")[0]
-			tableBody.innerHTML = ""
-			Object.values(serverInfos).forEach(serverInfo => {
-				let server = json.servers.find(server => server.id == serverInfo.id)
-				let row = tableBody.insertRow()
-				row.id = `server${server.id}`
-				row.insertCell().innerText = server.name
-				row.insertCell().innerText = `${serverInfo.playerCount}/${server.maxPlayers}`
-				row.insertCell().innerText = server.ownerName
-				let buttonCell = row.insertCell()
-				let button = document.createElement("button")
-				button.type = "submit"
-				button.innerText = "Join"
-				button.classList.add("btn")
-				button.classList.add("btn-play")
-				button.classList.add("btn-primary")
+    if (!network) {
+        setTimeout(refreshServers, 500);
+        return;
+    }
 
-				if (Number(network.serverId) == Number(server.id))
-					row.classList.add("selected")
+    let serverTable = document.getElementsByClassName("server-table")[0];
+    let tableBody = serverTable.getElementsByTagName("tbody")[0];
 
-				button.addEventListener('click', () => {
-					selectServer(server.id)
-				});
-				buttonCell.appendChild(button)
-			})
+    // Show loading message only on the first load
+    if (!tableBody.hasChildNodes()) {
+        tableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
+    }
+
+    fetch(`${isSecure ? "https" : "http"}://${window.location.hostname}:${isSecure ? "1336" : "1335"}/getservers`)
+        .then((response) => response.json())
+        .then(async (servers) => {
+            tableBody.innerHTML = "";
+
+            // Render servers with "Loading..." for usernames if it's the first load
+            servers.forEach(server => {
+                let row = tableBody.insertRow();
+                row.id = `server${server.id}`;
+                row.insertCell().innerText = server.name;
+                row.insertCell().innerText = `${server.playerCount}/${server.maxplayers}`;
+                row.insertCell().innerText = loadedUsernames.has(server.owner) ? loadedUsernames.get(server.owner) : "Loading..."; // Show "Loading..." only if username is not yet loaded
+                let buttonCell = row.insertCell();
+                let button = document.createElement("button");
+                button.type = "submit";
+                button.innerText = "Join";
+                button.classList.add("btn");
+                button.classList.add("btn-play");
+                button.classList.add("btn-primary");
+				console.log(`Selected: ${Number(network.serverId)} ${Number(server.id)}`)
+                if (Number(network.serverId) == Number(server.id))
+                    row.classList.add("selected");
+
+                button.addEventListener('click', () => {
+                    selectServer(server.id);
+                });
+                buttonCell.appendChild(button);
+            });
+
+            // Fetch user information asynchronously
+            let userInfoUrl = `${isSecure ? "https" : "http"}://${urlSplit[2]}:${isSecure ? "1336" : "1335"}/fetchuser?id=${servers.map(server => server.owner).join("&id=")}`;
+            fetch(userInfoUrl).then((response) => response.json()).then((userInfos) => {
+                let users = {};
+                Object.values(userInfos).forEach(user => {
+                    users[user.userid] = user;
+                    loadedUsernames.set(user.userid, user.username); // Store the username in the map
+                });
+
+                // Update usernames in the table
+                servers.forEach(server => {
+                    let row = document.getElementById(`server${server.id}`);
+                    if (row) {
+                        row.cells[2].innerText = users[server.owner]?.username || "Unknown User"; // Update with fetched username
+                    }
+                });
+            });
+
 			serverListLoaded = true
 			if (!serverListDeb) {
 				serverListDeb = true
 				network.connect()
 			}
-		})
-		
-		
 
-		setTimeout(refreshServers, 2000)
-	});
+            setTimeout(refreshServers, 2000);
+        });
 }
 refreshServers()
 refreshAd();

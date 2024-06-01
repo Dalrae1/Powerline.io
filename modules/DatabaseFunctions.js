@@ -49,6 +49,75 @@ class DatabaseFunctions {
             throw err; // Re-throw the error after logging it
         }
     }
+
+    async GetServers() {
+        try {
+            const servers = await new Promise((resolve, reject) => {
+                this.pool.query("SELECT * FROM servers", function (err, result) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(result);
+                    }
+                });
+            });
+
+            return servers;
+        } catch (err) {
+            console.error("Error fetching servers: ", err);
+            throw err; // Re-throw the error after logging it
+        }
+    }
+
+    async GetUsers(userIds) {
+        try {
+            // Ensure userIds is an array
+            if (!Array.isArray(userIds) || userIds.length === 0) {
+                throw new Error("userIds must be a non-empty array");
+            }
+    
+            // Create a comma-separated list of placeholders
+            const placeholders = userIds.map(() => '?').join(',');
+    
+            // Construct the query
+            const query = `SELECT userid, username FROM users WHERE userid IN (${placeholders})`;
+    
+            const users = await new Promise((resolve, reject) => {
+                this.pool.query(query, userIds, function (err, result) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(result);
+                    }
+                });
+            });
+    
+            return JSON.stringify(users); // Assuming you want to return JSON serialized result
+        } catch (err) {
+            console.error("Error fetching users: ", err);
+            throw err; // Re-throw the error after logging it
+        }
+    }
+
+    async CreateServer(serverInfo) {
+        try {
+            const result = await new Promise((resolve, reject) => {
+                this.pool.query("INSERT INTO servers (id, name, owner, maxplayers, config) VALUES (?, ?, ?, ?, ?)", [serverInfo.id, serverInfo.name, serverInfo.owner, serverInfo.maxplayers, serverInfo.config], function (err, result) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(result);
+                    }
+                });
+            });
+
+            return result;
+        } catch (err) {
+            console.error("Error creating server: ", err);
+            throw err; // Re-throw the error after logging it
+        }
+
+    }
 }
 
 module.exports = DatabaseFunctions;

@@ -26,7 +26,7 @@ class Server {
     constructor(serverInfo) {
         this.id = serverInfo.id;
         this.name = serverInfo.name;
-        this.MaxPlayers = serverInfo.maxPlayers;
+        this.MaxPlayers = serverInfo.maxplayers;
         this.config = serverInfo.config;
         this.owner = serverInfo.owner;
 
@@ -100,58 +100,17 @@ class Server {
         for (let i = 0; i < this.maxFood; i++) {
             new Food(this);
         }
-
         this.mainLooper()
         return this;
     }
 
     serverListener = (req, res) => {
-        if (req.method === "GET") {
-            switch (req.url.split("?")[0]) {
-                case `/server/${this.id}/info`:
-                    res.writeHead(200, {
-                        "Content-Type": "text/html",
-                        "Access-Control-Allow-Origin": "*"
-                    });
-                    var serverInfo = {
-                        playerCount: Object.keys(this.snakes).length,
-                    }
-                    res.end(JSON.stringify(serverInfo));
-                    break
-                case `/api/fetchserverinfo`:
-                    res.writeHead(200, {
-                        "Content-Type": "text/html",
-                        "Access-Control-Allow-Origin": "*"
-                    });
-                    let serverIds = req.url.split("?")[1].split("&").map((id) => id.split("=")[1]);
-                    var serverInfo = {}
-                    serverIds.forEach((id) => {
-                        if (!Servers[id])
-                            return
-                        serverInfo[id] = {
-                            id: id,
-                            playerCount: Object.keys(Servers[id].snakes).length,
-                        }
-                    })
-                    res.end(JSON.stringify(serverInfo));
-                    break
-                default:
-                    res.writeHead(200, {
-                        "Content-Type": "text/html",
-                        "Access-Control-Allow-Origin": "*"
-                    });
-                    res.end(`
-                    <head>
-                        <meta property="og:title" content="Dalrae" />
-                        <meta property="og:description" content="Yeah salzling is kinda a poo head soooo" />
-                        <meta property="og:url" content="https://dalr.ae" />
-                    </head>
-                    Salzling poo head
-                    
-                    `);
-                    break;
-            }
-        }
+        res.writeHead(404, {
+            'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+            'Access-Control-Allow-Methods': 'GET',
+            'Access-Control-Allow-Credentials': true
+        });
+        res.end(`This directory is not meant to be accessed directly. Please visit ${req.headers.host} to play!`);
     }
     websocketListener = (ws, req) => {
         let cookies = req.headers.cookie;
