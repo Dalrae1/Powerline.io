@@ -18,7 +18,8 @@ class Snake {
         this.userid = network.userid;
         this.client.dead = false;
         this.client.sendConfig();
-        this.flags |= Enums.EntityFlags.DEBUG
+        //this.flags |= Enums.EntityFlags.DEBUG
+        this.flags = 0;
         if (customPlayerColors[name]) {
             this.customHead = customPlayerColors[name].customHead;
             this.customBody = customPlayerColors[name].customBody;
@@ -28,7 +29,7 @@ class Snake {
         }
 
         let thisId = this.server.entityIDs.allocateID();
-        console.log("Spawning snake " + name + " with ID " + thisId)
+        //console.log("Spawning snake " + name + " with ID " + thisId)
         this.spawned = true;
         var Bit8 = new DataView(new ArrayBuffer(1000));
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTERED_GAME);
@@ -292,7 +293,7 @@ class Snake {
             
                 Bit8.setUint16(offset, this.id, true);
                 offset += 2;
-                console.log("0Killed snake " + this.nick + " with ID " + this.id)
+                //console.log("0Killed snake " + this.nick + " with ID " + this.id)
                 Bit8.setUint8(offset, Enums.UpdateTypes.UPDATE_TYPE_DELETE, true);
                 offset += 1;
                 Bit8.setUint16(offset, killedBy.id, true);

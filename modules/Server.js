@@ -100,7 +100,7 @@ class Server {
         for (let i = 0; i < this.maxFood; i++) {
             new Food(this);
         }
-        this.mainLooper()
+        this.start()
         return this;
     }
 
@@ -475,20 +475,31 @@ class Server {
     }
 
     mainLooper() {
-        setTimeout(() => {
-            if (Date.now() - this.lastUpdate >= this.config.UpdateInterval) {
-                if ((Date.now() - this.lastUpdate) > this.config.UpdateInterval) {
-
-
-
-
-                }
-                this.main()
-                this.lastUpdate = Date.now();
-                
+        const now = Date.now();
+        const elapsed = now - this.lastUpdate;
+    
+        if (elapsed >= this.config.UpdateInterval) {
+            // Adjust lastUpdate to now
+            this.lastUpdate = now;
+    
+            if (elapsed > this.config.UpdateInterval) {
+                //console.warn(`Server ${this.id} is lagging behind by ${elapsed - this.config.UpdateInterval}ms`);
             }
-            this.mainLooper()
-        }, 1)
+    
+            //console.log(`Executing main loop ${elapsed}ms since last update`);
+    
+            let mainStart = Date.now();
+            this.main();
+            //console.log(`Server ${this.id} took ${Date.now() - mainStart}ms to update`);
+        }
+    
+        const nextInterval = this.config.UpdateInterval - (Date.now() - this.lastUpdate);
+        setTimeout(() => this.mainLooper(), nextInterval);
+    }
+
+    start() {
+        this.lastUpdate = Date.now();
+        this.mainLooper();
     }
 }
 

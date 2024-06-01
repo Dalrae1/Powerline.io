@@ -2,6 +2,7 @@ const { SnakeFunctions } = require("./modules/EntityFunctions.js");
 const Server = require("./modules/Server.js");
 const fs = require("fs");
 const DatabaseFunctions = require("./modules/DatabaseFunctions.js");
+const Bot = require("./modules/Bot.js");
 
 DBFunctions = new DatabaseFunctions();
 
@@ -248,7 +249,8 @@ async function serverListener(req, res) {
                         'Access-Control-Allow-Credentials': true
                     });
                     servers.forEach(server => {
-                        server.playerCount = Object.keys(Servers[server.id].snakes).length;
+                        if (Servers[server.id])
+                            server.playerCount = Object.keys(Servers[server.id].snakes).length;
                     })
                     res.end(JSON.stringify(servers, true, 4));
                     break;
@@ -406,6 +408,12 @@ DBFunctions.GetServers().then(async (servers) => {
     servers.forEach(server => {
         server.config = JSON.parse(server.config);
         Servers[server.id] = new Server(server);
+
+        if (server.id == 1337) {
+            for (let i = 0; i < 30; i++) {
+                let bot = new Bot(Servers[server.id])
+            }
+        }
     })
     console.log("Servers loaded")
 }).catch(err => {

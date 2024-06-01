@@ -1130,7 +1130,6 @@ function refreshServers() {
                 button.classList.add("btn");
                 button.classList.add("btn-play");
                 button.classList.add("btn-primary");
-				console.log(`Selected: ${Number(network.serverId)} ${Number(server.id)}`)
                 if (Number(network.serverId) == Number(server.id))
                     row.classList.add("selected");
 

@@ -233,7 +233,7 @@ var Network = function () {
 			default:
 			{
 				console.log('ERROR: Creating unknown entity type: ' + type + ' Subtype: ' + subType);
-				assert(false, 'Invalid Entity');
+				//assert(false, 'Invalid Entity');
 				break;
 			}
 		}

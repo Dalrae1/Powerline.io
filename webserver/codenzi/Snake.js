@@ -1176,6 +1176,7 @@ var Snake = function () {
 		}
 		if(flags & 0x1) // Debug?
 		{
+			console.log("Debug")
 			lowerBound.x = view.getFloat32(offset, true);
 			offset += 4;
 			lowerBound.y = -view.getFloat32(offset, true);
