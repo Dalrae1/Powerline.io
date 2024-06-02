@@ -17,7 +17,7 @@ class EntityFunctions {
                 }
             }
         })
-        const queryArea = { x: center.x-(windowSizeX), y: center.y-(windowSizeY), width: windowSizeX*2, height: windowSizeY*2};
+        const queryArea = { x: center.x-(windowSizeX/2), y: center.y-(windowSizeY/2), width: windowSizeX, height: windowSizeY};
         const foundEntities2 = client.server.entityQuadtree.query(queryArea); // Finds entities within queryArea
 
         foundEntities2.forEach(entity => {

@@ -14,8 +14,8 @@ class Client extends EventEmitter {
         this.socket = websocket;
         this.id = server.clientIDs.allocateID();
         this.loadedEntities = {};
-        this.windowSizeX = 64;
-        this.windowSizeY = 32;
+        this.windowSizeX = 128;
+        this.windowSizeY = 64;
         this.dead = true
         this.pointsNearby = {};
         this.ping = 20;
@@ -80,17 +80,17 @@ class Client extends EventEmitter {
                 }
                 break;
             case Enums.ClientToServer.OPCODE_AREA_UPDATE:
-                //this.windowSizeX = view.getUint16(1, true)/2;
-                //this.windowSizeY = view.getUint16(3, true)/2;
+                this.windowSizeX = view.getUint16(1, true)/2;
+                this.windowSizeY = view.getUint16(3, true)/2;
                 break;
             case Enums.ClientToServer.OPCODE_HELLO_V4:
-                //this.windowSizeX = view.getUint16(1, true)/2;
-                //this.windowSizeY = view.getUint16(3, true) / 2;
+                this.windowSizeX = view.getUint16(1, true)/2;
+                this.windowSizeY = view.getUint16(3, true) / 2;
                 this.pingLoop();
                 break
             case Enums.ClientToServer.OPCODE_HELLO_DEBUG:
-                //this.windowSizeX = view.getUint16(1, true)/2;
-                //this.windowSizeY = view.getUint16(3, true) / 2;
+                this.windowSizeX = view.getUint16(1, true)/2;
+                this.windowSizeY = view.getUint16(3, true) / 2;
                 this.pingLoop();
                 break
             case Enums.ClientToServer.OPCODE_BOOST:
