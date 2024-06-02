@@ -76,7 +76,7 @@ const HttpServer = require('http').createServer;
 
 function sendBadResponse(req, res, code, message) {
     res.writeHead(code, {
-        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Credentials': true
@@ -98,7 +98,7 @@ async function serverListener(req, res) {
             switch (req.method) {
                 case "OPTIONS":
                     res.writeHead(204, {
-                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'POST, OPTIONS',
                         'Access-Control-Allow-Headers': 'Content-Type',
                         'Access-Control-Allow-Credentials': true
@@ -195,7 +195,7 @@ async function serverListener(req, res) {
                                 config: serverConfig
                             });
                             res.writeHead(200, {
-                                'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+                                'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
                                 'Access-Control-Allow-Headers': 'Content-Type',
                                 'Access-Control-Allow-Credentials': true
@@ -220,7 +220,7 @@ async function serverListener(req, res) {
                     break
                 default:
                     res.writeHead(200, {
-                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'POST, OPTIONS',
                         'Access-Control-Allow-Headers': 'Content-Type',
                         'Access-Control-Allow-Credentials': true
@@ -233,7 +233,7 @@ async function serverListener(req, res) {
             switch (req.method) {
                 case "OPTIONS":
                     res.writeHead(204, {
-                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'GET',
                         'Access-Control-Allow-Headers': 'Content-Type',
                         'Access-Control-Allow-Credentials': true
@@ -243,7 +243,7 @@ async function serverListener(req, res) {
                 case "GET":
                     let servers = await DBFunctions.GetServers();
                     res.writeHead(200, {
-                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'GET',
                         'Access-Control-Allow-Headers': 'Content-Type',
                         'Access-Control-Allow-Credentials': true
@@ -256,7 +256,7 @@ async function serverListener(req, res) {
                     break;
                 default:
                     res.writeHead(200, {
-                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'GET',
                         'Access-Control-Allow-Headers': 'Content-Type',
                         'Access-Control-Allow-Credentials': true
@@ -269,7 +269,7 @@ async function serverListener(req, res) {
             switch (req.method) {
                 case "OPTIONS":
                     res.writeHead(204, {
-                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'GET',
                         'Access-Control-Allow-Headers': 'Content-Type',
                         'Access-Control-Allow-Credentials': true
@@ -302,7 +302,7 @@ async function serverListener(req, res) {
                         }
                     })
                     res.writeHead(200, {
-                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'GET',
                         'Access-Control-Allow-Headers': 'Content-Type',
                         'Access-Control-Allow-Credentials': true
@@ -315,7 +315,7 @@ async function serverListener(req, res) {
             switch (req.method) {
                 case "OPTIONS":
                     res.writeHead(204, {
-                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'GET',
                         'Access-Control-Allow-Headers': 'Content-Type',
                         'Access-Control-Allow-Credentials': true
@@ -344,7 +344,7 @@ async function serverListener(req, res) {
                     }
                     let users = await DBFunctions.GetUsers(userIds);
                     res.writeHead(200, {
-                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'GET',
                         'Access-Control-Allow-Headers': 'Content-Type',
                         'Access-Control-Allow-Credentials': true

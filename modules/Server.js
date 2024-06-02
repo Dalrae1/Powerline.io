@@ -106,7 +106,7 @@ class Server {
 
     serverListener = (req, res) => {
         res.writeHead(404, {
-            'Access-Control-Allow-Origin': req.headers.origin || req.headers.host,
+            'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
             'Access-Control-Allow-Methods': 'GET',
             'Access-Control-Allow-Credentials': true
         });
