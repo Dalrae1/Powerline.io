@@ -257,19 +257,21 @@ class Server {
 
                     this.performance.tempStart = Date.now();
                     // Rubbing Mechanics
+                    
                     if (otherSnake.id != snake.id) {
-                        if (otherSnake.RubSnake != snake.id) {
-                            if (i <= otherSnake.points.length - 1) {
-                                let data = MapFunctions.NearestPointOnLine(
-                                    snake.position,
-                                    point,
-                                    nextPoint
-                                );
-                                // Check if this line is in the same direction
-                                let direction = MapFunctions.GetNormalizedDirection(point, nextPoint);
-                                let snakeDirection = MapFunctions.GetNormalizedDirection(snake.position, secondPoint);
-                                let noRub = false;
-                                if (direction && snakeDirection) {
+                        let direction = MapFunctions.GetNormalizedDirection(point, nextPoint);
+                        let snakeDirection = MapFunctions.GetNormalizedDirection(snake.position, secondPoint);
+                        if (direction && snakeDirection) {
+                            let distFromHead = Math.abs(SnakeFunctions.GetDirectionDistance(snake, otherSnake))
+                            if (otherSnake.RubSnake != snake.id || distFromHead > 4) {
+                                if (i <= otherSnake.points.length - 1) {
+                                    let data = MapFunctions.NearestPointOnLine(
+                                        snake.position,
+                                        point,
+                                        nextPoint
+                                    );
+                                    // Check if this line is in the same direction
+                                    let noRub = false;
                                     if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y)))
                                         noRub = true
                                     if (data.distance >= 4)

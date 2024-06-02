@@ -32,6 +32,29 @@ class EntityFunctions {
 }
 
 class SnakeFunctions {
+    static GetDirectionDistance(snake, otherSnake) {
+        // Direction vector of the snake
+        let directionVector = {
+            x: snake.position.x - snake.points[0].x,
+            y: snake.position.y - snake.points[0].y
+        };
+    
+        // Normalize the direction vector
+        let directionLength = Math.sqrt(directionVector.x ** 2 + directionVector.y ** 2);
+        directionVector.x /= directionLength;
+        directionVector.y /= directionLength;
+    
+        // Vector from snake's head to other snake's head
+        let headToHeadVector = {
+            x: otherSnake.position.x - snake.position.x,
+            y: otherSnake.position.y - snake.position.y
+        };
+    
+        // Project the headToHeadVector onto the directionVector
+        let directionDistance = (headToHeadVector.x * directionVector.x + headToHeadVector.y * directionVector.y);
+    
+        return directionDistance;
+    }
     static GetPointAtDistance(snake, distance) {
         let totalPointLength = 0;
         for (let i = -1; i < snake.points.length - 1; i++) {
