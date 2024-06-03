@@ -409,7 +409,7 @@ DBFunctions.GetServers().then(async (servers) => {
         server.config = JSON.parse(server.config);
         Servers[server.id] = new Server(server);
 
-        if (server.id == 1337) {
+        if (server.id == 1341) {
             for (let i = 0; i < 30; i++) {
                 let bot = new Bot(Servers[server.id])
             }
