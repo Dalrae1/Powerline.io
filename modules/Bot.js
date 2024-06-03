@@ -45,7 +45,6 @@ class Bot {
 
     randomTurner() {
         let time = getRandomArbitrary(50, 12000);
-        console.log("Time: " + time);
         setTimeout(() => {
             this.randomTurn();
             this.randomTurner()
@@ -69,7 +68,6 @@ class Bot {
                     if (entity == snake && snake.position == pointB)
                         continue
                     if (MapFunctions.DoIntersect(snake.position, futurePosition, pointA, pointB)) {
-                        console.log("Detected collision")
                         return true;
                     }
                 }

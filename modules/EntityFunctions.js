@@ -32,28 +32,27 @@ class EntityFunctions {
 }
 
 class SnakeFunctions {
-    static GetDirectionDistance(snake, otherSnake) {
-        // Direction vector of the snake
-        let directionVector = {
-            x: snake.position.x - snake.points[0].x,
-            y: snake.position.y - snake.points[0].y
-        };
-    
-        // Normalize the direction vector
-        let directionLength = Math.sqrt(directionVector.x ** 2 + directionVector.y ** 2);
-        directionVector.x /= directionLength;
-        directionVector.y /= directionLength;
-    
-        // Vector from snake's head to other snake's head
-        let headToHeadVector = {
-            x: otherSnake.position.x - snake.position.x,
-            y: otherSnake.position.y - snake.position.y
-        };
-    
-        // Project the headToHeadVector onto the directionVector
-        let directionDistance = (headToHeadVector.x * directionVector.x + headToHeadVector.y * directionVector.y);
-    
-        return directionDistance;
+    static GetHeadDistance(snake, otherSnake) {
+        let directionVector = SnakeFunctions.GetNormalizedDirection(snake);
+        let distanceY = snake.position.y - otherSnake.position.y
+        let distanceX = snake.position.x - otherSnake.position.x
+        let distance = { x: distanceX, y: distanceY };
+        return distance.x*directionVector.x + distance.y*directionVector.y; // Only returns the distance in the direction of the snake
+        
+    }
+
+    static GetNormalizedDirection(snake) {
+        switch (snake.direction) {
+            case Enums.Directions.UP:
+                return { x: 0, y: 1 };
+            case Enums.Directions.RIGHT:
+                return { x: 1, y: 0 };
+            case Enums.Directions.DOWN:
+                return { x: 0, y: -1 };
+            case Enums.Directions.LEFT:
+                return { x: -1, y: 0 };
+        }
+
     }
     static GetPointAtDistance(snake, distance) {
         let totalPointLength = 0;

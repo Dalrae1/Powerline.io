@@ -215,9 +215,8 @@ class Snake {
         this.speeding = true
         this.RubSnake = snake.id;
 
-        let rubSpeed = 4/distance
-        if (rubSpeed > 4)
-            rubSpeed = 4
+        let max_speed = this.server.config.MaxRubAcceleration;
+        let rubSpeed = max_speed - (max_speed - 1) * ((Math.max(distance, 1) - 1) / 3)
         if (this.extraSpeed + rubSpeed <= this.server.config.MaxRubSpeed || this.speedBypass) {
             this.extraSpeed += rubSpeed
             this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);

@@ -64,7 +64,7 @@ defaultConfig = {
     "UpdateInterval": 100,
     "MaxBoostSpeed": 255,
     "MaxRubSpeed": 200,
-    "DefaultLength": 10
+    "DefaultLength": 10,
 }
 
 UPDATE_EVERY_N_TICKS = 3;

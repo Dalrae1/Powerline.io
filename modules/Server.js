@@ -28,6 +28,7 @@ class Server {
         this.name = serverInfo.name;
         this.MaxPlayers = serverInfo.maxplayers;
         this.config = serverInfo.config;
+        this.config.MaxRubAcceleration = 4;
         this.owner = serverInfo.owner;
 
         this.entityIDs = new IDManager();
@@ -243,6 +244,34 @@ class Server {
                 this.performance.getNearbyPointsTime += Date.now() - this.performance.tempStart;
                 snake.client.pointsNearby[otherSnake.id] = nearbyPoints;
                 for (let i = 0; i < nearbyPoints.length - 1; i++) {
+                    let canRub = () => {
+                        let direction = MapFunctions.GetNormalizedDirection(point, nextPoint);
+                        let snakeDirection = MapFunctions.GetNormalizedDirection(snake.position, secondPoint);
+                        if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y))) { // Check if this line is in the same direction or opposite direction
+                            return false
+                        }
+
+                        if (i == 0) { // First segment
+                            let distFromHead = SnakeFunctions.GetHeadDistance(snake, otherSnake)
+                            if (snake.nick == "Dalrae")
+                                console.log(distFromHead)
+                            if (distFromHead > 0) {
+                                return false
+                            }
+                        }
+                        let nearestPoint = MapFunctions.NearestPointOnLine(
+                            snake.position,
+                            point,
+                            nextPoint
+                        );
+                        if (nearestPoint.distance < 4)
+                            return nearestPoint
+
+
+
+                        return false
+
+                    }
                     numPoints++
                     let point, nextPoint;
                     if (i == -1)
@@ -259,32 +288,13 @@ class Server {
                     // Rubbing Mechanics
                     
                     if (otherSnake.id != snake.id) {
-                        let direction = MapFunctions.GetNormalizedDirection(point, nextPoint);
-                        let snakeDirection = MapFunctions.GetNormalizedDirection(snake.position, secondPoint);
-                        if (direction && snakeDirection) {
-                            let distFromHead = Math.abs(SnakeFunctions.GetDirectionDistance(snake, otherSnake))
-                            if (otherSnake.RubSnake != snake.id || distFromHead > 4) {
-                                if (i <= otherSnake.points.length - 1) {
-                                    let data = MapFunctions.NearestPointOnLine(
-                                        snake.position,
-                                        point,
-                                        nextPoint
-                                    );
-                                    // Check if this line is in the same direction
-                                    let noRub = false;
-                                    if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y)))
-                                        noRub = true
-                                    if (data.distance >= 4)
-                                        noRub = true
-                                    if (closestRubLine && data.distance > closestRubLine.distance)
-                                        noRub = true
-                                    if (!noRub)
-                                        closestRubLine = {
-                                            point: data.point,
-                                            distance: data.distance
-                                        }
+                        let nearestRubPoint = canRub()
+                        if (nearestRubPoint) {
+                            if (!closestRubLine || nearestRubPoint.distance < closestRubLine.distance)
+                                closestRubLine = {
+                                    point: nearestRubPoint.point,
+                                    distance: nearestRubPoint.distance
                                 }
-                            }
                         }
                         
                     }
