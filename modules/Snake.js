@@ -18,6 +18,7 @@ class Snake {
         this.userid = network.userid;
         this.client.dead = false;
         this.client.sendConfig();
+        this.leaderboardPosition = 0;
         //this.flags |= Enums.EntityFlags.DEBUG
         this.flags = 0;
         if (customPlayerColors[name]) {
@@ -71,10 +72,7 @@ class Snake {
     }
     
     updateLeaderboard() {
-        let count = 0;
-        let myRank = 0;
-
-        const BitView = new DataView(new ArrayBuffer(1000));
+        /*const BitView = new DataView(new ArrayBuffer(1000));
         let offset = 0;
         BitView.setUint8(offset, Enums.ServerToClient.OPCODE_LEADERBOARD);
         offset += 1;
@@ -108,7 +106,18 @@ class Snake {
             BitView.setUint16(offset, myRank, true);
             offset += 2;
         }
-        this.network.send(BitView)
+        this.network.send(BitView)*/
+        let view  = this.server.leaderboardDataview
+        let offset = this.server.leaderboardDataviewOffset
+        if (this.leaderboardPosition > 0) {
+            view.setUint16(offset, this.id, true);
+            offset += 2;
+            view.setUint32(offset, (this.length - this.server.config.DefaultLength) * SCORE_MULTIPLIER, true);
+            offset += 4;
+            view.setUint16(offset, this.leaderboardPosition, true);
+            offset += 2;
+        }
+        this.network.send(view)
 
     }
     addPoint(x, y) {

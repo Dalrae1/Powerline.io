@@ -14,6 +14,7 @@ const Quadtree = require("./Quadtree.js");
 const Client = require("./Client.js");
 const DatabaseFunctions = require("./DatabaseFunctions.js");
 const AVLTree = require("./AVLTree.js");
+const GlobalFunctions = require("./GlobalFunctions.js")
 
 let DBFunctions = new DatabaseFunctions();
 
@@ -40,6 +41,9 @@ class Server {
             width: this.config.ArenaSize,
             height: this.config.ArenaSize
         }, 10)
+
+        this.leaderboardDataview = null
+        this.leaderboardDataviewOffset = 0
         
         this.foodMultiplier = 1;
         this.maxFood = this.config.ArenaSize * 5;
@@ -176,6 +180,35 @@ class Server {
                 delete this.clients[client.id];
             })
         }
+    }
+
+    RefreshLeaderboard() {
+        let count = 0
+
+        let offset = 0
+        this.leaderboardDataview = new DataView(new ArrayBuffer(1000))
+        this.leaderboardDataview.setUint8(offset, Enums.ServerToClient.OPCODE_LEADERBOARD)
+        offset+=1
+        for (let pair of this.leaderboard.reverseOrderTraversal()) {
+            let snake = this.entities[pair.data]
+            if (!snake || !snake.spawned || !snake.nick)
+                continue
+            count++
+            snake.leaderboardPosition = count
+            if (count == 1)
+                this.king = snake
+            if (count > 10)
+                continue
+            this.leaderboardDataview.setUint16(offset, snake.id, true);
+            offset += 2;
+            this.leaderboardDataview.setUint32(offset, (snake.actualLength - this.config.DefaultLength) * SCORE_MULTIPLIER, true);
+            offset += 4;
+            this.leaderboardDataview, offset = GlobalFunctions.SetNick(this.leaderboardDataview, offset, snake.nick)
+            this.leaderboardDataview.setUint16(offset, 0, true);
+        }
+        this.leaderboardDataview.setUint16(offset, 0x0, true);
+        offset += 2;
+        this.leaderboardDataviewOffset = offset
     }
 
     UpdateArena() {
@@ -349,6 +382,7 @@ class Server {
     main() {
         this.performance.moveTime = this.performance.visualLengthTime = this.performance.getNearbyPointsTime = this.performance.collisionCheckTime = this.performance.rubCheckTime = this.performance.talkStaminaTime = this.performance.tailLengthTime = this.performance.leaderboardTime = this.performance.entitiesNearClientTime = 0
         this.UpdateArena()
+        this.RefreshLeaderboard()
 
         // Add random food spawns
         if (Object.keys(this.entities).length < this.maxFood) {
