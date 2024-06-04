@@ -270,8 +270,6 @@ class Server {
                 // Check if head of snake of near body of other snake
 
                 
-
-                //for (let i = -1; i < otherSnake.points.length - 1; i++) {
                 this.performance.tempStart = Date.now();
                 let nearbyPoints = SnakeFunctions.GetPointsNearSnake(snake, otherSnake, 30);
                 this.performance.getNearbyPointsTime += Date.now() - this.performance.tempStart;
@@ -286,8 +284,6 @@ class Server {
 
                         if (i == 0) { // First segment
                             let distFromHead = SnakeFunctions.GetHeadDistance(snake, otherSnake)
-                            if (snake.nick == "Dalrae")
-                                console.log(distFromHead)
                             if (distFromHead > 0) {
                                 return false
                             }
