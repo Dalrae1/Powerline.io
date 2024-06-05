@@ -8,7 +8,8 @@ body {
     position: fixed;
     top: 100px;
     right: 10px;
-    max-width: 25vw; /* Set a max width to prevent overflow */
+    width: 25vw; /* Set a percentage width */
+    max-width: 100%; /* Prevent overflow */
     height: 300px; /* Adjust height as needed */
     border: 2px solid #05ffff;
     border-radius: 10px;
@@ -20,6 +21,7 @@ body {
     flex-direction: column;
     overflow: hidden; /* Prevent overflow */
     overflow-y: auto; /* Allow vertical scrolling */
+    font-size: 1vw; /* Scale font size with viewport width */
 }
 
 .header-text {
@@ -36,6 +38,7 @@ body {
 .server-table {
     border-collapse: collapse;
     width: 100%;
+    table-layout: fixed; /* Ensure table layout is fixed */
 }
 
 .server-table thead {
@@ -52,6 +55,12 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.server-table th {
+    font-size: 0.6vw; /* Scale font size with viewport width */
+}
+.server-table td {
+    font-size: 0.5vw; /* Scale font size with viewport width */
 }
 
 .server-table tbody {
@@ -74,9 +83,8 @@ body {
     color: #003a3a;
     border: none;
     border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    font-size: 20px;
+    width: 1.3vw; /* Scale width with viewport width */
+    height: 1.3vw; /* Scale height with viewport width */
     cursor: pointer;
     display: flex;
     align-items: center;
