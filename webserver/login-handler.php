@@ -331,10 +331,8 @@ function LogError($message) {
     echo $message;
 }
 
-try {
+function HandleGoogle($input) {
     $clientId = "173521008548-st7p20himg41f1o1s2j3mgo9851qoj4j.apps.googleusercontent.com";
-    $input = file_get_contents("php://input");
-
     if (empty($input)) {
         throw new Exception("No input provided");
     }
@@ -381,6 +379,182 @@ try {
         exit();
     }
     header("Location: $protocol://$host");
+}
+
+function getRequestHeaders() {
+    $headers = array();
+    foreach($_SERVER as $key => $value) {
+        if (substr($key, 0, 5) <> 'HTTP_') {
+            continue;
+        }
+        $header = str_replace(' ', '-', ucwords(str_replace('_', ' ', strtolower(substr($key, 5)))));
+        $headers[$header] = $value;
+    }
+    return $headers;
+}
+
+function HandleDiscordValidation($payload) {
+    $publicKey = "9d2f57194292476e8685e4dccd48bc1434494968262d605cbc82458a2572bd20";
+
+    if (!isset($_SERVER['HTTP_X_SIGNATURE_ED25519']) || !isset($_SERVER['HTTP_X_SIGNATURE_TIMESTAMP'])) {
+        return ['code' => 401, 'payload' => "Missing headers"];
+    }
+
+    $signature = $_SERVER['HTTP_X_SIGNATURE_ED25519'];
+    $timestamp = $_SERVER['HTTP_X_SIGNATURE_TIMESTAMP'];
+
+    if (!trim($signature, '0..9A..Fa..f') == '')
+        return ['code' => 401, 'payload' => "Invalid signature 1"];
+
+    $message = $timestamp . $payload;
+    $binarySignature = sodium_hex2bin($signature);
+    $binaryKey = sodium_hex2bin($publicKey);
+
+    if (!sodium_crypto_sign_verify_detached($binarySignature, $message, $binaryKey)) {
+        return ['code' => 401, 'payload' => "Invalid signature 2"];
+    }
+
+    $payload = json_decode($payload, true);
+    switch ($payload['type']) {
+        case 1:
+            return ['code' => 200, 'payload' => ['type' => 1]];
+        case 2:
+            return ['code' => 200, 'payload' => ['type' => 2]];
+        default:
+            return ['code' => 400, 'payload' => "Invalid payload type"];
+    }
+}
+
+function getVariable($varName) {
+    $mysqli = DBConnect();
+    $stmt = $mysqli->prepare("SELECT value FROM variables WHERE name = ?");
+    if (!$stmt) {
+        $mysqli->close();
+        throw new Exception("Prepare statement failed: " . $mysqli->error);
+    }
+    $stmt->bind_param("s", $varName);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $secret = $result->fetch_assoc();
+    $stmt->close();
+    $mysqli->close();
+    return $secret;
+}
+
+$API_ENDPOINT = 'https://discord.com/api/v10';
+$CLIENT_ID = '1247742446255734815';
+$CLIENT_SECRET = getVariable('discord_secret')['value'];
+$REDIRECT_URI = 'https://dalr.ae/login-handler.php';
+
+function HandleDiscord($input) {
+    global $API_ENDPOINT, $CLIENT_ID, $CLIENT_SECRET, $REDIRECT_URI;
+ 
+    function getUserToken($code) {
+        global $API_ENDPOINT, $CLIENT_ID, $CLIENT_SECRET, $REDIRECT_URI;
+        $url = $API_ENDPOINT . '/oauth2/token';
+        $data = [
+            'grant_type' => 'authorization_code', 
+            'code' => $code,
+            'redirect_uri' => $REDIRECT_URI,
+            'client_id' => $CLIENT_ID,
+            'client_secret' => $CLIENT_SECRET
+        ];
+
+        // use key 'http' even if you send the request to https://...
+        $options = [
+            'http' => [
+                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+                'method' => 'POST',
+                'content' => http_build_query($data),
+            ],
+        ];
+
+        $context = stream_context_create($options);
+        $result = file_get_contents($url, false, $context);
+        return $result;
+    }
+
+    function getUserInfo() {
+        global $API_ENDPOINT;
+        $discordCode = $_SERVER['QUERY_STRING'];
+        $discordCode = explode("=", $discordCode)[1];
+        $accessTokenRes = getUserToken($discordCode);
+
+        if ($accessTokenRes) {
+            $accessTokenRes = json_decode($accessTokenRes, true);
+            $accessToken = $accessTokenRes['access_token'];
+
+            $userRes = file_get_contents($API_ENDPOINT . '/users/@me', false, stream_context_create([
+                'http' => [
+                    'header' => "Authorization: Bearer ".$accessToken
+                ]
+            ]));
+
+            if ($userRes) {
+                return json_decode($userRes, true);
+            }
+        }
+        return false;
+    }
+
+    $user = getUserInfo();
+    if ($user) {
+        $discordUser = GetUserFromEmail($user['email']);
+        if (!$discordUser) {
+            $new_user = CreateUser($user['username'], $user['email'], "https://cdn.discordapp.com/avatars/".$user['id']."/".$user['avatar'].".png");
+            if (is_array($new_user)) {
+                $discordUser = $new_user;
+            } else {
+                LogError($new_user);
+                exit();
+            }
+        }
+
+        $host = $_SERVER['HTTP_HOST'];
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+        echo("Redirecting to $protocol://$host");
+
+        if (isset($_COOKIE['session_id'])) { // If user already has a session on this browser, refresh it
+            $session_id = $_COOKIE['session_id'];
+            $existing_user = GetUserFromSession($session_id);
+            if ($existing_user && $existing_user['userid'] == $discordUser['userid']) {
+                setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
+                echo "<script>window.close();</script>";
+                //header("Location: $protocol://$host");
+                exit();
+            }
+        }
+
+        $session_id = CreateSessionForUser($discordUser['userid']);
+        if (strlen($session_id) == 30) {
+            setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
+        } else {
+            LogError($session_id);
+            exit();
+        }
+        echo "<script>window.close();</script>";
+        //header("Location: $protocol://$host");
+    }
+    return false;
+}
+
+try {
+    $input = file_get_contents("php://input");
+    parse_str($input, $tempParams);
+    if (isset($tempParams['credential'])) {
+        HandleGoogle($input);
+        return;
+    }
+    if (strpos($_SERVER['QUERY_STRING'], "code") !== false) {
+        HandleDiscord($input);
+        return;
+    }
+    // For validation of Discord requests
+    $result = HandleDiscordValidation($input);
+    http_response_code($result['code']);
+    echo json_encode($result['payload']);
+
+    
 } catch (Exception $e) {
     LogError("Error: " . $e->getMessage());
 }

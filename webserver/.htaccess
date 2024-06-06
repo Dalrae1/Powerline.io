@@ -2,3 +2,13 @@
     Order deny,allow
     Deny from all
 </Files>
+
+<IfModule mod_setenvif.c>
+    SetEnvIfNoCase ^X.SIGNATURE.TIMESTAMP$ ^(.*)$ fix_signature_timestamp=$1
+    SetEnvIfNoCase ^X.SIGNATURE.ED25519$ ^(.*)$ fix_ed25519=$1
+</IfModule>
+
+<IfModule mod_headers.c>
+    RequestHeader set X-SIGNATURE-TIMESTAMP %{fix_signature_timestamp}e env=fix_signature_timestamp
+    RequestHeader set X-SIGNATURE-ED25519 %{fix_ed25519}e env=fix_ed25519
+</IfModule>

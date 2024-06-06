@@ -4,6 +4,28 @@ body {
     overflow: hidden
 }
 
+/* Login Button */
+.login-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #077;
+    color: #0ff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: 'Arial Black';
+    box-shadow: 0 0 10px #05ffff;
+}
+
+.login-button:hover {
+    background-color: #0aa;
+    color: #0ff;
+}
+
+
 .scroll-window {
     position: fixed;
     top: 100px;
@@ -98,6 +120,11 @@ body {
     transform:translate(-100%,0);
     top: 0%;
     z-index: 3;
+}
+
+.signinButton {
+    margin-left: 50%;
+    transform:translate(-50%,0);
 }
 
 
@@ -288,4 +315,32 @@ body {
 .search-results div:hover {
     background-color: #05ffff;
     color: #003a3a;
+}
+
+
+
+.modal-content button {
+    display: block;
+    margin-left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0;
+    border: none;
+}
+
+#discordLogin {
+    background-color: #7289da;
+    border: 2px solid #7289da;
+    color: #fff;
+    font-family: Whitney, "Open Sans", Helvetica, sans-serif;
+    font-weight: 400;
+    font-size: 11pt;
+    border-radius: 3px;
+    cursor: pointer;
+    height: 45px;
+    width: 200px;
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.2);
+}
+
+.login-option:hover {
+    opacity: 0.9;
 }

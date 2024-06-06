@@ -100,21 +100,7 @@
 		<canvas id="canvas"></canvas>
 		<div id="commandpallete"></div>
 		<div id="fps"></div>
-		<div id="google_login_wrapper">
-			<div id="g_id_onload"
-				data-client_id="173521008548-st7p20himg41f1o1s2j3mgo9851qoj4j.apps.googleusercontent.com"
-				data-login_uri=""
-				data-auto_prompt="false">
-			</div>
-			<div class="g_id_signin"
-				data-type="standard"
-				data-size="large"
-				data-theme="outline"
-				data-text="sign_in_with"
-				data-shape="rectangular"
-				data-logo_alignment="left">
-			</div>
-		</div>
+		<!---->
 
 		<div id="overlay" style="display:none; position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0,0,0,0.0); z-index: 2;"/>
 		<div id="mainDialog" style="width:510px;height:215px;background-color:rgba(0,50,50,0.0);margin:10px auto;border-radius:15px;padding:5px 15px 5px 15px;position:absolute;top:17%;left:50%;transform-origin:top center;transform:translate(-50%,0%);-ms-transform:translate(-50%,0%);-ms-transform-origin:top center;-webkit-transform:translate(-50%,0%);-webkit-transform-origin:top center;">
@@ -181,6 +167,32 @@
 				</form>
 			</div>
 		</div>
+		<div id="loginButton" class="login-button">Login</div>
+		<div id="loginModal" class="modal">
+			<div class="modal-content">
+				<h4>Login</h4>
+				<div class="signinButton" id="googleLogin">
+					<div id="g_id_onload"
+						data-client_id="173521008548-st7p20himg41f1o1s2j3mgo9851qoj4j.apps.googleusercontent.com"
+						data-login_uri=""
+						data-auto_prompt="false">
+					</div>
+					<div class="g_id_signin"
+						data-type="standard"
+						data-size="large"
+						data-theme="outline"
+						data-text="sign_in_with"
+						data-shape="rectangular"
+						data-logo_alignment="left">
+					</div>
+				</div>
+				<!--<button class="login-option" id="microsoftLogin"><img src="images/msSignIn.png"/></button>-->
+				<button class="login-option" id="discordLogin"><img id="discordLoginImg" style="width: 40px; height: 40px" src="images/discord-icon-white.svg"/>  Sign in with Discord</button>
+				<button type="button" class="modal-close">Close</button>
+				<br>
+				<!--<span>Note: Accounts must share an email address in order to be considered the same.</span>-->
+			</div>
+		</div>
 		<div class="scroll-window basic-text">
 			
 			<table class="table server-table">
@@ -237,17 +249,27 @@
 			document.querySelector('#createServer').addEventListener('click', function() {
 				document.getElementById('createServerModal').style.display = 'block';
 			});
+
+			document.getElementById('loginButton').addEventListener('click', function() {
+				document.getElementById('loginModal').style.display = 'block';
+			});
 			
 			document.querySelectorAll('.modal-close').forEach(function(element) {
 				element.addEventListener('click', function() {
 					document.getElementById('createServerModal').style.display = 'none';
+					document.getElementById('loginModal').style.display = 'none';
 				});
 			});
 			
 			// Close the modal when clicking outside of the modal content
 			window.onclick = function(event) {
-				if (event.target == document.getElementById('createServerModal')) {
-					document.getElementById('createServerModal').style.display = 'none';
+				switch (event.target) {
+					case document.getElementById('createServerModal'):
+						document.getElementById('createServerModal').style.display = 'none';
+						break;
+					case document.getElementById('loginModal'):
+						document.getElementById('loginModal').style.display = 'none';
+						break;
 				}
 			};
 
@@ -337,6 +359,55 @@
 					arenaSizeValue.textContent = arenaSizeSlider.value;
 				});
 			});
+
+			let button = document.getElementById('discordLogin');
+			button.addEventListener('click', function() {
+				let url = "https://discord.com/oauth2/authorize?client_id=1247742446255734815&response_type=code&redirect_uri=https%3A%2F%2Fdalr.ae%2Flogin-handler.php&scope=identify+email"
+				let popup = window.open(url,'targetWindow',
+                                   `toolbar=no,
+                                    location=no,
+                                    status=no,
+                                    menubar=no,
+                                    scrollbars=yes,
+                                    resizable=yes,
+                                    width=500px,
+                                    height=1000px`)
+				
+			const interval = setInterval(() => {
+				if (popup.closed) {
+					clearInterval(interval);
+					window.location.reload();
+				}
+			}, 500);
+				
+			});
+
+			// Replace login button with user
+			function get_cookie(name){
+				return document.cookie.split(';').some(c => {
+					return c.trim().startsWith(name + '=');
+				});
+			}
+			function delete_cookie( name, path, domain ) {
+				if( get_cookie( name ) ) {
+					document.cookie = name + "=" +
+					((path) ? ";path="+path:"")+
+					((domain)?";domain="+domain:"") +
+					";expires=Thu, 01 Jan 1970 00:00:01 GMT";
+				}
+			}
+			fetch('/fetchuser.php')
+				.then(response => response.json())
+				.then(data => {
+					if (data.username) {
+						document.getElementById('loginButton').textContent = "Log out of "+data.username;
+						document.getElementById('loginButton').addEventListener('click', function() {
+							delete_cookie('session_id', '/');
+							location.reload();
+						});
+					}
+				});
+			
 			</script>
 			<script>
 				if(hasMiddleAd)
