@@ -365,7 +365,7 @@ function HandleGoogle($input) {
         $session_id = $_COOKIE['session_id'];
         $existing_user = GetUserFromSession($session_id);
         if ($existing_user && $existing_user['userid'] == $user['userid']) {
-            setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
+            setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, false);
             header("Location: $protocol://$host");
             exit();
         }
@@ -373,7 +373,7 @@ function HandleGoogle($input) {
 
     $session_id = CreateSessionForUser($user['userid']);
     if (strlen($session_id) == 30) {
-        setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
+        setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, false);
     } else {
         LogError($session_id);
         exit();
@@ -518,7 +518,7 @@ function HandleDiscord($input) {
             $session_id = $_COOKIE['session_id'];
             $existing_user = GetUserFromSession($session_id);
             if ($existing_user && $existing_user['userid'] == $discordUser['userid']) {
-                setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
+                setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, false);
                 echo "<script>window.close();</script>";
                 //header("Location: $protocol://$host");
                 exit();
@@ -527,7 +527,7 @@ function HandleDiscord($input) {
 
         $session_id = CreateSessionForUser($discordUser['userid']);
         if (strlen($session_id) == 30) {
-            setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
+            setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, false);
         } else {
             LogError($session_id);
             exit();
