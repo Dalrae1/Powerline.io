@@ -376,13 +376,15 @@ async function serverListener(req, res) {
                     break;
                 case "GET":
                     let servers = Object.values(Servers).map(server => {
+                        let thisConfig = JSON.parse(JSON.stringify(server.config))
+                        thisConfig.FoodValue = SnakeFunctions.LengthToScore(thisConfig.FoodValue)
                         return {
                             id: server.id,
                             name: server.name,
                             owner: server.owner,
                             maxplayers: server.MaxPlayers,
                             playerCount: Object.keys(server.snakes).length,
-                            config: JSON.stringify(server.config)
+                            config: JSON.stringify(thisConfig, true, 4)
                         }
                     })
                     res.writeHead(200, {
