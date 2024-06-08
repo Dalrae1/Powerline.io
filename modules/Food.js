@@ -11,7 +11,7 @@ class Food {
         this.server = server
         this.value = server.config.FoodValue;
         let thisId = this.server.entityIDs.allocateID();
-        this.server.entities[thisId] = this;
+
         if (x == undefined) 
             this.position = MapFunctions.GetRandomPosition(this.server);
         else {
@@ -21,12 +21,21 @@ class Food {
         this.id = thisId;
         if (origin)
             this.origin = origin;
+
+        let didInsert = this.server.entityQuadtree.insert(this);
+        if (didInsert !== true) {
+            //if (this.server.id == 1341)
+                //console.log(`Failed to insert food ID ${this.id} into server ${this.server.id} into quadtree because ${didInsert}`);
+            return
+        }
+
+        this.server.entities[thisId] = this;
+        
         
         setTimeout(() => {
             if (this.server.entities[this.id])
                 this.eat();
         }, timeToLive);
-        this.server.entityQuadtree.insert(this);
         return this;
     }
     
@@ -34,6 +43,8 @@ class Food {
         if (snake && this.origin == snake) {
             return;
         }
+        if (!this.spawned)
+            return
         if (snake) {
             for (let i = 0; i < 3; i++) {
                 setTimeout(() => {
@@ -66,6 +77,13 @@ class Food {
         Bit8.setFloat32(offset, this.server.king && this.server.king.position.y || 0, true);
         offset += 4;
 
+        let isDeleted = this.server.entityQuadtree.delete(this);
+        if (isDeleted !== true) {
+            if (this.server.id == 1341)
+                console.log(`Failed to delete food ID ${this.id} from server ${this.server.id} from quadtree because ${isDeleted}`);
+            return
+        }
+
         Object.values(this.server.clients).forEach((client) => {
             if (client.loadedEntities[this.id]) {
                 client.socket.send(Bit8);
@@ -79,7 +97,7 @@ class Food {
         this.lastUpdate = Date.now();
         this.spawned = false
         this.server.entityIDs.releaseID(this.id);
-        this.server.entityQuadtree.delete(this);
+        
         delete this.server.entities[this.id]; 
     }
 }

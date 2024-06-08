@@ -28,14 +28,17 @@ class Quadtree {
       return false; // Entity is out of the boundary
     }
 
-    if (!globalEntityQuads[entity.server.id]) {
-      globalEntityQuads[entity.server.id] = {};
-    }
-    globalEntityQuads[entity.server.id][entity.id] = this;
 
     if (this.entityCount < this.capacity) {
       this.entities[entity.id] = entity;
       this.entityCount++;
+
+      if (!globalEntityQuads[entity.server.id]) {
+        globalEntityQuads[entity.server.id] = {};
+      }
+  
+      globalEntityQuads[entity.server.id][entity.id] = this;
+
       return true;
     } else {
       if (!this.divided) {
@@ -56,24 +59,24 @@ class Quadtree {
     const halfHeight = this.boundary.height / 2;
     const centerX = this.boundary.x + halfWidth;
     const centerY = this.boundary.y + halfHeight;
-
-    return position.x >= (centerX - halfWidth) && position.x < (centerX + halfWidth) &&
-           position.y >= (centerY - halfHeight) && position.y < (centerY + halfHeight);
+  
+    return position.x >= (centerX - halfWidth) && position.x <= (centerX + halfWidth) &&
+           position.y >= (centerY - halfHeight) && position.y <= (centerY + halfHeight);
   }
 
   delete(entity) {
     let serverEntities = globalEntityQuads[entity.server.id];
     if (!serverEntities) {
-      return false;
+      return "Server not found in globalEntityQuads";
     }
 
     let serverQuad = serverEntities[entity.id];
     if (!serverQuad) {
-      return false;
+      return "Entity not found in globalEntityQuads";
     }
 
     if (!serverQuad.entities[entity.id]) {
-      return false;
+      return "Entity not found in serverQuad";
     }
 
     // Remove the entity from the specific quadtree node
