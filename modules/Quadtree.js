@@ -1,4 +1,5 @@
-globalEntityQuads = {}
+globalEntityQuads = {};
+
 class Quadtree {
   constructor(boundary, capacity = 10) {
     this.boundary = boundary; // { x, y, width, height }
@@ -65,13 +66,46 @@ class Quadtree {
     if (!serverEntities) {
       return false;
     }
+
     let serverQuad = serverEntities[entity.id];
     if (!serverQuad) {
       return false;
     }
-    serverQuad.entityCount--;
+
+    if (!serverQuad.entities[entity.id]) {
+      return false;
+    }
+
+    // Remove the entity from the specific quadtree node
     delete serverQuad.entities[entity.id];
-    return true
+    serverQuad.entityCount--;
+
+    // Remove the entity from the global mapping
+    delete globalEntityQuads[entity.server.id][entity.id];
+
+    // Optionally clean up empty nodes
+    serverQuad.cleanup();
+
+    return true;
+  }
+
+  cleanup() {
+    if (this.divided) {
+      if (this.northwest.isEmpty() && this.northeast.isEmpty() &&
+          this.southwest.isEmpty() && this.southeast.isEmpty()) {
+        this.northwest = null;
+        this.northeast = null;
+        this.southwest = null;
+        this.southeast = null;
+        this.divided = false;
+      }
+    }
+  }
+
+  isEmpty() {
+    return this.entityCount === 0 && (!this.divided ||
+           (this.northwest.isEmpty() && this.northeast.isEmpty() &&
+            this.southwest.isEmpty() && this.southeast.isEmpty()));
   }
 
   query(range, found = []) {
