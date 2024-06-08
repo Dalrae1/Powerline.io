@@ -1,5 +1,6 @@
 // Debug
 var version = 1.05;
+var myUser = null;
 var href = window.location.href;
 var urlSplit = href.split('/');
 var domain = "powerline.io"/*urlSplit[2]*/;
@@ -1045,42 +1046,90 @@ function refreshAd()
 }
 
 function createServer() {
-	let serverName = document.getElementById("serverName").value
-	let serverMaxPlayers = document.getElementById("maxPlayers").value
-	let serverFoodValue = document.getElementById("foodValue").value
-	let serverIsPublic = document.getElementById("isPublic").checked
-	let serverDefaultLength = document.getElementById("defaultLength").value
-	let serverArenaSize = document.getElementById("arenaSize").value
-	let button = document.querySelector("#createserverbutton")
-	button.disabled = true
-	button.innerHTML = "Creating..."
+	switch(document.querySelector("#createserverbutton").innerHTML) {
+		case "Create":
+			var serverName = document.getElementById("serverName").value
+			var serverMaxPlayers = document.getElementById("maxPlayers").value
+			var serverFoodValue = document.getElementById("foodValue").value
+			var serverIsPublic = document.getElementById("isPublic").checked
+			var serverDefaultLength = document.getElementById("defaultLength").value
+			var serverArenaSize = document.getElementById("arenaSize").value
+			var button = document.querySelector("#createserverbutton")
+			button.disabled = true
+			button.innerHTML = "Creating..."
 
-	fetch(`${isSecure ? "https" : "http"}://${window.location.hostname}:${isSecure ? "1336" : "1335"}/createserver`, {
-		method: 'POST',
-		body: JSON.stringify({
-			name: serverName,
-			maxPlayers: serverMaxPlayers,
-			foodValue: serverFoodValue,
-			isPublic: serverIsPublic,
-			defaultLength: serverDefaultLength,
-			arenaSize: serverArenaSize
-		}),
-		credentials: "include",
-		headers: {
-			'Content-Type': 'application/json'
-		}
-	}).then(response => response.json()).then(json => {
-		button.disabled = false
-		button.innerHTML = "Create"
-		if (json.success) {
-			refreshServers()
-			document.getElementById('createServerModal').style.display = 'none';
-		} else {
-			alert(json.message)
+			fetch(`${isSecure ? "https" : "http"}://${window.location.hostname}:${isSecure ? "1336" : "1335"}/createserver`, {
+				method: 'POST',
+				body: JSON.stringify({
+					name: serverName,
+					maxPlayers: serverMaxPlayers,
+					foodValue: serverFoodValue,
+					isPublic: serverIsPublic,
+					defaultLength: serverDefaultLength,
+					arenaSize: serverArenaSize
+				}),
+				credentials: "include",
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			}).then(response => response.json()).then(json => {
+				button.disabled = false
+				button.innerHTML = "Create"
+				if (json.success) {
+					refreshServers()
+					document.getElementById('createServerModal').style.display = 'none';
+				} else {
+					alert(json.message)
+				}
+				
+			})
+			break
+		case "Save":
+			let serverId = document.querySelector("#createserverbutton").getAttribute("serverid")
+
+			var serverName = document.getElementById("serverName").value
+			var serverMaxPlayers = document.getElementById("maxPlayers").value
+			var serverFoodValue = document.getElementById("foodValue").value
+			var serverIsPublic = document.getElementById("isPublic").checked
+			var serverDefaultLength = document.getElementById("defaultLength").value
+			var serverArenaSize = document.getElementById("arenaSize").value
+
+			var button = document.querySelector("#createserverbutton")
+			button.disabled = true
+			button.innerHTML = "Saving..."
+
+			fetch(`${isSecure ? "https" : "http"}://${window.location.hostname}:${isSecure ? "1336" : "1335"}/editserver`, {
+				method: 'POST',
+				body: JSON.stringify({
+					name: serverName,
+					serverId: serverId,
+					maxPlayers: serverMaxPlayers,
+					foodValue: serverFoodValue,
+					isPublic: serverIsPublic,
+					defaultLength: serverDefaultLength,
+					arenaSize: serverArenaSize,
+				}),
+				credentials: "include",
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			}).then(response => response.json()).then(json => {
+				button.disabled = false
+				button.innerHTML = "Create"
+				if (json.success) {
+					refreshServers()
+					document.getElementById('createServerModal').style.display = 'none';
+				} else {
+					alert(json.message)
+				}
+				
+			})
+
+			break;
 		}
 	
 
-	})
+	
 
 
 }
@@ -1110,7 +1159,6 @@ function refreshServers() {
     if (!tableBody.hasChildNodes()) {
         tableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
     }
-
     fetch(`${isSecure ? "https" : "http"}://${window.location.hostname}:${isSecure ? "1336" : "1335"}/getservers`)
         .then((response) => response.json())
         .then(async (servers) => {
@@ -1137,6 +1185,30 @@ function refreshServers() {
                     selectServer(server.id);
                 });
                 buttonCell.appendChild(button);
+
+				if (myUser && server.owner == myUser.userid) {
+
+					let settingsCog = document.createElement("i")
+					settingsCog.classList.add("fa")
+					settingsCog.classList.add("fa-cog")
+					settingsCog.id = "settings-icon"
+					buttonCell.appendChild(settingsCog)
+				}
+
+				let config = JSON.parse(server.config)
+
+				row.setAttribute("name", server.name)
+				row.setAttribute("maxplayers", server.maxplayers)
+				row.setAttribute("foodvalue", config.FoodValue)
+				row.setAttribute("ispublic", false)
+				row.setAttribute("defaultlength", config.DefaultLength)
+				row.setAttribute("arenasize", config.ArenaSize)
+				row.setAttribute("owner", server.owner)
+				row.setAttribute("serverid", server.id)
+
+
+
+				
             });
 
             // Fetch user information asynchronously
@@ -1166,6 +1238,34 @@ function refreshServers() {
             setTimeout(refreshServers, 2000);
         });
 }
+// Replace login button with user
+function get_cookie(name){
+	return document.cookie.split(';').some(c => {
+		return c.trim().startsWith(name + '=');
+	});
+}
+function delete_cookie( name, path, domain ) {
+	if( get_cookie( name ) ) {
+		document.cookie = name + "=" +
+		((path) ? ";path="+path:"")+
+		((domain)?";domain="+domain:"") +
+		";expires=Thu, 01 Jan 1970 00:00:01 GMT";
+	}
+}
+fetch('/fetchuser.php')
+	.then(response => response.json())
+	.then(data => {
+		if (data.username) {
+			myUser = data
+			document.getElementById('loginButton').textContent = "Log out of "+data.username;
+			document.getElementById('loginButton').addEventListener('click', function() {
+				delete_cookie('session_id', '/');
+				location.reload();
+			});
+		}
+	});
+
+
 refreshServers()
 refreshAd();
 
@@ -1180,8 +1280,8 @@ loadScript("codenzi/Snake.js?v=5");
 loadScript("codenzi/Food.js?v=1");
 loadScript("codenzi/Map.js?v=2");
 loadScript("codenzi/Minimap.js?v=1");
-loadScript("codenzi/Network.js?v=6");
-loadScript("codenzi/App.js?v=2");
+loadScript("codenzi/Network.js?v=7");
+loadScript("codenzi/App.js?v=3");
 loadScript("codenzi/Camera.js?v=1");
 loadScript("codenzi/Frame.js?v=1");
 loadScript("codenzi/AnimationManager.js?v=1");

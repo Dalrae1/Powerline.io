@@ -116,7 +116,8 @@ class SnakeFunctions {
         return foundPoints
     }
     static LengthToScore(length) {
-        return (length - defaultConfig.DefaultLength)*SCORE_MULTIPLIER
+        let scoreMult = 10 / defaultConfig.FoodValue;
+        return length * scoreMult;
     }
     static ScoreToLength(score) {
         let scoreMult = 10/defaultConfig.FoodValue

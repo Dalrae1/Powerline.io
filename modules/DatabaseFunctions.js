@@ -118,6 +118,25 @@ class DatabaseFunctions {
         }
 
     }
+
+    async UpdateServer(serverInfo) {
+        try {
+            const result = await new Promise((resolve, reject) => {
+                this.pool.query("UPDATE servers SET name = ?, owner = ?, maxplayers = ?, config = ? WHERE id = ?", [serverInfo.name, serverInfo.owner, serverInfo.maxplayers, serverInfo.config, serverInfo.id], function (err, result) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(result);
+                    }
+                });
+            });
+
+            return result;
+        } catch (err) {
+            console.error("Error editing server: ", err);
+            throw err; // Re-throw the error after logging it
+        }
+    }
 }
 
 module.exports = DatabaseFunctions;

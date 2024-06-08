@@ -41,6 +41,7 @@ class Server {
             width: this.config.ArenaSize,
             height: this.config.ArenaSize
         }, 10)
+        this.stopped = false
 
         this.leaderboardDataview = null
         this.leaderboardDataviewOffset = 0
@@ -56,7 +57,8 @@ class Server {
         this.lastUpdate = 0;
         this.admins = [
             "1",
-            "3"
+            "3",
+            this.owner.toString()
         ];
         this.debugGrabAmount = 1000;
         this.entities = [];
@@ -76,22 +78,21 @@ class Server {
             entitiesNearClientTime: 0
         }
 
-        let httpsServer
-        let httpServer = HttpServer(this.serverListener).listen(this.id)
+        this.httpServer = HttpServer(this.serverListener).listen(this.id)
 
-        this.unsecureServer = new WebSocket.Server({ server: httpServer });
+        this.unsecureServer = new WebSocket.Server({ server: this.httpServer });
 
 
         if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
             let cert = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")
             let key = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\privkey.pem")
             let chain = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\fullchain.pem")
-            httpsServer = HttpsServer({
+            this.httpsServer = HttpsServer({
                 cert: fs.readFileSync(cert),
                 key: fs.readFileSync(key)
             }, this.serverListener)
-            this.secureServer = new WebSocket.Server({ server: httpsServer });
-            httpsServer.listen(parseInt(this.id)+1);
+            this.secureServer = new WebSocket.Server({ server: this.httpsServer });
+            this.httpsServer.listen(parseInt(this.id)+1);
         }
         
         if (this.secureServer) {
@@ -179,6 +180,18 @@ class Server {
                 this.clientIDs.releaseID(client.id)
                 delete this.clients[client.id];
             })
+        }
+    }
+
+    Stop() {
+        this.unsecureServer.clients.forEach((client) => {
+            client.close(1000, "Server shutting down")
+        })
+        this.unsecureServer.close()
+        this.httpServer.close()
+        if (this.secureServer) {
+            this.secureServer.close()
+            this.httpsServer.close()
         }
     }
 
@@ -517,6 +530,9 @@ class Server {
     }
 
     mainLooper() {
+        if (this.stopped) {
+            return
+        }
         const now = Date.now();
         const elapsed = now - this.lastUpdate;
     

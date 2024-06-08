@@ -229,6 +229,140 @@ async function serverListener(req, res) {
                     break
             }
             break;
+        case "editserver":
+            switch (req.method) {
+                case "OPTIONS":
+                    res.writeHead(204, {
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type',
+                        'Access-Control-Allow-Credentials': true
+                    });
+                    res.end();
+                    break;
+                case "POST":
+                    let body = '';
+                    req.on('data', chunk => {
+                        body += chunk.toString();
+                    });
+                    req.on('end', async () => {
+                        let cookies = req.headers.cookie ? req.headers.cookie.split("; ") : [];
+                        let sessionCookie = cookies.find(cookie => cookie.includes("session_id="));
+                        if (!sessionCookie) {
+                            sendBadResponse(req, res, 401, "No session cookie");
+                            return;
+                        }
+                        let sessionId = sessionCookie.split("=")[1];
+
+                        try {
+                            let user = await DBFunctions.GetUserFromSession(sessionId);
+                            let userID = user.userid;
+                            if (!userID) {
+                                sendBadResponse(req, res, 401, "Invalid session");
+                                return;
+                            }
+
+                            let json = JSON.parse(body);
+
+                            if (!json.serverId) {
+                                sendBadResponse(req, res, 400, "No server id provided");
+                                return;
+                            }
+
+                            if (!Servers[json.serverId]) {
+                                sendBadResponse(req, res, 400, "Server id provided is invalid");
+                                return;
+                            }
+
+                            if (Servers[json.serverId].owner != userID) {
+                                sendBadResponse(req, res, 401, "You do not own this server");
+                                return;
+                            }
+
+                            if (json.name && (json.name.length > 20 || json.name.length < 3)) {
+                                sendBadResponse(req, res, 400, "Server name must be between 3 and 20 characters");
+                                return;
+                            }
+                            if (json.maxPlayers && (json.maxPlayers < 1 || json.maxPlayers > 100)) {
+                                sendBadResponse(req, res, 400, "Max players must be between 1 and 100");
+                                return;
+                            }
+                            if (json.foodValue && (json.foodValue < 1 || json.foodValue > 100)) {
+                                sendBadResponse(req, res, 400, "Food value must be between 1 and 100");
+                                return;
+                            }
+                            if (json.isPublic && (json.isPublic !== true && json.isPublic !== false)) {
+                                sendBadResponse(req, res, 400, "isPublic must be a boolean");
+                                return;
+                            }
+                            if (json.defaultLength && (json.defaultLength < 1 || json.defaultLength > 1000)) {
+                                sendBadResponse(req, res, 400, "Default length must be between 1 and 1000");
+                                return;
+                            }
+                            if (json.arenaSize && (json.arenaSize < 1 || json.arenaSize > 1000)) {
+                                sendBadResponse(req, res, 400, "Arena size must be between 1 and 1000");
+                                return;
+                            }
+                            Servers[json.serverId].Stop()
+
+                            let serverConfig = {
+                                "ConfigType": 160,
+                                "ArenaSize": parseInt(json.arenaSize),
+                                "DefaultZoom": 2,
+                                "MinimumZoom": 1.5,
+                                "MinimumZoomScore": 100,
+                                "ZoomLevel2": 10,
+                                "GlobalWebLag": 90,
+                                "GlobalMobileLag": 60,
+                                "OtherSnakeDelay": 40,
+                                "IsTalkEnabled": 1,
+                                "FoodValue": SnakeFunctions.ScoreToLength(json.foodValue),
+                                "UpdateInterval": 100,
+                                "MaxBoostSpeed": 255,
+                                "MaxRubSpeed": 200,
+                                "DefaultLength": parseInt(json.defaultLength),
+
+                            }
+
+
+                            Servers[json.serverId] = new Server({
+                                id: json.serverId,
+                                name: json.name,
+                                owner: userID,
+                                maxplayers: json.maxPlayers,
+                                config: serverConfig
+                            });
+
+                            DBFunctions.UpdateServer({
+                                id: json.serverId,
+                                name: json.name,
+                                owner: userID,
+                                maxplayers: json.maxPlayers,
+                                config: JSON.stringify(serverConfig)
+                            })
+
+                            res.writeHead(200, {
+                                'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
+                            });
+                            res.end(JSON.stringify({
+                                success: true
+                            }));
+
+
+
+                        } catch (error) {
+                            sendBadResponse(req, res, 500, "Internal Server Error: " + error.message);
+                        }
+                    })
+
+
+                    break
+                }
+            break
+
         case "getservers":
             switch (req.method) {
                 case "OPTIONS":
@@ -241,19 +375,24 @@ async function serverListener(req, res) {
                     res.end();
                     break;
                 case "GET":
-                    let servers = await DBFunctions.GetServers();
+                    let servers = Object.values(Servers).map(server => {
+                        return {
+                            id: server.id,
+                            name: server.name,
+                            owner: server.owner,
+                            maxplayers: server.MaxPlayers,
+                            playerCount: Object.keys(server.snakes).length,
+                            config: JSON.stringify(server.config)
+                        }
+                    })
                     res.writeHead(200, {
                         'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'GET',
                         'Access-Control-Allow-Headers': 'Content-Type',
                         'Access-Control-Allow-Credentials': true
                     });
-                    servers.forEach(server => {
-                        if (Servers[server.id])
-                            server.playerCount = Object.keys(Servers[server.id].snakes).length;
-                    })
                     res.end(JSON.stringify(servers, true, 4));
-                    break;
+                    break
                 default:
                     res.writeHead(200, {
                         'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",

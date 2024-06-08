@@ -114,6 +114,16 @@ body {
     margin-top: 10px;
 }
 
+#settings-icon {
+    cursor: pointer;
+    color: #05ffff;
+    font-size: 1vw;
+    top: -33%;
+    -ms-transform: translateY(33%);
+    transform: translateY(33%);
+}
+    
+
 #google_login_wrapper {
     position: absolute;
     left: 100%;

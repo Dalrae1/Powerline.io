@@ -194,7 +194,6 @@
 			</div>
 		</div>
 		<div class="scroll-window basic-text">
-			
 			<table class="table server-table">
 				<thead>
 					<tr>
@@ -204,12 +203,14 @@
 						<th>Select</th>
 					</tr>
 				</thead>
-				<tbody>
-					<!-- Add your rows here -->
-				</tbody>
+				<tbody></tbody>
 			</table>
 			<div id="createServer">+</div>
 		</div>
+		
+		<!-- Include FontAwesome for icons -->
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+		
 		
 		<!-- Modal Structure -->
 		<div id="createServerModal" class="modal">
@@ -245,15 +246,7 @@
 				</form>
 			</div>
 		</div>
-		<script>
-			document.querySelector('#createServer').addEventListener('click', function() {
-				document.getElementById('createServerModal').style.display = 'block';
-			});
-
-			document.getElementById('loginButton').addEventListener('click', function() {
-				document.getElementById('loginModal').style.display = 'block';
-			});
-			
+		<script>			
 			document.querySelectorAll('.modal-close').forEach(function(element) {
 				element.addEventListener('click', function() {
 					document.getElementById('createServerModal').style.display = 'none';
@@ -263,12 +256,63 @@
 			
 			// Close the modal when clicking outside of the modal content
 			window.onclick = function(event) {
-				switch (event.target) {
-					case document.getElementById('createServerModal'):
+				switch (event.target.id) {
+					case 'createServer':
+						var row = event.target.closest('tr');
+						document.getElementById('createServerModal').style.display = 'block';
+						document.querySelector('#serverName').value = ""
+
+						document.querySelector('#maxPlayers').value = 5
+						document.querySelector("#maxPlayersValue").textContent = 5
+
+						document.querySelector('#foodValue').value = 10
+						document.querySelector("#foodValueValue").textContent = 10
+
+						document.querySelector('#defaultLength').value = 10
+						document.querySelector('#defaultLengthValue').textContent = 10
+
+						document.querySelector('#arenaSize').value = 200
+						document.querySelector('#arenaSizeValue').textContent = 200
+
+						document.querySelector('#isPublic').checked = false;
+
+						document.querySelector("#createServerModal .modal-content h4").textContent = "Create server";
+						document.querySelector("#createserverbutton").textContent = "Create";
+						break;
+					case 'loginButton':
+						document.getElementById('loginModal').style.display = 'block';
+						break;
+					case 'createServerModal':
 						document.getElementById('createServerModal').style.display = 'none';
 						break;
-					case document.getElementById('loginModal'):
+					case 'loginModal':
 						document.getElementById('loginModal').style.display = 'none';
+						break;
+					case 'settings-icon':
+						var row = event.target.closest('tr');
+						document.getElementById('createServerModal').style.display = 'block';
+						document.querySelector('#serverName').value = row.getAttribute('name');
+
+						document.querySelector('#maxPlayers').value = row.getAttribute('maxplayers');
+						document.querySelector("#maxPlayersValue").textContent = row.getAttribute('maxplayers');
+
+						document.querySelector('#foodValue').value = row.getAttribute('foodvalue');
+						document.querySelector("#foodValueValue").textContent = row.getAttribute('foodvalue');
+
+						document.querySelector('#defaultLength').value = row.getAttribute('defaultlength');
+						document.querySelector('#defaultLengthValue').textContent = row.getAttribute('defaultlength');
+
+						document.querySelector('#arenaSize').value = row.getAttribute('arenasize');
+						document.querySelector('#arenaSizeValue').textContent = row.getAttribute('arenasize');
+
+						document.querySelector("#createserverbutton").setAttribute('serverid', row.getAttribute('serverid'));
+
+						document.querySelector('#isPublic').checked = row.getAttribute('ispublic') === 'true';
+
+						console.log(document.querySelector(".modal-content h4"))
+
+						document.querySelector("#createServerModal .modal-content h4").textContent = "Edit server";
+						document.querySelector("#createserverbutton").textContent = "Save";
 						break;
 				}
 			};
@@ -381,32 +425,6 @@
 			}, 500);
 				
 			});
-
-			// Replace login button with user
-			function get_cookie(name){
-				return document.cookie.split(';').some(c => {
-					return c.trim().startsWith(name + '=');
-				});
-			}
-			function delete_cookie( name, path, domain ) {
-				if( get_cookie( name ) ) {
-					document.cookie = name + "=" +
-					((path) ? ";path="+path:"")+
-					((domain)?";domain="+domain:"") +
-					";expires=Thu, 01 Jan 1970 00:00:01 GMT";
-				}
-			}
-			fetch('/fetchuser.php')
-				.then(response => response.json())
-				.then(data => {
-					if (data.username) {
-						document.getElementById('loginButton').textContent = "Log out of "+data.username;
-						document.getElementById('loginButton').addEventListener('click', function() {
-							delete_cookie('session_id', '/');
-							location.reload();
-						});
-					}
-				});
 			
 			</script>
 			<script>
@@ -530,7 +548,7 @@
 <script src="lib/howler.min.js?v=1"></script>
 
 
-<script src = "codenzi/main.js?v=10"></script>
+<script src = "codenzi/main.js?v=11"></script>
 
 
 
