@@ -109,6 +109,7 @@ class MapFunctions {
         else if (lineStart.x > lineEnd.x) {
             return { x: -1, y: 0 }
         }
+        return { x: 0, y: 1}
     }
 
     static NearestPointOnLine(point, lineStart, lineEnd) // Returns point on line closest to point
