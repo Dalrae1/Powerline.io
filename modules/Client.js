@@ -80,17 +80,17 @@ class Client extends EventEmitter {
                 }
                 break;
             case Enums.ClientToServer.OPCODE_AREA_UPDATE:
-                this.windowSizeX = view.getUint16(1, true)/2;
-                this.windowSizeY = view.getUint16(3, true)/2;
+                this.windowSizeX = view.getUint16(1, true);
+                this.windowSizeY = view.getUint16(3, true);
                 break;
             case Enums.ClientToServer.OPCODE_HELLO_V4:
-                this.windowSizeX = view.getUint16(1, true)/2;
-                this.windowSizeY = view.getUint16(3, true) / 2;
+                this.windowSizeX = view.getUint16(1, true);
+                this.windowSizeY = view.getUint16(3, true);
                 this.pingLoop();
                 break
             case Enums.ClientToServer.OPCODE_HELLO_DEBUG:
-                this.windowSizeX = view.getUint16(1, true)/2;
-                this.windowSizeY = view.getUint16(3, true) / 2;
+                this.windowSizeX = view.getUint16(1, true);
+                this.windowSizeY = view.getUint16(3, true);
                 this.pingLoop();
                 break
             case Enums.ClientToServer.OPCODE_BOOST:
