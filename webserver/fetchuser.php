@@ -26,7 +26,7 @@ function DBConnect() {
 
 function GetUserFromSession($session_id) {
     $mysqli = DBConnect();
-    $stmt = $mysqli->prepare("SELECT u.userid, u.username, u.email, u.pfp 
+    $stmt = $mysqli->prepare("SELECT u.userid, u.username, u.email, u.rank, u.pfp
                               FROM users u 
                               JOIN sessions s ON u.userid = s.userid 
                               WHERE s.session = ?");

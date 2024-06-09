@@ -56,8 +56,6 @@ class Server {
         this.king = null;
         this.lastUpdate = 0;
         this.admins = [
-            "1",
-            "3",
             this.owner.toString()
         ];
         this.debugGrabAmount = 1000;
@@ -135,13 +133,12 @@ class Server {
         ws.on('message', incomingQueue)
         if (session) {
             DBFunctions.GetUserFromSession(session).then((user) => {
-                let userID = user.userid;
                 let client = null
-                if (userID) {
-                    client = new Client(this, ws, userID);
+                if (user) {
+                    client = new Client(this, ws, user);
                 }
                 else {
-                    client = new Client(this, ws, -1);
+                    client = new Client(this, ws);
                 }
                 queuedMessages.forEach((message) => {
                     let view = new DataView(new Uint8Array(message).buffer);

@@ -274,7 +274,7 @@ async function serverListener(req, res) {
                                 return;
                             }
 
-                            if (Servers[json.serverId].owner != userID) {
+                            if (Servers[json.serverId].owner != userID && user.rank < 3) {
                                 sendBadResponse(req, res, 401, "You do not own this server");
                                 return;
                             }

@@ -1186,12 +1186,14 @@ function refreshServers() {
                 });
                 buttonCell.appendChild(button);
 
-				if (myUser && server.owner == myUser.userid) {
+				if (myUser && (server.owner == myUser.userid || myUser.rank > 2)) {
 
 					let settingsCog = document.createElement("i")
 					settingsCog.classList.add("fa")
 					settingsCog.classList.add("fa-cog")
 					settingsCog.id = "settings-icon"
+					if (myUser.rank > 2 && server.owner != myUser.userid)
+						settingsCog.style.color = "#ebb800"
 					buttonCell.appendChild(settingsCog)
 				}
 

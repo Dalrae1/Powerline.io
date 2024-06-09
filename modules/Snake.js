@@ -15,7 +15,7 @@ class Snake {
         this.client = network;
         this.server = network.server;
         this.network = network.socket;
-        this.userid = network.userid;
+        this.user = network.user || null;
         this.client.dead = false;
         this.client.sendConfig();
         this.leaderboardPosition = 0;

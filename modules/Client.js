@@ -8,7 +8,7 @@ const { time } = require('console');
 
 
 class Client extends EventEmitter {
-    constructor(server, websocket, userid) {
+    constructor(server, websocket, user) {
         super();
         this.server = server
         this.socket = websocket;
@@ -19,10 +19,13 @@ class Client extends EventEmitter {
         this.dead = true
         this.pointsNearby = {};
         this.ping = 20;
+        this.user = user || null
         server.clients[this.id] = this;
-            
-        this.userid = userid.toString()
-        console.log(`Client connected to server ${server.name} from user "${this.userid}"`);
+
+        if (this.user)
+            console.log(`Client connected to server ${server.name} from user "${this.user.userid}"`);
+        else
+            console.log(`Client connected to server ${server.name}`);
 
 
     }
@@ -94,7 +97,7 @@ class Client extends EventEmitter {
                 this.pingLoop();
                 break
             case Enums.ClientToServer.OPCODE_BOOST:
-                if (this.server.admins.includes(this.snake.userid)) {
+                if (this.user && (this.server.admins.includes(this.user.id) || this.user.rank > 2)) {
                     let boosting = view.getUint8(1) == 1
                     if (boosting) {
                         this.snake.extraSpeed += 2;
@@ -109,11 +112,11 @@ class Client extends EventEmitter {
                 }
                 break;
             case Enums.ClientToServer.OPCODE_DEBUG_GRAB:
-                if (this.server.admins.includes(this.snake.userid))
+                if (this.user && (this.server.admins.includes(this.user.id) || this.user.rank > 2))
                     this.snake.length += SnakeFunctions.ScoreToLength(this.server.debugGrabAmount);
                 break;
             case 0x0d: // Invincible
-                if (this.server.admins.includes(this.snake.userid))
+            if (this.user && (this.server.admins.includes(this.user.id) || this.user.rank > 2))
                     this.snake.invincible = view.getUint8(1, true) == 1;
             
                 break;
@@ -125,7 +128,7 @@ class Client extends EventEmitter {
                 if (!commandArgs[0])
                     return
                 commandArgs[0] = commandArgs[0].toLowerCase();
-                if (this.server.admins.includes(this.snake.userid) || commandArgs[0] == "say") {
+                if ((this.user && (this.server.admins.includes(this.user.id) || this.user.rank > 2)) || commandArgs[0] == "say") {
                     console.log(`Executing command "${command}" from ${this.snake.nick}`);
                     switch (commandArgs[0]) {
                         case "debuggrabammount":
