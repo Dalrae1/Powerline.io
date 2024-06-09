@@ -103,7 +103,7 @@ class Server {
 
 
 
-        for (let i = 0; i < this.maxFood; i++) {
+        for (let i = 0; i < this.maxFood/2; i++) {
             new Food(this);
         }
         this.start()

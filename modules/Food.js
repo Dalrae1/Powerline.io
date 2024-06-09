@@ -8,6 +8,9 @@ class Food {
     spawned = true
     lastUpdate = Date.now();
     constructor(server, x, y, color = Math.random() * 360, origin = null, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5)) {
+        if (server.maxFood && server.maxFood <= Object.keys(server.entities).length) {
+            return
+        }
         this.server = server
         this.value = server.config.FoodValue;
         let thisId = this.server.entityIDs.allocateID();
