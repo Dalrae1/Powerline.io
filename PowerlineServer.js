@@ -114,7 +114,7 @@ async function serverListener(req, res) {
                         let cookies = req.headers.cookie ? req.headers.cookie.split("; ") : [];
                         let sessionCookie = cookies.find(cookie => cookie.includes("session_id="));
                         if (!sessionCookie) {
-                            sendBadResponse(req, res, 401, "No session cookie");
+                            sendBadResponse(req, res, 401, "You are not logged in");
                             return;
                         }
                         let sessionId = sessionCookie.split("=")[1];
@@ -123,7 +123,7 @@ async function serverListener(req, res) {
                             let user = await DBFunctions.GetUserFromSession(sessionId);
                             let userID = user.userid;
                             if (!userID) {
-                                sendBadResponse(req, res, 401, "Invalid session");
+                                sendBadResponse(req, res, 401, "Invalid session. Please try to relog in");
                                 return;
                             }
     
@@ -249,7 +249,7 @@ async function serverListener(req, res) {
                         let cookies = req.headers.cookie ? req.headers.cookie.split("; ") : [];
                         let sessionCookie = cookies.find(cookie => cookie.includes("session_id="));
                         if (!sessionCookie) {
-                            sendBadResponse(req, res, 401, "No session cookie");
+                            sendBadResponse(req, res, 401, "You are not logged in");
                             return;
                         }
                         let sessionId = sessionCookie.split("=")[1];
