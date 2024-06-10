@@ -194,7 +194,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let length = parseInt(commandArgs[1]);
                                 if (length && length > 0 && length < 100000) {
-                                    defaultLength = length;
+                                    this.server.config.DefaultLength = length;
                                 }
                             }
                             break;
