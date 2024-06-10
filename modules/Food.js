@@ -29,6 +29,7 @@ class Food {
         if (didInsert !== true) {
             //if (this.server.id == 1341)
                 //console.log(`Failed to insert food ID ${this.id} into server ${this.server.id} into quadtree because ${didInsert}`);
+            this.server.entityIDs.releaseID(this.id);
             return
         }
 
