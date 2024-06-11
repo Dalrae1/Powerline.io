@@ -383,6 +383,7 @@ async function serverListener(req, res) {
                             name: server.name,
                             owner: server.owner,
                             maxplayers: server.MaxPlayers,
+                            pinned: server.pinned,
                             playerCount: Object.keys(server.snakes).length,
                             config: JSON.stringify(thisConfig, true, 4)
                         }

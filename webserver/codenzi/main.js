@@ -1165,10 +1165,21 @@ function refreshServers() {
             tableBody.innerHTML = "";
 
             // Render servers with "Loading..." for usernames if it's the first load
+
+			// sort servers by player count
+			servers.sort((a, b) => {
+				return b.playerCount - a.playerCount
+			})
+			// Put pinned servers at the top
+			servers.sort((a, b) => {
+				return b.pinned - a.pinned
+			})
+
+
             servers.forEach(server => {
                 let row = tableBody.insertRow();
                 row.id = `server${server.id}`;
-                row.insertCell().innerText = server.name;
+                row.insertCell()
                 row.insertCell().innerText = `${server.playerCount}/${server.maxplayers}`;
                 row.insertCell().innerText = loadedUsernames.has(server.owner) ? loadedUsernames.get(server.owner) : "Loading..."; // Show "Loading..." only if username is not yet loaded
                 let buttonCell = row.insertCell();
@@ -1185,6 +1196,23 @@ function refreshServers() {
                     selectServer(server.id);
                 });
                 buttonCell.appendChild(button);
+
+				if (server.pinned) {
+					let pinnedStar = document.createElement("i")
+					pinnedStar.classList.add("fa")
+					pinnedStar.classList.add("fa-star")
+					pinnedStar.style.color = "#ebb800"
+
+					let name = document.createElement("div")
+					name.style.display = "inline-block"
+					name.innerText = server.name
+
+					
+					row.cells[0].appendChild(pinnedStar)
+					row.cells[0].appendChild(name)
+				} else {
+					row.cells[0].innerText = server.name
+				}
 
 				if (myUser && (server.owner == myUser.userid || myUser.rank > 2)) {
 

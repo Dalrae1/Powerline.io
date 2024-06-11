@@ -28,6 +28,7 @@ class Server {
         this.id = serverInfo.id;
         this.name = serverInfo.name;
         this.MaxPlayers = serverInfo.maxplayers;
+        this.pinned = serverInfo.pinned;
         this.config = serverInfo.config;
         this.config.MaxRubAcceleration = 4;
         this.owner = serverInfo.owner;
