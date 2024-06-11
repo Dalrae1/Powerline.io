@@ -47,7 +47,9 @@ class Server {
         this.leaderboardDataviewOffset = 0
         
         this.foodMultiplier = 1;
-        this.maxFood = this.config.ArenaSize * 5;
+        this.maxFood = 60000;
+        this.naturalFood = 0;
+        this.maxNaturalFood = this.config.ArenaSize * 5
         this.foodSpawnPercent = (this.config.ArenaSize ^ 2) / 10;
         this.artificialPing = 0;
 
@@ -101,7 +103,7 @@ class Server {
 
 
 
-        for (let i = 0; i < this.maxFood/2; i++) {
+        for (let i = 0; i < this.maxNaturalFood; i++) {
             new Food(this);
         }
         this.start()
@@ -391,7 +393,7 @@ class Server {
         this.RefreshLeaderboard()
 
         // Add random food spawns
-        if (Object.keys(this.entities).length < this.maxFood) {
+        if (Object.keys(this.entities).length < this.maxNaturalFood) {
             if (Math.random() * 100 < this.foodSpawnPercent) {
                 new Food(this);
             }

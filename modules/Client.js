@@ -177,8 +177,16 @@ class Client extends EventEmitter {
                         case "maxfood":
                             if (commandArgs[1]) {
                                 let max = parseInt(commandArgs[1]);
-                                if (max && max > 0 && max < 10000) {
+                                if (max && max > 0 && max < 60000) {
                                     this.server.maxFood = max;
+                                }
+                            }
+                            break;
+                        case "maxnaturalfood":
+                            if (commandArgs[1]) {
+                                let max = parseInt(commandArgs[1]);
+                                if (max && max > 0 && max < 10000) {
+                                    this.server.maxNaturalFood = max;
                                 }
                             }
                             break;

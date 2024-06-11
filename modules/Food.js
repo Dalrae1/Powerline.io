@@ -11,6 +11,13 @@ class Food {
         if (server.maxFood && server.maxFood <= Object.keys(server.entities).length) {
             return
         }
+        if (!x) { // Food is natural.
+            if (server.maxNaturalFood <= server.naturalFood) {
+                return
+            }
+            server.naturalFood++;
+            this.natural = true
+        }
         this.server = server
         this.value = server.config.FoodValue;
         let thisId = this.server.entityIDs.allocateID();
@@ -29,6 +36,8 @@ class Food {
         if (didInsert !== true) {
             //if (this.server.id == 1341)
                 //console.log(`Failed to insert food ID ${this.id} into server ${this.server.id} into quadtree because ${didInsert}`);
+            if (this.natural)
+                this.server.naturalFood--;
             this.server.entityIDs.releaseID(this.id);
             return
         }
@@ -98,6 +107,8 @@ class Food {
             snake.length += this.value;
             snake.lastAte = Date.now();
         }
+        if (this.natural)
+            this.server.naturalFood--;
         this.lastUpdate = Date.now();
         this.spawned = false
         this.server.entityIDs.releaseID(this.id);
