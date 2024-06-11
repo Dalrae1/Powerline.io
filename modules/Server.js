@@ -56,7 +56,7 @@ class Server {
         this.king = null;
         this.lastUpdate = 0;
         this.admins = [
-            this.owner.id
+            parseInt(this.owner)
         ];
         this.debugGrabAmount = 1000;
         this.entities = [];
