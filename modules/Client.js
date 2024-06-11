@@ -234,7 +234,7 @@ class Client extends EventEmitter {
                             if (commandArgs[1]) {
                                 let value = parseInt(commandArgs[1]);
                                 if (value && value > 0 && value < 10000) {
-                                    this.server.config.FoodValue = value;
+                                    this.server.config.FoodValue = SnakeFunctions.ScoreToLength(value);
                                     Object.values(this.server.entities).forEach((entity) => {
                                         if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
                                             entity.value = this.server.config.FoodValue;
