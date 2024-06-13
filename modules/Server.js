@@ -372,12 +372,12 @@ class Server {
                     snake.rubY = closestRubLine.point.y;
                     snake.rubAgainst(otherSnake, closestRubLine.distance);
                 }
-                if (snake.eatCombo > 5) {
-                    if (snake.extraSpeed+3 <= this.config.MaxRubAcceleration) {
-                        snake.extraSpeed += 1;
-                        snake.speed = 0.25 + (snake.extraSpeed / 1000)
-                    }
-                }
+                if (snake.eatCombo > 5 && (snake.extraSpeed+3 <= this.config.MaxRubAcceleration || this.speedBypass)) {
+                    snake.extraSpeed += 1;
+                    snake.speed = 0.25 + (snake.extraSpeed / 1000)
+                    snake.speeding = true
+                } else
+                    snake.speeding = false
             })
             if (!shouldRub) {
             snake.stopRubbing();
