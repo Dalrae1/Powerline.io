@@ -225,7 +225,7 @@ class Client extends EventEmitter {
                         case "foodmultiplier":
                             if (commandArgs[1]) {
                                 let multiplier = parseInt(commandArgs[1]);
-                                if (multiplier && multiplier > 0 && multiplier < 1000) {
+                                if (multiplier && multiplier > 0 && multiplier < 10) {
                                     this.server.foodMultiplier = multiplier;
                                 }
                             }
