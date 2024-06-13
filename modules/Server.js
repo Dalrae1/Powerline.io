@@ -373,8 +373,10 @@ class Server {
                     snake.rubAgainst(otherSnake, closestRubLine.distance);
                 }
                 if (snake.eatCombo > 5) {
-                    snake.extraSpeed += 3;
-                    snake.speed = 0.25 + (snake.extraSpeed / 1000)
+                    if (snake.extraSpeed+3 <= this.config.MaxRubAcceleration) {
+                        snake.extraSpeed += 1;
+                        snake.speed = 0.25 + (snake.extraSpeed / 1000)
+                    }
                 }
             })
             if (!shouldRub) {
