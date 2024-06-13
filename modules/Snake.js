@@ -222,7 +222,6 @@ class Snake {
     }
     rubAgainst(snake, distance) {
         this.flags |= Enums.EntityFlags.IS_RUBBING;
-        this.speeding = true
         this.RubSnake = snake.id;
 
         let max_speed = (this.server.config.MaxRubAcceleration-1);
@@ -241,7 +240,6 @@ class Snake {
     stopRubbing() {
         this.RubSnake = undefined;
         this.flags &= ~Enums.EntityFlags.IS_RUBBING;
-        this.speeding = false
     }
     kill(reason, killedBy) {
         if (this.invincible)

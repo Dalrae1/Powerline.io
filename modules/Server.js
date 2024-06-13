@@ -366,30 +366,28 @@ class Server {
                     // Check if any points are colliding
 
                 }
-
-                if (snake.eatCombo > 5 && (snake.extraSpeed+1 <= this.config.MaxRubAcceleration || this.speedBypass))
-                    snake.speeding = true
-                else
-                    snake.speeding = false
             })
             if (closestRubLine) {
                 snake.rubX = closestRubLine.point.x;
                 snake.rubY = closestRubLine.point.y;
                 snake.rubAgainst(closestRubLine.otherSnake, closestRubLine.distance);
+                snake.rubbing = true
             } else {
                 snake.stopRubbing();
+                snake.rubbing = false
             }
-
-            if (snake.speeding) {
+            if (Date.now()-snake.lastAte > 500)
+                snake.eatCombo = 0
+            if (snake.eatCombo >= 5 && (snake.extraSpeed+1 <= this.config.MaxBoostSpeed || this.speedBypass)) {
                 snake.extraSpeed += 1;
                 snake.speed = 0.25 + (snake.extraSpeed / 1000)
+                snake.speeding = true;
+            } else {
+                snake.speeding = false;
             }
-            else {
-                if (snake.extraSpeed-1 >= 0) {
-                    snake.extraSpeed -= 1;
-                    snake.speed = 0.25 + (snake.extraSpeed / 1000);
-                }
-                
+            if ((!snake.speeding && !snake.rubbing) && snake.extraSpeed-1 >= 0) {
+                snake.extraSpeed -= 1;
+                snake.speed = 0.25 + (snake.extraSpeed / 1000);
             }
         });
         //console.log(`Updated ${numSnak} snakes and ${numPoints} points`)

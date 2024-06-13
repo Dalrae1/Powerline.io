@@ -95,7 +95,7 @@ class Food {
             }
         })
         if (snake) {
-            if (Date.now()-snake.lastAte < 300) {
+            if (Date.now()-snake.lastAte < 500) {
                 snake.eatCombo++;
             } else {
                 snake.eatCombo = 0;
