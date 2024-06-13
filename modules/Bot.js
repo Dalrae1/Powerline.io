@@ -10,74 +10,98 @@ function getRandomArbitrary(min, max) {
 class Bot {
     constructor(server) {
         this.server = server;
-
-        let simulatedWs = {
-            send: (data) => {}
-        };
-
-        let botClient = new Client(this.server, simulatedWs, -1);
-
-        this.client = botClient;
-
-        let nick = "Bot" + Math.floor(Math.random() * 1000);
-        let dataview = new DataView(new ArrayBuffer(1 + (1 + nick.length) * 2));
-        let offset = 1;
-        dataview, offset = GlobalFunctions.SetNick(dataview, offset, nick);
-
-        this.client.RecieveMessage(Enums.ClientToServer.OPCODE_ENTER_GAME, dataview);
-
-        setInterval(() => {
-            if (this.client.snake == null) {
-                this.client.RecieveMessage(Enums.ClientToServer.OPCODE_ENTER_GAME, dataview);
-                return;
-            }
-
-            if (this.detectCollision(this.client)) {
-                this.avoidCollision(this.client);
-            } else {
-                //
-            }
-
-        }, 50);
-
+        this.client = this.initializeClient(server);
+        this.nickname = this.generateNickname();
+        this.enterGame();
+        setInterval(this.update.bind(this), 50);
         this.randomTurner();
     }
 
+    initializeClient(server) {
+        const simulatedWs = { send: (data) => {} };
+        return new Client(server, simulatedWs, -1);
+    }
+
+    generateNickname() {
+        return "Bot" + Math.floor(Math.random() * 1000);
+    }
+
+    enterGame() {
+        try {
+            const dataview = this.createNicknameDataView(this.nickname);
+            this.client.RecieveMessage(Enums.ClientToServer.OPCODE_ENTER_GAME, dataview);
+        } catch (error) {
+            console.error('Error entering game:', error);
+        }
+    }
+
+    createNicknameDataView(nickname) {
+        const buffer = new ArrayBuffer(1 + (1 + nickname.length) * 2);
+        let dataview = new DataView(buffer);
+        let offset = 1;
+        dataview, offset = GlobalFunctions.SetNick(dataview, offset, nickname);
+        return dataview;
+    }
+
+    update() {
+        if (!this.client.snake) {
+            this.enterGame();
+            return;
+        }
+
+        if (this.detectCollision() || this.detectBoundary()) {
+            this.avoidCollision();
+        }
+    }
+
     randomTurner() {
-        let time = getRandomArbitrary(50, 12000);
+        const time = getRandomArbitrary(50, 12000);
         setTimeout(() => {
             this.randomTurn();
-            this.randomTurner()
-        }, time)
-
+            this.randomTurner();
+        }, time);
     }
 
     detectCollision() {
-        let snake = this.client.snake;
-        let loadedEntities = this.client.loadedEntities;
-        let futurePosition = this.getFuturePosition(snake);
-        let isCollision
+        const snake = this.client.snake;
+        const futurePosition = this.getFuturePosition(snake);
 
-        for (const [key, entity] of Object.entries(loadedEntities)) {
+        return Object.values(this.client.loadedEntities).some(entity => {
             if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
-                let points = entity.points.concat([entity.position]);
+                return this.checkEntityCollision(snake, entity, futurePosition);
+            }
+            return false;
+        });
+    }
 
-                for (let j = 0; j < points.length - 1; j++) {
-                    let pointA = points[j];
-                    let pointB = points[j + 1];
-                    if (entity == snake && snake.position == pointB)
-                        continue
-                    if (MapFunctions.DoIntersect(snake.position, futurePosition, pointA, pointB)) {
-                        return true;
-                    }
-                }
+    detectBoundary() {
+        const snake = this.client.snake;
+        const futurePosition = this.getFuturePosition(snake);
+        const arenaSize = this.server.config.ArenaSize / 2;
+
+        return (
+            futurePosition.x > arenaSize ||
+            futurePosition.x < -arenaSize ||
+            futurePosition.y > arenaSize ||
+            futurePosition.y < -arenaSize
+        );
+    }
+
+    checkEntityCollision(snake, entity, futurePosition) {
+        const points = entity.points.concat([entity.position]);
+        for (let i = 0; i < points.length - 1; i++) {
+            const pointA = points[i];
+            const pointB = points[i + 1];
+            if (entity === snake && snake.position === pointB) continue;
+            if (MapFunctions.DoIntersect(snake.position, futurePosition, pointA, pointB)) {
+                return true;
             }
         }
         return false;
     }
 
     getFuturePosition(snake) {
-        let futurePosition = { ...snake.position };
+        const futurePosition = { ...snake.position };
         const distance = 30;
 
         switch (snake.direction) {
@@ -98,7 +122,40 @@ class Bot {
     }
 
     avoidCollision() {
-        this.randomTurn();
+        const snake = this.client.snake;
+        const validDirections = this.getValidDirections(snake.direction);
+        let safeDirection = null;
+
+        for (const direction of validDirections) {
+            const futurePosition = this.getFuturePositionInDirection(snake, direction);
+            const isSafe = !Object.values(this.client.loadedEntities).some(entity => {
+                if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
+                    return this.checkEntityCollisionWithDirection(snake, entity, futurePosition);
+                }
+                return false;
+            }) && !this.isOutOfBounds(futurePosition);
+
+            if (isSafe) {
+                safeDirection = direction;
+                break;
+            }
+        }
+
+        if (safeDirection) {
+            this.turnToDirection(safeDirection);
+        } else {
+            this.randomTurn();
+        }
+    }
+
+    isOutOfBounds(position) {
+        const arenaSize = this.server.config.ArenaSize / 2;
+        return (
+            position.x > arenaSize ||
+            position.x < -arenaSize ||
+            position.y > arenaSize ||
+            position.y < -arenaSize
+        );
     }
 
     getValidDirections(currentDirection) {
@@ -116,11 +173,57 @@ class Bot {
         }
     }
 
+    getFuturePositionInDirection(snake, direction) {
+        const futurePosition = { ...snake.position };
+        const distance = 30;
+
+        switch (direction) {
+            case Enums.Directions.UP:
+                futurePosition.y += distance;
+                break;
+            case Enums.Directions.RIGHT:
+                futurePosition.x += distance;
+                break;
+            case Enums.Directions.DOWN:
+                futurePosition.y -= distance;
+                break;
+            case Enums.Directions.LEFT:
+                futurePosition.x -= distance;
+                break;
+        }
+        return futurePosition;
+    }
+
+    checkEntityCollisionWithDirection(snake, entity, futurePosition) {
+        const points = entity.points.concat([entity.position]);
+        for (let i = 0; i < points.length - 1; i++) {
+            const pointA = points[i];
+            const pointB = points[i + 1];
+            if (entity === snake && snake.position === pointB) continue;
+            if (MapFunctions.DoIntersect(snake.position, futurePosition, pointA, pointB)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    turnToDirection(direction) {
+        const snake = this.client.snake;
+        const axis = (direction === Enums.Directions.LEFT || direction === Enums.Directions.RIGHT) ? 'y' : 'x';
+
+        try {
+            snake.turn(direction, snake.position[axis]);
+        } catch (error) {
+            console.error('Error during turn:', error);
+        }
+    }
+
     randomTurn() {
-        if (this.client.snake == null) return;
-        let validDirections = this.getValidDirections(this.client.snake.direction);
-        let newDirection = validDirections[Math.floor(Math.random() * validDirections.length)];
-        this.client.snake.turn(newDirection, this.client.snake.position[(newDirection === Enums.Directions.LEFT || newDirection === Enums.Directions.RIGHT) ? 'y' : 'x']);
+        if (!this.client.snake) return;
+
+        const validDirections = this.getValidDirections(this.client.snake.direction);
+        const newDirection = validDirections[Math.floor(Math.random() * validDirections.length)];
+        this.turnToDirection(newDirection);
     }
 }
 
