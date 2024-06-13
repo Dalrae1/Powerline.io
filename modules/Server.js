@@ -273,7 +273,6 @@ class Server {
                     }
                 }, snake.ping || 50)
             }
-            let shouldRub = false;
             let secondPoint = snake.points[0];
             // Other snake collision checks
             let closestRubLine
@@ -335,7 +334,8 @@ class Server {
                             if (!closestRubLine || nearestRubPoint.distance < closestRubLine.distance)
                                 closestRubLine = {
                                     point: nearestRubPoint.point,
-                                    distance: nearestRubPoint.distance
+                                    distance: nearestRubPoint.distance,
+                                    otherSnake: otherSnake
                                 }
                         }
                         
@@ -366,29 +366,30 @@ class Server {
                     // Check if any points are colliding
 
                 }
-                if (closestRubLine) {
-                    shouldRub = true;
-                    snake.rubX = closestRubLine.point.x;
-                    snake.rubY = closestRubLine.point.y;
-                    snake.rubAgainst(otherSnake, closestRubLine.distance);
-                }
-                if (snake.eatCombo > 5 && (snake.extraSpeed+3 <= this.config.MaxRubAcceleration || this.speedBypass)) {
-                    snake.extraSpeed += 1;
-                    snake.speed = 0.25 + (snake.extraSpeed / 1000)
+
+                if (snake.eatCombo > 5 && (snake.extraSpeed+1 <= this.config.MaxRubAcceleration || this.speedBypass))
                     snake.speeding = true
-                } else
+                else
                     snake.speeding = false
             })
-            if (!shouldRub) {
-            snake.stopRubbing();
+            if (closestRubLine) {
+                snake.rubX = closestRubLine.point.x;
+                snake.rubY = closestRubLine.point.y;
+                snake.rubAgainst(closestRubLine.otherSnake, closestRubLine.distance);
+            } else {
+                snake.stopRubbing();
             }
 
-            if (!snake.speeding) {
+            if (snake.speeding) {
+                snake.extraSpeed += 1;
+                snake.speed = 0.25 + (snake.extraSpeed / 1000)
+            }
+            else {
                 if (snake.extraSpeed-1 >= 0) {
                     snake.extraSpeed -= 1;
                     snake.speed = 0.25 + (snake.extraSpeed / 1000);
                 }
-
+                
             }
         });
         //console.log(`Updated ${numSnak} snakes and ${numPoints} points`)
