@@ -537,8 +537,6 @@ class Server {
         const elapsed = now - this.lastUpdate;
     
         if (elapsed >= this.config.UpdateInterval) {
-            // Adjust lastUpdate to now
-            this.lastUpdate = now;
     
             if (elapsed > this.config.UpdateInterval) {
                 //console.warn(`Server ${this.id} is lagging behind by ${elapsed - this.config.UpdateInterval}ms`);
@@ -548,6 +546,7 @@ class Server {
     
             let mainStart = Date.now();
             this.main();
+            this.lastUpdate = now;
             //console.log(`Server ${this.id} took ${Date.now() - mainStart}ms to update`);
         }
     
