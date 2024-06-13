@@ -48,6 +48,7 @@ class Snake {
         this.newPoints = [];
         this.talkStamina = 255;
         this.color = Math.random() * 360;
+        this.eatCombo = 0;
         this.visualLength = this.server.config.DefaultLength;
         this.actualLength = this.server.config.DefaultLength;
         this.killedSnakes = [];
@@ -224,11 +225,16 @@ class Snake {
         this.speeding = true
         this.RubSnake = snake.id;
 
-        let max_speed = this.server.config.MaxRubAcceleration;
-        let rubSpeed = max_speed - (max_speed - 1) * ((Math.max(distance, 1) - 1) / 3)
+        let max_speed = (this.server.config.MaxRubAcceleration-1);
+        let dist = Math.max(distance, 1);
+        let percentOfMax = (4 - dist + 1) / 4;
+
+
+        
+        let rubSpeed = max_speed * percentOfMax;
         if (this.extraSpeed + rubSpeed <= this.server.config.MaxRubSpeed || this.speedBypass) {
             this.extraSpeed += rubSpeed
-            this.speed = 0.25 + this.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+            this.speed += rubSpeed / 1000;
         }
         
     }

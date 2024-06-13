@@ -58,15 +58,6 @@ class Food {
         }
         if (!this.spawned)
             return
-        if (snake) {
-            for (let i = 0; i < 3; i++) {
-                setTimeout(() => {
-                    snake.extraSpeed += 2;
-                    if (snake.extraSpeed > this.server.config.MaxBoostSpeed && !snake.speedBypass)
-                        snake.extraSpeed = this.server.config.MaxBoostSpeed;
-                }, this.server.UpdateInterval * 2 * i)
-            }
-        }
 
         var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
@@ -104,6 +95,12 @@ class Food {
             }
         })
         if (snake) {
+            if (Date.now()-snake.lastAte < 50) {
+                snake.eatCombo++;
+            } else {
+                snake.eatCombo = 0;
+            }
+
             snake.length += this.value;
             snake.lastAte = Date.now();
         }
