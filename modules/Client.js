@@ -134,7 +134,7 @@ class Client extends EventEmitter {
                         case "debuggrabammount":
                             if (commandArgs[1]) {
                                 let amount = parseInt(commandArgs[1]);
-                                if (amount && amount > 0 && amount < 100000) {
+                                if (amount && amount >= 0 && amount <= 100000) {
                                     this.server.debugGrabAmount = amount;
                                 }
                             }
@@ -142,7 +142,7 @@ class Client extends EventEmitter {
                         case "arenasize":
                             if (commandArgs[1]) {
                                 let size = parseInt(commandArgs[1]);
-                                if (size && size > 0 && size < 10000) {
+                                if (size && size >= 0 && size <= 10000) {
                                     this.server.config.ArenaSize = size;
                                     Object.values(this.server.clients).forEach((client) => {
                                         client.sendConfig()
@@ -153,7 +153,7 @@ class Client extends EventEmitter {
                         case "maxboostspeed":
                             if (commandArgs[1]) {
                                 let speed = parseInt(commandArgs[1]);
-                                if (speed && speed > 0 && speed < 1000) {
+                                if (speed && speed >= 0 && speed <= 1000) {
                                     this.server.config.MaxBoostSpeed = speed;
                                 }
                             }
@@ -161,7 +161,7 @@ class Client extends EventEmitter {
                         case "maxrubspeed":
                             if (commandArgs[1]) {
                                 let speed = parseInt(commandArgs[1]);
-                                if (speed && speed > 0 && speed < 1000) {
+                                if (speed && speed >= 0 && speed <= 1000) {
                                     this.server.config.MaxRubSpeed = speed;
                                 }
                             }
@@ -169,7 +169,7 @@ class Client extends EventEmitter {
                         case "updateinterval":
                             if (commandArgs[1]) {
                                 let duration = parseInt(commandArgs[1]);
-                                if (duration && duration > 20 && duration < 10000) {
+                                if (duration && duration >= 20 && duration <= 10000) {
                                     this.server.config.UpdateInterval = duration;
                                 }
                             }
@@ -177,7 +177,7 @@ class Client extends EventEmitter {
                         case "maxfood":
                             if (commandArgs[1]) {
                                 let max = parseInt(commandArgs[1]);
-                                if (max && max > 0 && max < 60000) {
+                                if (max && max > 0 && max <= 60000) {
                                     this.server.maxFood = max;
                                 }
                             }
@@ -185,7 +185,7 @@ class Client extends EventEmitter {
                         case "maxnaturalfood":
                             if (commandArgs[1]) {
                                 let max = parseInt(commandArgs[1]);
-                                if (max && max > 0 && max < 10000) {
+                                if (max && max > 0 && max <= 10000) {
                                     this.server.maxNaturalFood = max;
                                 }
                             }
@@ -193,7 +193,7 @@ class Client extends EventEmitter {
                         case "foodspawnpercent":
                             if (commandArgs[1]) {
                                 let rate = parseInt(commandArgs[1]);
-                                if (rate && rate > 0 && rate < 100000) {
+                                if (rate && rate > 0 && rate <= 100000) {
                                     this.server.foodSpawnPercent = rate;
                                 }
                             }
@@ -201,7 +201,7 @@ class Client extends EventEmitter {
                         case "defaultlength":
                             if (commandArgs[1]) {
                                 let length = parseInt(commandArgs[1]);
-                                if (length && length > 0 && length < 100000) {
+                                if (length && length > 0 && length <= 100000) {
                                     this.server.config.DefaultLength = length;
                                 }
                             }
@@ -209,7 +209,7 @@ class Client extends EventEmitter {
                         case "randomfood":
                             if (commandArgs[1]) {
                                 let num = parseInt(commandArgs[1]);
-                                if (num && num > 0 && num < 1000) {
+                                if (num && num > 0 && num <= 1000) {
                                     for (let i = 0; i < num; i++) {
                                         new Food(this.server);
                                     }
@@ -225,7 +225,7 @@ class Client extends EventEmitter {
                         case "foodmultiplier":
                             if (commandArgs[1]) {
                                 let multiplier = parseInt(commandArgs[1]);
-                                if (multiplier && multiplier > 0 && multiplier < 10) {
+                                if (multiplier && multiplier > 0 && multiplier <= 10) {
                                     this.server.foodMultiplier = multiplier;
                                 }
                             }
@@ -233,7 +233,7 @@ class Client extends EventEmitter {
                         case "foodvalue":
                             if (commandArgs[1]) {
                                 let value = parseInt(commandArgs[1]);
-                                if (value && value > 0 && value < 10000) {
+                                if (value && value > 0 && value <= 10000) {
                                     this.server.config.FoodValue = SnakeFunctions.ScoreToLength(value);
                                     Object.values(this.server.entities).forEach((entity) => {
                                         if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
