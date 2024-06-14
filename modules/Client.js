@@ -21,6 +21,7 @@ class Client extends EventEmitter {
         this.ping = 20;
         this.user = user || null
         server.clients[this.id] = this;
+        this.sendConfig();
 
         if (this.user)
             console.log(`Client connected to server ${server.name} from user "${this.user.userid}"`);

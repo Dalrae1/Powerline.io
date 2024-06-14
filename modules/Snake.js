@@ -17,7 +17,6 @@ class Snake {
         this.network = network.socket;
         this.user = network.user || null;
         this.client.dead = false;
-        this.client.sendConfig();
         this.leaderboardPosition = 0;
         //this.flags |= Enums.EntityFlags.DEBUG
         this.flags = 0;
