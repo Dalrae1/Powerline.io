@@ -2,6 +2,7 @@ const Enums = require('./Enums.js');
 const Snake = require('./Snake.js');
 const Food = require('./Food.js');
 const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
+const MapFunctions = require("./MapFunctions.js");
 const GlobalFunctions = require("./GlobalFunctions.js")
 const EventEmitter = require("events");
 const { time } = require('console');
@@ -22,6 +23,9 @@ class Client extends EventEmitter {
         this.user = user || null
         server.clients[this.id] = this;
         this.sendConfig();
+
+        this.sendMapBarriers()
+        
 
         if (this.user)
             console.log(`Client connected to server ${server.name} from user "${this.user.userid}"`);
@@ -342,6 +346,28 @@ class Client extends EventEmitter {
         Bit8.setFloat32(offset, this.server.config.IsTalkEnabled, true); //isTalkEnabled
         this.socket.send(Bit8);
     }
+
+    sendMapBarriers() {
+        
+        
+        var Bit8 = new DataView(new ArrayBuffer(1 + ((4*4) * this.server.barriers.length)));
+        let offset = 0;
+        Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_MAP_BARRIERS);
+        offset += 1;
+        for (let i = 0; i < this.server.barriers.length; i++) {
+            Bit8.setFloat32(offset, this.server.barriers[i].x, true);
+            offset += 4;
+            Bit8.setFloat32(offset, this.server.barriers[i].y, true);
+            offset += 4;
+            Bit8.setFloat32(offset, this.server.barriers[i].width, true);
+            offset += 4;
+            Bit8.setFloat32(offset, this.server.barriers[i].height, true);
+            offset += 4;
+        }
+        this.socket.send(Bit8);
+    }
+
+
     update(updateType, entities) {
         /* CALCULATING TOTAL BITS */
         var calculatedTotalBits = 1;

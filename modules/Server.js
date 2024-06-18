@@ -43,6 +43,9 @@ class Server {
             height: this.config.ArenaSize
         }, 10)
         this.stopped = false
+        this.barriers = [];
+
+       
 
         this.leaderboardDataview = null
         this.leaderboardDataviewOffset = 0
@@ -102,6 +105,42 @@ class Server {
 
         this.unsecureServer.on('connection', this.websocketListener);
 
+        if (this.config.Barriers) {
+            if (this.config.Barriers == "random") {
+                for (let i = 0; i < 20; i++) {
+                    let isTall = Math.random() > 0.5;
+                    let width, height;
+                    if (isTall) {
+                        width = Math.random() * 100 + 5;
+                        height = Math.random() * 10 + 5;
+                    } else {
+                        width = Math.random() * 10 + 5;
+                        height = Math.random() * 100 + 5;
+                    }
+        
+                    // Generate random position ensuring the barrier stays within bounds
+                    let halfWidth = this.config.ArenaSize / 2;
+                    let randomX = Math.random() * (this.config.ArenaSize - width) - halfWidth + width / 2;
+                    let randomY = Math.random() * (this.config.ArenaSize - height) - halfWidth + height / 2;
+        
+                    this.barriers.push({
+                        x: randomX,
+                        y: randomY,
+                        width: width,
+                        height: height,
+                    });
+                }
+            } else {
+                this.config.Barriers.forEach((barrier) => {
+                    this.barriers.push({
+                        x: barrier.x,
+                        y: barrier.y,
+                        width: barrier.width,
+                        height: barrier.height
+                    })
+                })
+            }
+        }
 
 
         for (let i = 0; i < this.maxNaturalFood; i++) {
@@ -274,6 +313,27 @@ class Server {
                 }, snake.ping || 50)
             }
             let secondPoint = snake.points[0];
+
+
+            //Barrier collision checks
+            this.barriers.forEach((barrier) => {
+                let x = barrier.x;
+                let y = barrier.y;
+                let width = barrier.width;
+                let height = barrier.height;
+                let x1 = x - width/2;
+                let x2 = x + width/2;
+                let y1 = y - height/2;
+                let y2 = y + height/2;
+                if (snake.position.x > x1 && snake.position.x < x2 && snake.position.y > y1 && snake.position.y < y2) {
+                    setTimeout(() => { // Make sure they didn't move out of the way
+                        if (snake.position.x > x1 && snake.position.x < x2 && snake.position.y > y1 && snake.position.y < y2) {
+                            snake.kill(Enums.KillReasons.BOUNDARY, snake);
+                        }
+                    }, snake.ping || 50)
+                }
+            })
+
             // Other snake collision checks
             let closestRubLine
             Object.values(snake.client.loadedEntities).forEach((otherSnake) => {

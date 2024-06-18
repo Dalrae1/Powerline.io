@@ -634,6 +634,25 @@ var Network = function () {
 
 
 		}
+
+		else if (op == 0xA9) { // Map barriers
+			var offset = 1;
+			while (offset < view.byteLength) {
+				let x = view.getFloat32(offset, true)*10;
+				offset += 4;
+				let y = -view.getFloat32(offset, true)*10;
+				offset += 4;
+				let width = view.getFloat32(offset, true)*10;
+				offset += 4;
+				let height = view.getFloat32(offset, true)*10;
+				offset += 4;
+				map.addBarrier(x, y, width, height);
+				minimap.addBarrier(x, y, width, height);
+			}
+		
+
+
+		}
 	}
 
 	this.connectionClosed = function() {
