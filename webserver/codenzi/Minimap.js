@@ -83,20 +83,11 @@ var Minimap = function() {
 		// Render Barriers
 		context.fillStyle = '#0555FF';
 		barriers.forEach(function(barrier) {
-			var x = barrier.x + arenaWidth / 2.0 - arenaCenterX;
-			var y = barrier.y + arenaHeight / 2.0 - arenaCenterY;
-			var posPercX = (x / arenaWidth);
-			var posPercY = (y / arenaHeight);
-			var widthPerc = (barrier.width / arenaWidth);
-			var heightPerc = (barrier.height / arenaHeight);
-			
-
-			context.fillRect(
-				(mapX + posPercX * mapSide * zoomAdjust)-((widthPerc/2*mapSide)),
-				(mapY + posPercY * mapSide * zoomAdjust)-((heightPerc/2*mapSide)),
-				widthPerc * mapSide,
-				heightPerc * mapSide
-			)
+			var x = (barrier.x + arenaWidth / 2 - arenaCenterX) / arenaWidth * mapSide * zoomAdjust;
+			var y = (barrier.y + arenaHeight / 2 - arenaCenterY) / arenaHeight * mapSide * zoomAdjust;
+			var width = (barrier.width / arenaWidth) * mapSide * zoomAdjust;
+			var height = (barrier.height / arenaHeight) * mapSide * zoomAdjust;
+			context.fillRect(mapX + x - width / 2, mapY + y - height / 2, width, height);
 		});
 		context.restore();
 	};
