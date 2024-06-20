@@ -1,3 +1,39 @@
+function GetDistanceFromBarrier(pos, barrier) {
+	let x = pos.x;
+	let y = pos.y;
+	let x1 = barrier.x - barrier.width / 2;
+	let x2 = barrier.x + barrier.width / 2;
+	let y1 = barrier.y - barrier.height / 2;
+	let y2 = barrier.y + barrier.height / 2;
+	if (x < x1) {
+		if (y < y1) {
+			return Math.sqrt((x1 - x) * (x1 - x) + (y1 - y) * (y1 - y));
+		}
+		if (y > y2) {
+			return Math.sqrt((x1 - x) * (x1 - x) + (y2 - y) * (y2 - y));
+		}
+		return x1 - x;
+	}
+	if (x > x2) {
+		if (y < y1) {
+			return Math.sqrt((x2 - x) * (x2 - x) + (y1 - y) * (y1 - y));
+		}
+		if (y > y2) {
+			return Math.sqrt((x2 - x) * (x2 - x) + (y2 - y) * (y2 - y));
+		}
+		return x - x2;
+	}
+	if (y < y1) {
+		return y1 - y;
+	}
+	if (y > y2) {
+		return y - y2;
+	}
+	return 0;
+
+}
+
+
 var Mapp = function() {
 	var map = this;
 
@@ -147,6 +183,13 @@ var Mapp = function() {
 		barriers.forEach(function(barrier) {
 			var x = barrier.x/s;
 			var y = barrier.y/s;
+
+			if (!localPlayer) return;
+
+			let closestPoint = GetDistanceFromBarrier({x: localPlayer.x, y: localPlayer.y}, barrier);
+
+			if (closestPoint > 500)
+				return 
 
 			for (var i=0; i<4; i++) {
 				context.save()
