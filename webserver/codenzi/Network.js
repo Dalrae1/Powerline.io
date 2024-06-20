@@ -152,6 +152,8 @@ var Network = function () {
 			network.directed = false;
 		}
 		network.roomID = 0;
+		minimap.clearBarriers()
+		map.clearBarriers()
 		if(webSocket)
 			webSocket.close();
 	};

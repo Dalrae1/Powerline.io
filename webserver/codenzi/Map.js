@@ -19,6 +19,9 @@ var Mapp = function() {
 	this.addBarrier = function(x, y, width, height) {
 		barriers.push({ x: x, y: y, width: width, height: height });
 	};
+	this.clearBarriers = function() {
+		barriers = [];
+	}
 
 	this.preRenderSideLine = function(vertical) {
 		var lineStyle = '#0555FF';

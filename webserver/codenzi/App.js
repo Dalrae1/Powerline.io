@@ -372,6 +372,8 @@ var App = function(aCanvas) {
 		}
 		entities = {};
 		input.direction = DIRECTION_UP;
+		minimap.clearBarriers()
+		map.clearBarriers()
 	}
 
 	var respawningTimer;

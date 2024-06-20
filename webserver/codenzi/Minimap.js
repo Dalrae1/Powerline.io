@@ -11,6 +11,9 @@ var Minimap = function() {
 	this.addBarrier = function(x, y, width, height) {
 		barriers.push({x: x, y: y, width: width, height: height});
 	};
+	this.clearBarriers = function() {
+		barriers = [];
+	}
 
 	this.radiusFromMinimapRadiusPerc = function(perc) {
 		var radius = 3 + perc * 8.0;
