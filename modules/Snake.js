@@ -36,7 +36,7 @@ class Snake {
         Bit8.setUint32(1, thisId, true);
         this.id = thisId;
         this.nick = name
-        let randomPos = MapFunctions.GetRandomPosition(this.server);
+        let randomPos = MapFunctions.GetFreePosition(this.server);
         this.position = { x: randomPos.x, y: randomPos.y };
         this.direction = Enums.Directions.UP;
         this.speed = 0.25;

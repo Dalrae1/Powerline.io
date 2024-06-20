@@ -17,6 +17,13 @@ class MapFunctions {
             point.y <= rectangle.y + rectangle.height;
     }
 
+    static PointInsideCenteredRectangle(point, rectangle) {
+        return point.x >= rectangle.x - rectangle.width / 2 &&
+            point.x <= rectangle.x + rectangle.width / 2 &&
+            point.y >= rectangle.y - rectangle.height / 2 &&
+            point.y <= rectangle.y + rectangle.height / 2;
+    }
+
     static LineInsideOrIntersectsRectangle(lineStart, lineEnd, center, width, height) {
         const rectangle = {
             x: center.x - width / 2,
@@ -146,11 +153,21 @@ class MapFunctions {
     static GetRandomPosition(server) {
         return { x: Math.random() * server.config.ArenaSize - server.config.ArenaSize / 2, y: Math.random() * server.config.ArenaSize - server.config.ArenaSize / 2 };
     }
+
+    static GetFreePosition(server) { // Gets position that is not inside any barrier
+        let position = MapFunctions.GetRandomPosition(server);
+
+        while (server.barriers.some(barrier => MapFunctions.PointInsideCenteredRectangle(position, barrier))) {
+            position = MapFunctions.GetRandomPosition(server);
+        }
+        return position;
+    }
 }
 
 module.exports = {
     LineInsideOrIntersectsRectangle: MapFunctions.LineInsideOrIntersectsRectangle,
     GetRandomPosition: MapFunctions.GetRandomPosition,
+    GetFreePosition: MapFunctions.GetFreePosition,
     DoIntersect: MapFunctions.DoIntersect,
     GetNormalizedDirection: MapFunctions.GetNormalizedDirection,
     NearestPointOnLine: MapFunctions.NearestPointOnLine,

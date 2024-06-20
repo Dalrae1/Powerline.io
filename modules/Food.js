@@ -23,7 +23,7 @@ class Food {
         let thisId = this.server.entityIDs.allocateID();
 
         if (x == undefined) 
-            this.position = MapFunctions.GetRandomPosition(this.server);
+            this.position = MapFunctions.GetFreePosition(this.server);
         else {
             this.position = { x: x, y: y };
         }
