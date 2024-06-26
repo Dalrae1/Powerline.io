@@ -241,7 +241,7 @@ class Snake {
         this.flags &= ~Enums.EntityFlags.IS_RUBBING;
     }
     kill(reason, killedBy) {
-        if (this.invincible)
+        if (this.invincible && reason != Enums.KillReasons.LEFT_SCREEN)
             return;
         if (killedBy != this) {
             if (!killedBy)
