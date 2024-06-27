@@ -31,6 +31,7 @@ class Server {
         this.pinned = serverInfo.pinned;
         this.config = serverInfo.config;
         this.config.MaxRubAcceleration = 4;
+        this.config.MaxMessagesPerSecond = 100;
         this.owner = serverInfo.owner;
 
         this.entityIDs = new IDManager();

@@ -21,6 +21,7 @@ class Client extends EventEmitter {
         this.pointsNearby = {};
         this.ping = 20;
         this.user = user || null
+        this.lastMessages = [];
         server.clients[this.id] = this;
         this.sendConfig();
 
@@ -51,6 +52,14 @@ class Client extends EventEmitter {
             messageType != Enums.ClientToServer.OPCODE_CS_PONG
             )) {
             return
+        }
+        if (!this.lastMessages[messageType]) {
+            this.lastMessages[messageType] = Date.now();
+        } else {
+            if (Date.now() - this.lastMessages[messageType] < 1000 / this.server.config.MaxMessagesPerSecond) {
+                return
+            }
+            this.lastMessages[messageType] = Date.now();
         }
         switch (messageType) {
             case Enums.ClientToServer.OPCODE_CS_PING:
