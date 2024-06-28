@@ -303,6 +303,28 @@ class Client extends EventEmitter {
                                 })
                             }
                             break;
+                        case "speedlock":
+                            if (commandArgs[1]) {
+                                let speed = parseInt(commandArgs[1]);
+                                if (speed && speed >= 0) {
+                                    this.snake.extraSpeed = speed;
+                                    this.snake.speed = 0.25 + this.snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+                                    this.snake.lockspeed = true
+                                }
+                            } else {
+                                this.snake.lockspeed = false
+                            }
+                            break;
+                        case "teleport":
+                            if (commandArgs[1] && commandArgs[2]) {
+                                let x = parseFloat(commandArgs[1]);
+                                let y = parseFloat(commandArgs[2]);
+                                if (!isNaN(x) && !isNaN(y)) {
+                                    this.snake.position.x = x;
+                                    this.snake.position.y = y;
+                                }
+                            }
+                            break;
 
                     }
                 }

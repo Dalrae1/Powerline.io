@@ -446,7 +446,7 @@ class Server {
             } else {
                 snake.speeding = false;
             }
-            if ((!snake.speeding && !snake.rubbing) && snake.extraSpeed-1 >= 0) {
+            if ((!snake.speeding && !snake.rubbing && !snake.lockspeed) && snake.extraSpeed-1 >= 0) {
                 snake.extraSpeed -= 1;
                 snake.speed = 0.25 + (snake.extraSpeed / 1000);
             }
