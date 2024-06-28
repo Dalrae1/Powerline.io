@@ -82,8 +82,10 @@ var Hud = function() {
 	// Draw Killstreak and Length
 	var prevKillStreak = 0;
 	var prevLength = 0;
+	var cachedPositionText;
 	var cachedKillStreakText;
 	var cachedLengthText;
+	var renderedPositionText;
 	var renderedKillStreakText;
 	var renderedLengthText;
 	var cachedTalkText;
@@ -226,6 +228,13 @@ var Hud = function() {
 		if(isInGame && localPlayer)
 		{
 			var margin = 5;
+			if (localPlayer.x) {
+				cachedPositionText = new CachedText(15*zoomAdjust, '#00FFFF', false, '#00AAAA');
+				cachedPositionText.setValue('POS: ' + Math.floor(localPlayer.x) + ', ' + Math.floor(localPlayer.y));
+				renderedPositionText = cachedPositionText.render();
+
+				
+			}
 			if(!cachedKillStreakText || prevKillStreak != killStreak)
 			{
 				cachedKillStreakText = new CachedText(15*zoomAdjust, '#00FFFF', false, '#00AAAA');
@@ -277,6 +286,8 @@ var Hud = function() {
 				context.drawImage(renderedTalkText, margin, talkY);
 			}
 			context.globalAlpha = 0.3;
+
+			context.drawImage(renderedPositionText, margin, canvas.height/zoomAdjust - renderedKillStreakText.height - renderedLengthText.height - renderedTalkText.height - renderedPositionText.height - margin);
 			context.drawImage(renderedKillStreakText, margin, canvas.height/zoomAdjust - renderedKillStreakText.height - renderedLengthText.height - margin);
 			context.drawImage(renderedLengthText, margin, canvas.height/zoomAdjust - renderedKillStreakText.height - margin);
 
