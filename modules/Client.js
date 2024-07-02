@@ -21,7 +21,8 @@ class Client extends EventEmitter {
         this.pointsNearby = {};
         this.ping = 20;
         this.user = user || null
-        this.lastMessages = [];
+        this.messagesPerSecond = [];
+        this.lastSecondCheck = 0;
         server.clients[this.id] = this;
         this.sendConfig();
 
@@ -53,13 +54,17 @@ class Client extends EventEmitter {
             )) {
             return
         }
-        if (!this.lastMessages[messageType]) {
-            this.lastMessages[messageType] = Date.now();
+        if (Date.now() - this.lastSecondCheck > 1000) { // New second elapsed
+            this.lastSecondCheck = Date.now();
+            this.messagesPerSecond = [];
+        }
+        if (!this.messagesPerSecond[messageType]) {
+            this.messagesPerSecond[messageType] = 1
         } else {
-            if (Date.now() - this.lastMessages[messageType] < 1000 / this.server.config.MaxMessagesPerSecond) {
+            if (this.messagesPerSecond[messageType] > this.server.config.MaxMessagesPerSecond) {
                 return
             }
-            this.lastMessages[messageType] = Date.now();
+            this.messagesPerSecond[messageType] += 1
         }
         switch (messageType) {
             case Enums.ClientToServer.OPCODE_CS_PING:
