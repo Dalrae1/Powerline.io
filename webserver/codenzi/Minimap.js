@@ -43,7 +43,7 @@ var Minimap = function() {
 		context.drawImage(preRenderedColliderCanvas, mapX - mapBorder * zoomAdjust, mapY - mapBorder * zoomAdjust);
 
 		// Draw player pos
-		if (localPlayer && localPlayer.renderedPoints) {
+		if (localPlayer && localPlayer.renderedPoints != undefined) {
 			var points = localPlayer.renderedPoints;
 			var mapPoints = [];
 			var count = points.length;
