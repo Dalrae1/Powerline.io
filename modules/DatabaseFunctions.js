@@ -1,4 +1,4 @@
-const mysql = require('mysql');
+const mysql = require('mysql2');
 let os = require('os');
 let networkInterfaces = os.networkInterfaces();
 

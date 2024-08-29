@@ -548,7 +548,6 @@ Servers = []
 
 DBFunctions.GetServers().then(async (servers) => {
     servers.forEach(server => {
-        server.config = JSON.parse(server.config);
         Servers[server.id] = new Server(server);
 
         if (server.id == 1341) {
