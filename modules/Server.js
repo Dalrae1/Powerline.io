@@ -88,10 +88,9 @@ class Server {
         this.unsecureServer = new WebSocket.Server({ server: this.httpServer });
 
 
-        if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
-            let cert = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")
-            let key = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\privkey.pem")
-            let chain = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\fullchain.pem")
+        if (fs.existsSync(process.env.CERT_PUBLIC_PATH)) {
+            let cert = fs.realpathSync(process.env.CERT_PUBLIC_PATH)
+            let key = fs.realpathSync(process.env.CERT_PUBLIC_PATH)
             this.httpsServer = HttpsServer({
                 cert: fs.readFileSync(cert),
                 key: fs.readFileSync(key)

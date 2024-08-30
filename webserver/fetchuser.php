@@ -1,11 +1,15 @@
 <?php
-$localIP = getHostByName(getHostName());
+require __DIR__ . '/../vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->load();
 
-$db_host        = $localIP == "10.0.0.170" ? 'dalr.ae' : "localhost";
-$db_user        = 'powerline';
-$db_pass        = '';
-$db_database    = 'powerline'; 
-$db_port        = '3306';
+//$localIP = getHostByName(getHostName());
+
+$db_host        = $_ENV['DB_HOST'];
+$db_user        = $_ENV['DB_USER'];
+$db_pass        = $_ENV['DB_PASSWORD'];
+$db_database    = $_ENV['DB_DATABASE'];
+$db_port        = $_ENV['DB_PORT'];
 
 function LogError($message) {
     $logFile = 'errors';

@@ -1,4 +1,7 @@
 <?php
+require __DIR__ . '/../vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->load();
 
 // JWT Functions
 
@@ -161,13 +164,13 @@ function verifyGoogleToken($idToken, $clientId) {
 }
 
 // SQL Functions
-$localIP = getHostByName(getHostName());
+//$localIP = getHostByName(getHostName());
 
-$db_host        = $localIP == "10.0.0.170" ? 'dalr.ae' : "localhost";
-$db_user        = 'powerline';
-$db_pass        = '';
-$db_database    = 'powerline'; 
-$db_port        = '3306';
+$db_host        = $_ENV['DB_HOST'];
+$db_user        = $_ENV['DB_USER'];
+$db_pass        = $_ENV['DB_PASSWORD'];
+$db_database    = $_ENV['DB_DATABASE'];
+$db_port        = $_ENV['DB_PORT'];
 
 function DBConnect() {
     global $db_host, $db_user, $db_pass, $db_database, $db_port;
@@ -425,30 +428,14 @@ function HandleDiscordValidation($payload) {
     }
 }
 
-function getVariable($varName) {
-    $mysqli = DBConnect();
-    $stmt = $mysqli->prepare("SELECT value FROM variables WHERE name = ?");
-    if (!$stmt) {
-        $mysqli->close();
-        throw new Exception("Prepare statement failed: " . $mysqli->error);
-    }
-    $stmt->bind_param("s", $varName);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $secret = $result->fetch_assoc();
-    $stmt->close();
-    $mysqli->close();
-    return $secret;
-}
-
 $API_ENDPOINT = 'https://discord.com/api/v10';
-$CLIENT_ID = '1247742446255734815';
-$CLIENT_SECRET = getVariable('discord_secret')['value'];
-$REDIRECT_URI = 'https://dalr.ae/login-handler.php';
+$CLIENT_ID = $_ENV['DISCORD_CLIENT_ID'];
+$CLIENT_SECRET = $_ENV['DISCORD_SECRET'];
+$REDIRECT_URI = $_ENV['DISCORD_REDIRECT_URI'];
 
 function HandleDiscord($input) {
     global $API_ENDPOINT, $CLIENT_ID, $CLIENT_SECRET, $REDIRECT_URI;
- 
+    
     function getUserToken($code) {
         global $API_ENDPOINT, $CLIENT_ID, $CLIENT_SECRET, $REDIRECT_URI;
         $url = $API_ENDPOINT . '/oauth2/token';
