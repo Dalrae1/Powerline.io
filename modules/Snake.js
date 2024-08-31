@@ -140,11 +140,6 @@ class Snake {
         let secondPoint = this.points[0];
         if (Math.abs(secondPoint[whatVector] - vector) < 0.1) { // Attempting to turn in place
             this.position[oppositeVector] += goingUp ? 0.22 : -0.22;
-        } else {
-            let dist = Math.abs(this.position[whatVector] - vector);
-            if (dist > 5) {
-                vector += goingUp ? 0.22 : -0.22;
-            }
         }
         
         this.position[whatVector] = vector;
