@@ -90,7 +90,7 @@ class Server {
 
         if (fs.existsSync(process.env.CERT_PUBLIC_PATH)) {
             let cert = fs.realpathSync(process.env.CERT_PUBLIC_PATH)
-            let key = fs.realpathSync(process.env.CERT_PUBLIC_PATH)
+            let key = fs.realpathSync(process.env.CERT_PRIVATE_PATH)
             this.httpsServer = HttpsServer({
                 cert: fs.readFileSync(cert),
                 key: fs.readFileSync(key)

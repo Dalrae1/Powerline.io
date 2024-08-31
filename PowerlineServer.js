@@ -509,7 +509,7 @@ let httpServer = HttpServer(serverListener).listen(1335)
 
 if (fs.existsSync(process.env.CERT_PUBLIC_PATH)) {
     let cert = fs.realpathSync(process.env.CERT_PUBLIC_PATH)
-    let key = fs.realpathSync(process.env.CERT_PUBLIC_PATH)
+    let key = fs.realpathSync(process.env.CERT_PRIVATE_PATH)
     httpsServer = HttpsServer({
         cert: fs.readFileSync(cert),
         key: fs.readFileSync(key)
