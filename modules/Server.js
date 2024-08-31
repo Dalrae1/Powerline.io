@@ -311,7 +311,7 @@ class Server {
                     ) {
                         snake.kill(Enums.KillReasons.BOUNDARY, snake);
                     }
-                }, snake.ping || 50)
+                }, snake.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
             }
             let secondPoint = snake.points[0];
 
@@ -331,7 +331,7 @@ class Server {
                         if (snake.position.x > x1 && snake.position.x < x2 && snake.position.y > y1 && snake.position.y < y2) {
                             snake.kill(Enums.KillReasons.BOUNDARY, snake);
                         }
-                    }, snake.ping || 50)
+                    }, snake.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
                 }
             })
 
@@ -419,7 +419,7 @@ class Server {
                                         }
                                     }
                                 }
-                            }, snake.ping || 50)
+                            }, snake.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
                         }
                     }
                     this.performance.collisionCheckTime += Date.now() - this.performance.tempStart;

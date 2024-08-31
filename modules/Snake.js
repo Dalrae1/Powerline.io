@@ -180,7 +180,7 @@ class Snake {
                                             this.kill(Enums.KillReasons.KILLED, snake);
                                         }
                                     }
-                                }, snake.ping || 50)
+                                }, snake.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
                             }
                         }
                     }
