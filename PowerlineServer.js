@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { SnakeFunctions } = require("./modules/EntityFunctions.js");
 const Server = require("./modules/Server.js");
 const fs = require("fs");
@@ -506,10 +507,9 @@ let httpsServer
 let httpServer = HttpServer(serverListener).listen(1335)
 
 
-if (fs.existsSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")) {
-    let cert = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\cert.pem")
-    let key = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\privkey.pem")
-    let chain = fs.realpathSync("C:\\Certbot\\live\\dalr.ae\\fullchain.pem")
+if (fs.existsSync(process.env.CERT_PUBLIC_PATH)) {
+    let cert = fs.realpathSync(process.env.CERT_PUBLIC_PATH)
+    let key = fs.realpathSync(process.env.CERT_PUBLIC_PATH)
     httpsServer = HttpsServer({
         cert: fs.readFileSync(cert),
         key: fs.readFileSync(key)
@@ -556,14 +556,16 @@ DBFunctions.GetServers().then(async (servers) => {
             }
         }
     })
-    console.log("Servers loaded")
+    console.log("DB servers loaded")
 }).catch(err => {
-    console.error("Error fetching servers: ", err);
+    console.error("Error fetching DB servers: ", err);
 })
-/*fs.readFile('./webserver/servers.json', 'utf8', function (err, data) {
-  if (err) throw err;
+
+fs.readFile('./servers.json', 'utf8', function (err, data) {
+    if (err) return console.error("Error reading servers.json: ", err);
     let servers = JSON.parse(data);
     servers.servers.forEach(server => {
         Servers[server.id] = new Server(server);
     })
-});*/
+    console.log("servers.json loaded");
+});

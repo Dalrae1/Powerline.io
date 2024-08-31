@@ -1,0 +1,7 @@
+.env
+servers.json
+
+node_modules
+vendor
+
+webserver/errors

@@ -4,17 +4,13 @@ let networkInterfaces = os.networkInterfaces();
 
 class DatabaseFunctions {
     constructor() {
-        const ip = Object.values(networkInterfaces).flat().find(i => i.family == 'IPv4' && !i.internal).address;
-        let env = "production"
-        if (ip == "10.0.0.170") {
-            env = "development"
-        }
+        //const ip = Object.values(networkInterfaces).flat().find(i => i.family == 'IPv4' && !i.internal).address;
         this.pool = mysql.createPool({
             connectionLimit: 10,
-            host: env == "development" ? "dalr.ae" : "localhost",
-            user: "powerline",
-            password: "",
-            database: "powerline"
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_DATABASE
         });
         
         

@@ -1,0 +1,6 @@
+{
+    "name": "dalrae1/powerline.io",
+    "require": {
+        "vlucas/phpdotenv": "^5.6"
+    }
+}
