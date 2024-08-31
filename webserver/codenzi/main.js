@@ -814,6 +814,8 @@ function updateStats()
 
 function fadeinUINow()
 {
+	if (isInGame)
+		return
 	$('#overlay').fadeIn(500);
 	$('#google_login_wrapper').fadeIn(500);
 	refreshAd();
