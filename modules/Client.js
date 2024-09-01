@@ -147,7 +147,7 @@ class Client extends EventEmitter {
                 if (!commandArgs[0])
                     return
                 commandArgs[0] = commandArgs[0].toLowerCase();
-                if ((this.user && (this.server.admins.includes(this.user.userid) || this.user.rank > 2)) || commandArgs[0] == "say") {
+                if ((this.user && (this.server.admins.includes(this.user.userid) || this.user.rank > 2)) || commandArgs[0] == "say" || commandArgs[0] == "debug") {
                     console.log(`Executing command "${command}" from ${this.snake.nick}`);
                     switch (commandArgs[0]) {
                         case "debuggrabammount":
