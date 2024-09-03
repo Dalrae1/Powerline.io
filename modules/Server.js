@@ -558,8 +558,8 @@ class Server {
                     
                     totalPointLength += segmentLength;
                 }
-                
-                if (totalPointLength > snake.visualLength) {
+
+                while (totalPointLength > snake.visualLength) {
                     let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
                     let lastPoint = snake.points[snake.points.length - 1] || snake.position;
                     let direction = MapFunctions.GetNormalizedDirection(secondToLastPoint, lastPoint);
@@ -573,7 +573,9 @@ class Server {
                             y: lastPoint.y - direction.y * amountOverLength
                         }
                         snake.points[snake.points.length - 1] = newPoint;
+                        totalPointLength = snake.visualLength;
                     } else { // Last segment is too short, remove it and decrease the next one
+                        totalPointLength -= lastSegmentLength;
                         snake.points.pop();
                     }
                 }
@@ -601,20 +603,17 @@ class Server {
         const now = Date.now();
         const elapsed = now - this.lastUpdate;
     
-        if (elapsed >= this.config.UpdateInterval) {
-    
-            if (elapsed > this.config.UpdateInterval) {
-                //console.warn(`Server ${this.id} is lagging behind by ${elapsed - this.config.UpdateInterval}ms`);
-            }
-    
-            //console.log(`Executing main loop ${elapsed}ms since last update`);
-    
-            let mainStart = Date.now();
-            this.main();
-            this.lastUpdate = now;
-            //console.log(`Server ${this.id} took ${Date.now() - mainStart}ms to update`);
+        if (elapsed > 1.2 * this.config.UpdateInterval) {
+            console.warn(`Server ${this.id} is lagging behind by ${elapsed - this.config.UpdateInterval}ms`);
         }
-    
+
+        //console.log(`Executing main loop ${elapsed}ms since last update`);
+
+        let mainStart = Date.now();
+        this.main();
+        this.lastUpdate = now;
+        //console.log(`Server ${this.id} took ${Date.now() - mainStart}ms to update`);
+        
         const nextInterval = this.config.UpdateInterval - (Date.now() - this.lastUpdate);
         setTimeout(() => this.mainLooper(), nextInterval);
     }
