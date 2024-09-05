@@ -610,7 +610,8 @@ class Server {
         //console.log(`Executing main loop ${elapsed}ms since last update`);
 
         let mainStart = Date.now();
-        this.main();
+        if (Object.keys(this.clients).length > 0)
+            this.main();
         this.lastUpdate = now;
         //console.log(`Server ${this.id} took ${Date.now() - mainStart}ms to update`);
         
