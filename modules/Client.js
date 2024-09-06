@@ -19,7 +19,7 @@ class Client extends EventEmitter {
         this.windowSizeY = 64;
         this.dead = true
         this.pointsNearby = {};
-        this.ping = 20;
+        this.ping = 0;
         this.user = user || null
         this.messagesPerSecond = [];
         this.lastSecondCheck = 0;
@@ -37,10 +37,10 @@ class Client extends EventEmitter {
 
     }
     pingLoop() {
-        this.doPong();
+        this.doPing();
         setTimeout(() => {
             this.pingLoop();
-        }, 1000);
+        }, 100);
     }
     async RecieveMessage(messageType, view) {
         await new Promise(r => setTimeout(r, this.server.artificialPing/2));
@@ -67,9 +67,8 @@ class Client extends EventEmitter {
             this.messagesPerSecond[messageType] += 1
         }
         switch (messageType) {
-            case Enums.ClientToServer.OPCODE_CS_PING:
-                this.doPong();
-                this.doPing();
+            case Enums.ClientToServer.OPCODE_CS_PING: // Should pong back
+                this.pong();
                 break;
             case Enums.ClientToServer.OPCODE_CS_PONG:
                 this.ping = Date.now() - this.pingStart;
@@ -337,7 +336,7 @@ class Client extends EventEmitter {
 
         }
     }
-    async doPong() {
+    async doPing() { // Send a ping to the client, and wait for a pong
         this.pingStart = Date.now();
         var Bit8 = new DataView(new ArrayBuffer(3));
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PING);
@@ -345,7 +344,7 @@ class Client extends EventEmitter {
         await new Promise(r => setTimeout(r, this.server.artificialPing/2));
         this.socket.send(Bit8);
     }
-    async doPing() {
+    async pong() { // Pongs the client back
         var Bit8 = new DataView(new ArrayBuffer(1));
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PONG);
         await new Promise(r => setTimeout(r, this.server.artificialPing/2));

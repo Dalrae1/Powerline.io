@@ -159,6 +159,8 @@ var Snake = function () {
 		this.waitingPoints.splice(0, 1);
 
 		// Fix this.x and this.y
+		console.log(`Client point: (${this.x}, ${this.y}) Server point: (${point.x}, ${point.y})`);
+		console.log(`Distance between points: ${CalcLength(this.x, this.y, point.x, point.y)}`);
 		var distanceLeft = CalcLength(this.x, this.y, point.x, point.y);
 		var directionVectorNorm = GetDirectionVector(point.d);
 		this.x = point.x + directionVectorNorm.x*distanceLeft;
