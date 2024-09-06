@@ -29,10 +29,12 @@ class Server {
         this.name = serverInfo.name;
         this.MaxPlayers = serverInfo.maxplayers;
         this.pinned = serverInfo.pinned;
-        this.config = serverInfo.config;
+        this.config = serverInfo.config || {};
         this.config.MaxRubAcceleration = 4;
         this.config.MaxMessagesPerSecond = 30;
         this.owner = serverInfo.owner;
+        this.type = serverInfo.type;
+        this.host = serverInfo.host;
 
         this.entityIDs = new IDManager();
         this.clientIDs = new IDManager();

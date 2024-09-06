@@ -151,6 +151,43 @@ body {
     background-color: rgba(0, 0, 0, 0.8); /* Black background with opacity */
 }
 
+/* Tab Container Styles */
+.tab-container {
+    display: flex;
+    justify-content: space-between;
+    background-color: #003a3a;
+    border-bottom: 2px solid #05ffff;
+    padding: 5px;
+    font-family: 'Arial Black';
+}
+
+.tab-button {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    border: 2px solid #05ffff;
+    border-radius: 5px 5px 0 0;
+    background-color: #003a3a;
+    color: #05ffff;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.tab-button.active {
+    background-color: #05ffff;
+    color: #003a3a;
+    font-weight: bold;
+}
+
+/* Tab Content Styles */
+.tab-content {
+    display: none; /* Hide all tab content by default */
+}
+
+.tab-content.active {
+    display: block; /* Show the active tab content */
+}
+
 .modal-content {
     background-color: #003a3a;
     margin: 10% auto;

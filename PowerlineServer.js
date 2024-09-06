@@ -389,6 +389,14 @@ async function serverListener(req, res) {
                             config: JSON.stringify(thisConfig, true, 4)
                         }
                     })
+                    let remoteServers = [
+                        {
+                            name: "Americas Server 1",
+                            host: "158-69-123-15.powerline.io:9190",
+                            type: "remote",
+                        }
+                    ]
+                    servers = servers.concat(remoteServers)
                     res.writeHead(200, {
                         'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
                         'Access-Control-Allow-Methods': 'GET',

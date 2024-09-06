@@ -302,7 +302,11 @@ var updateCountryCode = function(){
 function selectServer(serverId, port) {
 	network.disconnect();
 	network.connect(serverId);
+}
 
+function joinRemoteServer(host) {
+	network.disconnect();
+	network.connectRemote(host);
 }
 
 //updateCountryCode();
@@ -1154,98 +1158,111 @@ function refreshServers() {
         return;
     }
 
-    let serverTable = document.getElementsByClassName("server-table")[0];
-    let tableBody = serverTable.getElementsByTagName("tbody")[0];
+    let moddedTableBody = document.querySelector(".modded .server-table tbody");
+    let remoteTableBody = document.querySelector(".remote .server-table tbody");
 
     // Show loading message only on the first load
-    if (!tableBody.hasChildNodes()) {
-        tableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
+    if (!moddedTableBody.hasChildNodes()) {
+        moddedTableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
+        remoteTableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
     }
+
     fetch(`${isSecure ? "https" : "http"}://${window.location.hostname}:${isSecure ? "1336" : "1335"}/getservers`)
-        .then((response) => response.json())
-        .then(async (servers) => {
-            tableBody.innerHTML = "";
+        .then(response => response.json())
+        .then(async servers => {
+            moddedTableBody.innerHTML = "";
+            remoteTableBody.innerHTML = "";
 
-            // Render servers with "Loading..." for usernames if it's the first load
-
-			// sort servers by player count
-			servers.sort((a, b) => {
-				return b.playerCount - a.playerCount
-			})
-			// Put pinned servers at the top
-			servers.sort((a, b) => {
-				return b.pinned - a.pinned
-			})
-
+            // Sort servers by player count and pinned status
+            servers.sort((a, b) => b.playerCount - a.playerCount);
+            servers.sort((a, b) => b.pinned - a.pinned);
 
             servers.forEach(server => {
-                let row = tableBody.insertRow();
-                row.id = `server${server.id}`;
-                row.insertCell()
-                row.insertCell().innerText = `${server.playerCount}/${server.maxplayers}`;
-                row.insertCell().innerText = loadedUsernames.has(server.owner) ? loadedUsernames.get(server.owner) : "Loading..."; // Show "Loading..." only if username is not yet loaded
-                let buttonCell = row.insertCell();
-                let button = document.createElement("button");
-                button.type = "submit";
-                button.innerText = "Join";
-                button.classList.add("btn");
-                button.classList.add("btn-play");
-                button.classList.add("btn-primary");
-                if (Number(network.serverId) == Number(server.id))
-                    row.classList.add("selected");
-
-                button.addEventListener('click', () => {
-                    selectServer(server.id);
-                });
-                buttonCell.appendChild(button);
-
-				if (server.pinned) {
-					let pinnedStar = document.createElement("i")
-					pinnedStar.classList.add("fa")
-					pinnedStar.classList.add("fa-star")
-					pinnedStar.style.color = "#ebb800"
-
-					let name = document.createElement("div")
-					name.style.display = "inline-block"
-					name.innerText = server.name
-
-					
-					row.cells[0].appendChild(pinnedStar)
-					row.cells[0].appendChild(name)
-				} else {
-					row.cells[0].innerText = server.name
-				}
-
-				if (myUser && (server.owner == myUser.userid || myUser.rank > 2)) {
-
-					let settingsCog = document.createElement("i")
-					settingsCog.classList.add("fa")
-					settingsCog.classList.add("fa-cog")
-					settingsCog.id = "settings-icon"
-					if (myUser.rank > 2 && server.owner != myUser.userid)
-						settingsCog.style.color = "#ebb800"
-					buttonCell.appendChild(settingsCog)
-				}
-
-				let config = JSON.parse(server.config)
-
-				row.setAttribute("name", server.name)
-				row.setAttribute("maxplayers", server.maxplayers)
-				row.setAttribute("foodvalue", config.FoodValue)
-				row.setAttribute("ispublic", false)
-				row.setAttribute("defaultlength", config.DefaultLength)
-				row.setAttribute("arenasize", config.ArenaSize)
-				row.setAttribute("owner", server.owner)
-				row.setAttribute("serverid", server.id)
-
-
-
+				switch(server.type) {
 				
+					case "remote":
+					
+					tableBody = remoteTableBody;
+					let regRow = tableBody.insertRow();
+					regRow.insertCell().innerText = server.name;
+					let regButtonCell = regRow.insertCell()
+					let regButton = document.createElement("button");
+					regButton.type = "submit";
+					regButton.innerText = "Join";
+					regButton.classList.add("btn", "btn-play", "btn-primary");
+					if (network.remoteHost == server.host)
+						regRow.classList.add("selected");
+					regButton.addEventListener('click', () => {
+						joinRemoteServer(server.host);
+					});
+					regButtonCell.appendChild(regButton);
+					
+
+					break
+
+
+
+				default:
+					tableBody = moddedTableBody;
+					let row = tableBody.insertRow();
+					row.id = `server${server.id}`;
+					row.insertCell()
+					row.insertCell().innerText = `${server.playerCount}/${server.maxplayers}`;
+					row.insertCell().innerText = loadedUsernames.has(server.owner) ? loadedUsernames.get(server.owner) : "Loading..."; // Show "Loading..." only if username is not yet loaded
+					let buttonCell = row.insertCell();
+					let button = document.createElement("button");
+					button.type = "submit";
+					button.innerText = "Join";
+					button.classList.add("btn", "btn-play", "btn-primary");
+					if (Number(network.serverId) == Number(server.id))
+						row.classList.add("selected");
+
+					button.addEventListener('click', () => {
+						selectServer(server.id);
+					});
+					buttonCell.appendChild(button);
+
+					if (server.pinned) {
+						let pinnedStar = document.createElement("i");
+						pinnedStar.classList.add("fa", "fa-star");
+						pinnedStar.style.color = "#ebb800";
+
+						let name = document.createElement("div");
+						name.style.display = "inline-block";
+						name.innerText = server.name;
+
+						row.cells[0].appendChild(pinnedStar);
+						row.cells[0].appendChild(name);
+					} else {
+						row.cells[0].innerText = server.name;
+					}
+
+					if (myUser && (server.owner == myUser.userid || myUser.rank > 2)) {
+						let settingsCog = document.createElement("i");
+						settingsCog.classList.add("fa", "fa-cog");
+						settingsCog.id = "settings-icon";
+						if (myUser.rank > 2 && server.owner != myUser.userid)
+							settingsCog.style.color = "#ebb800";
+						buttonCell.appendChild(settingsCog);
+					}
+
+					let config = JSON.parse(server.config);
+
+					row.setAttribute("name", server.name);
+					row.setAttribute("maxplayers", server.maxplayers);
+					row.setAttribute("foodvalue", config.FoodValue);
+					row.setAttribute("ispublic", false);
+					row.setAttribute("defaultlength", config.DefaultLength);
+					row.setAttribute("arenasize", config.ArenaSize);
+					row.setAttribute("owner", server.owner);
+					row.setAttribute("serverid", server.id);
+					break;
+				}
             });
 
             // Fetch user information asynchronously
             let userInfoUrl = `${isSecure ? "https" : "http"}://${urlSplit[2]}:${isSecure ? "1336" : "1335"}/fetchuser?id=${servers.map(server => server.owner).join("&id=")}`;
-            fetch(userInfoUrl).then((response) => response.json()).then((userInfos) => {
+            fetch(userInfoUrl).then(response => response.json()).then(userInfos => {
                 let users = {};
                 Object.values(userInfos).forEach(user => {
                     users[user.userid] = user;
@@ -1261,11 +1278,11 @@ function refreshServers() {
                 });
             });
 
-			serverListLoaded = true
-			if (!serverListDeb) {
-				serverListDeb = true
-				network.connect()
-			}
+            serverListLoaded = true;
+            if (!serverListDeb) {
+                serverListDeb = true;
+                network.connect();
+            }
 
             setTimeout(refreshServers, 2000);
         });
@@ -1300,6 +1317,37 @@ fetch('/fetchuser.php')
 
 refreshServers()
 refreshAd();
+
+
+function showTab(tabName) {
+    // Get all tab content elements
+    const tabs = document.querySelectorAll('.tab-content');
+    // Get all tab buttons
+    const buttons = document.querySelectorAll('.tab-button');
+
+    // Hide all tab content elements
+    tabs.forEach(tab => tab.classList.remove('active'));
+
+    // Remove 'active' class from all tab buttons
+    buttons.forEach(button => button.classList.remove('active'));
+
+    // Show the selected tab content
+    const activeTab = document.querySelector(`.tab-content.${tabName}`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+
+    // Add 'active' class to the clicked button
+    const activeButton = document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
+}
+
+// Optional: If you want to show the default tab on page load
+document.addEventListener('DOMContentLoaded', () => {
+    showTab('modded'); // Change to the default tab you want to show initially
+});
 
 function loadScript(url){var head = document.getElementsByTagName('head')[0];var script = document.createElement('script');script.type = 'text/javascript';script.src = url;head.appendChild(script);}
 loadScript("codenzi/Grid.js?v=1");

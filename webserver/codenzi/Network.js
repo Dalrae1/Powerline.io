@@ -97,6 +97,22 @@ var Network = function () {
 		MASTER_URL = 'master.'+domain;
 	}
 	//console.log('Master URL is: ' + MASTER_URL);
+	this.connectRemote = function(host) { // Connects to a remote host
+		if (!serverListLoaded) return
+		if (!host) return
+		var protocol = isSecure ? 'wss' : 'ws';
+		webSocket = new WebSocket(`${protocol}://${host}`);
+		console.log(`Attempting to connect to remote host "${host}"`)
+		network.remoteHost = host;
+		webSocket.binaryType = "arraybuffer";
+		webSocket.onopen = network.onSocketOpen;
+		webSocket.onclose = network.onSocketClose;
+		webSocket.onmessage = network.onSocketMessage;
+		webSocket.onerror = network.onError;
+
+
+
+	}
 
 	this.connect = function (serverId) {
 		if (!serverListLoaded) return

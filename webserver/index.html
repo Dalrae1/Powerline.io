@@ -193,20 +193,48 @@
 				<!--<span>Note: Accounts must share an email address in order to be considered the same.</span>-->
 			</div>
 		</div>
+
 		<div class="scroll-window basic-text">
-			<table class="table server-table">
-				<thead>
-					<tr>
-						<th>Server Name</th>
-						<th>Player Count</th>
-						<th>Owner</th>
-						<th>Select</th>
-					</tr>
-				</thead>
-				<tbody></tbody>
-			</table>
+			<div class="tab-container">
+				<div class="tab-button active" onclick="showTab('modded')">Modded Servers</div>
+				<div class="tab-button" onclick="showTab('remote')">Remote Servers</div>
+			</div>
+		
+			<div class="tab-content modded active">
+				<!-- Content for Modded Servers -->
+				<table class="table server-table">
+					<thead>
+						<tr>
+							<th>Server Name</th>
+							<th>Player Count</th>
+							<th>Owner</th>
+							<th>Select</th>
+						</tr>
+					</thead>
+					<tbody></tbody>
+				</table>
+			</div>
+		
+			<div class="tab-content remote">
+				<!-- Content for Remote Servers -->
+				<table class="table server-table">
+					<thead>
+						<tr>
+							<th>Server Name</th>
+							<th>Player Count</th>
+							<th>Owner</th>
+							<th>Select</th>
+						</tr>
+					</thead>
+					<tbody>
+						<!-- Add predefined servers here -->
+					</tbody>
+				</table>
+			</div>
+		
 			<div id="createServer">+</div>
 		</div>
+
 		
 		<!-- Include FontAwesome for icons -->
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
