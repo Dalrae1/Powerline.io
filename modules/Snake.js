@@ -4,6 +4,7 @@ const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
 const GlobalFunctions = require("./GlobalFunctions.js")
 const Food = require("./Food.js");
 const AVLTree = require("./AVLTree.js");
+const IDManager = require("./IDManager.js");
 
 
 class Snake {
@@ -461,11 +462,9 @@ class Snake {
 
     }
     
-
-    numDebugCircle = 0
+    debugCircleIds = new IDManager();
     DrawDebugCircle(x, y, color = 100, size = 4) {
-        this.numDebugCircle++
-        let id = this.numDebugCircle;
+        let id = this.debugCircleIds.allocateID();
         var Bit8 = new DataView(new ArrayBuffer(49));
         var offset = 0;
         Bit8.setUint8(offset, 0xa7);
@@ -485,6 +484,7 @@ class Snake {
         return id
     }
     DeleteDebugCircle(circle) {
+        this.debugCircleIds.releaseID(circle);
         var Bit8 = new DataView(new ArrayBuffer(49));
         var offset = 0;
         Bit8.setUint8(offset, 0xa7);
@@ -492,6 +492,12 @@ class Snake {
         Bit8.setUint8(offset, circle, true);
         offset += 1;
         Bit8.setUint16(offset, 0, true);
+        this.network.send(Bit8);
+    }
+    DeleteAllDebugCircles() {
+        for (let id of this.debugCircleIds.allocatedIDs) {
+            this.DeleteDebugCircle(id)
+        }
     }
     Talk(id) {
         this.flags |= Enums.EntityFlags.SHOW_TALKING;
