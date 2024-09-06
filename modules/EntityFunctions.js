@@ -86,34 +86,45 @@ class SnakeFunctions {
         let width = distance;
         let height = distance;
         let foundPoints = [];
-        let lastPointFound = false
-        let center = player1.position
-        let points = player2.points
+        let center = player1.position;
+        let points = player2.points;
+    
         for (let i = -1; i < points.length - 1; i++) {
             let point = points[i];
             let nextPoint = points[i + 1];
-            if (i == -1)
-                point = player2.position
-            if (!nextPoint)
-                break
+    
+            if (i == -1) {
+                point = player2.position;
+            }
+    
+            if (!nextPoint) break;
+    
+            // Check if the line between the points is within the given distance
             if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, width, height)) {
-                if (!lastPointFound) {
+                let distToPoint = MapFunctions.GetDistance(center, point);
+    
+                if (distToPoint <= distance) {
+                    let beforePoint = i > 0 ? points[i - 1] : null;
+                    let afterPoint = i < points.length - 1 ? points[i + 1] : null; // Getting next point
+                    if (beforePoint)
+                        foundPoints.push({
+                            index: i-1,
+                            point: beforePoint
+                        })
                     foundPoints.push({
                         index: i,
                         point: point
-                    });
+                    })
+                    if (afterPoint)
+                        foundPoints.push({
+                            index: i+1,
+                            point: afterPoint
+                        })
                 }
-                foundPoints.push({
-                    index: i + 1,
-                    point: nextPoint
-                });
-                lastPointFound = true
-            }
-            else {
-                lastPointFound = false
             }
         }
-        return foundPoints
+    
+        return foundPoints;
     }
     static LengthToScore(length) {
         let scoreMult = 10 / defaultConfig.FoodValue;
