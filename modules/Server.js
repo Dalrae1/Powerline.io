@@ -347,10 +347,25 @@ class Server {
                 this.performance.getNearbyPointsTime += Date.now() - this.performance.tempStart;
                 snake.client.pointsNearby[otherSnake.id] = nearbyPoints;
                 for (let i = 0; i < nearbyPoints.length - 1; i++) {
+                    numPoints++
+                    let point, nextPoint;
+                    if (i == -1)
+                        point = otherSnake.position;
+                    else
+                        point = nearbyPoints[i];
+                    nextPoint = nearbyPoints[i + 1];
+                    if (nextPoint.index != point.index + 1)
+                        continue
+                    point = point.point;
+                    nextPoint = nextPoint.point;
+                    
+                    this.performance.tempStart = Date.now();
+                    // Rubbing Mechanics
+
                     let canRub = () => {
                         let direction = MapFunctions.GetNormalizedDirection(point, nextPoint);
                         let snakeDirection = MapFunctions.GetNormalizedDirection(snake.position, secondPoint);
-                        if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y))) { // Check if this line is in the same direction or opposite direction
+                        /*if (!(Math.abs(direction.x) == Math.abs(snakeDirection.x) && Math.abs(direction.y) == Math.abs(snakeDirection.y))) { // Check if this line is in the same direction or opposite direction
                             return false
                         }
 
@@ -359,7 +374,7 @@ class Server {
                             if (distFromHead > 0) {
                                 return false
                             }
-                        }
+                        }*/
                         let nearestPoint = MapFunctions.NearestPointOnLine(
                             snake.position,
                             point,
@@ -373,20 +388,6 @@ class Server {
                         return false
 
                     }
-                    numPoints++
-                    let point, nextPoint;
-                    if (i == -1)
-                        point = otherSnake.position;
-                    else
-                        point = nearbyPoints[i];
-                    nextPoint = nearbyPoints[i + 1];
-                    if (nextPoint.index != point.index + 1)
-                        continue
-                    point = point.point;
-                    nextPoint = nextPoint.point;
-
-                    this.performance.tempStart = Date.now();
-                    // Rubbing Mechanics
                     
                     if (otherSnake.id != snake.id) {
                         let nearestRubPoint = canRub()
