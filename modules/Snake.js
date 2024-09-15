@@ -312,7 +312,11 @@ class Snake {
                 //console.log("0Killed snake " + this.nick + " with ID " + this.id)
                 Bit8.setUint8(offset, Enums.UpdateTypes.UPDATE_TYPE_DELETE, true);
                 offset += 1;
-                Bit8.setUint16(offset, killedBy.id, true);
+                if (killedBy == this) {
+                    Bit8.setUint16(offset, 0, true);
+                } else {
+                    Bit8.setUint16(offset, killedBy.id, true);
+                }
                 offset += 2;
                 Bit8.setUint8(offset, reason);
                 offset += 1;
