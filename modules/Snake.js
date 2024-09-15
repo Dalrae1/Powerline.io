@@ -19,6 +19,7 @@ class Snake {
         this.user = network.user || null;
         this.client.dead = false;
         this.leaderboardPosition = 0;
+        this.SnakesRubbingAgainst = [];
         //this.flags |= Enums.EntityFlags.DEBUG
         this.flags = 0;
         if (customPlayerColors[name]) {
@@ -217,7 +218,8 @@ class Snake {
     }
     rubAgainst(snake, distance) {
         this.flags |= Enums.EntityFlags.IS_RUBBING;
-        this.RubSnake = snake.id;
+        this.RubSnake = snake;
+        snake.SnakesRubbingAgainst.push(this);
 
         let max_speed = (this.server.config.MaxRubAcceleration-1);
         let dist = Math.max(distance, 1);
@@ -233,6 +235,9 @@ class Snake {
         
     }
     stopRubbing() {
+        if (!this.RubSnake)
+            return;
+        this.RubSnake.SnakesRubbingAgainst = this.RubSnake.SnakesRubbingAgainst.filter((snake) => snake != this);
         this.RubSnake = undefined;
         this.flags &= ~Enums.EntityFlags.IS_RUBBING;
     }
@@ -245,7 +250,11 @@ class Snake {
             if (killedBy.client.dead) {
                 return
             }
-            //
+            // Remove all the snakes that were rubbing against this snake
+            for (let snake of this.SnakesRubbingAgainst) {
+                snake.stopRubbing();
+            }
+            this.stopRubbing();
             killedBy.killstreak += 1;
             if (killedBy.killstreak >= 8) {
                 killedBy.flags |= Enums.EntityFlags.KILLSTREAK;

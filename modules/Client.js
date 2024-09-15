@@ -614,7 +614,7 @@ class Client extends EventEmitter {
                                     offset += 4;
                                     Bit8.setFloat32(offset, entity.rubY, true);
                                     offset += 4;
-                                    Bit8.setUint16(offset, entity.RubSnake, true);
+                                    Bit8.setUint16(offset, entity.RubSnake.id, true);
                                     offset += 2;
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
@@ -768,7 +768,7 @@ class Client extends EventEmitter {
                                     offset += 4;
                                     Bit8.setFloat32(offset, entity.rubY, true);
                                     offset += 4;
-                                    Bit8.setUint16(offset, entity.RubSnake, true);
+                                    Bit8.setUint16(offset, entity.RubSnake.id, true);
                                     offset += 2;
                                 }
                                 if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
