@@ -476,63 +476,66 @@ class Server {
             //if (!snake)
                 //return
             let isSpawned = !client.dead;
-            
-            this.performance.tempStart = Date.now();
-            let entQuery = SnakeFunctions.GetEntitiesNearClient(client);
-            this.performance.entitiesNearClientTime += Date.now() - this.performance.tempStart;
-            
-            
-            
-            let nearbyEntities = entQuery.entitiesToAdd;
-            let removeEntities = entQuery.entitiesToRemove;
-            let entitiesInRadius = entQuery.entitiesInRadius;
-
-            
-            
-            
-            
-            let updateEntities = []
-            
-            Object.values(client.loadedEntities).forEach((entity) => {
-                switch (entity.type) {
-                    case Enums.EntityTypes.ENTITY_PLAYER:
-                        updateEntities.push(entity)
-                        
-                        break
-                    case Enums.EntityTypes.ENTITY_ITEM:
-                        if (entity.lastUpdate > this.lastUpdate) {
-                            updateEntities.push(entity)
-                        }
-
-                        if (entity.subtype == Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD && isSpawned) {
-                            let distance = Math.sqrt(
-                                Math.pow(snake.position.x - entity.position.x, 2) +
-                                Math.pow(snake.position.y - entity.position.y, 2)
-                            );
-                            if (distance < 3) {
-                                entity.eat(snake);
-                            }
-                        }
-                        break
-
-                }
-            })
-
-            client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities);
-            client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, removeEntities);
-            client.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities);
 
             if (isSpawned) {
-                snake.killedSnakes.forEach((killedSnake, index) => {
-                    if (killedSnake.client.snake || !this.clients[killedSnake.client.id]) {// If the snake respawned or disconnected, remove it from the list
-                        delete snake.killedSnakes[index]
-                        return
+            
+                this.performance.tempStart = Date.now();
+                let entQuery = SnakeFunctions.GetEntitiesNearClient(client);
+                this.performance.entitiesNearClientTime += Date.now() - this.performance.tempStart;
+                
+                
+                
+                let nearbyEntities = entQuery.entitiesToAdd;
+                let removeEntities = entQuery.entitiesToRemove;
+                let entitiesInRadius = entQuery.entitiesInRadius;
+
+                
+                
+                
+                
+                let updateEntities = []
+                
+                Object.values(client.loadedEntities).forEach((entity) => {
+                    switch (entity.type) {
+                        case Enums.EntityTypes.ENTITY_PLAYER:
+                            updateEntities.push(entity)
+                            
+                            break
+                        case Enums.EntityTypes.ENTITY_ITEM:
+                            if (entity.lastUpdate > this.lastUpdate) {
+                                updateEntities.push(entity)
+                            }
+
+                            if (entity.subtype == Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD && isSpawned) {
+                                let distance = Math.sqrt(
+                                    Math.pow(snake.position.x - entity.position.x, 2) +
+                                    Math.pow(snake.position.y - entity.position.y, 2)
+                                );
+                                if (distance < 3) {
+                                    entity.eat(snake);
+                                }
+                            }
+                            break
+
                     }
                 })
-            }
 
-            
-            if (isSpawned) {
+                client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities);
+                client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, removeEntities);
+                client.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities);
+
+                if (isSpawned) {
+                    snake.killedSnakes.forEach((killedSnake, index) => {
+                        if (killedSnake.client.snake || !this.clients[killedSnake.client.id]) {// If the snake respawned or disconnected, remove it from the list
+                            delete snake.killedSnakes[index]
+                            return
+                        }
+                        killedSnake.client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, nearbyEntities)
+                        killedSnake.client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, removeEntities)
+                        killedSnake.client.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities)
+
+                    })
+                }
 
                 // HANDLE TALK STAMINA
                 this.performance.tempStart = Date.now();
