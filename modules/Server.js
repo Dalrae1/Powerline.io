@@ -602,33 +602,40 @@ class Server {
         })
     }
 
-    mainLooper() {
-        if (this.stopped) {
-            return
-        }
-        const now = Date.now();
-        const elapsed = now - this.lastUpdate;
-    
-        if (elapsed > 1.2 * this.config.UpdateInterval) {
-            console.warn(`Server ${this.id} is lagging behind by ${elapsed - this.config.UpdateInterval}ms`);
-        }
-
-        //console.log(`Executing main loop ${elapsed}ms since last update`);
-
-        let mainStart = Date.now();
-        if (Object.keys(this.clients).length > 0)
-            this.main();
-        this.lastUpdate = now;
-        //console.log(`Server ${this.id} took ${Date.now() - mainStart}ms to update`);
-        
-        const nextInterval = this.config.UpdateInterval - (Date.now() - this.lastUpdate);
-        setTimeout(() => this.mainLooper(), nextInterval);
-    }
-
     start() {
-        this.lastUpdate = Date.now();
-        this.mainLooper();
+        const interval = this.config.UpdateInterval; // 100ms (or whatever your interval is)
+        let expected = Date.now() + interval;
+    
+        const step = () => {
+            const now = Date.now();
+            const dt = now - expected; // Calculate drift
+    
+            // Log the actual time between loops
+            console.log(`Actual time between loops: ${interval + dt}ms`);
+    
+            // Perform the main logic here
+            if (Object.keys(this.clients).length > 0) {
+                this.main();
+            }
+    
+            // Check if drift is too large (if needed)
+            if (dt > interval) {
+                console.warn(`Main loop is behind by ${dt}ms. Handling large drift...`);
+                // You could handle large drift scenarios here
+            }
+    
+            // Calculate next expected time and schedule the next step
+            expected += interval;
+            setTimeout(step, Math.max(0, interval - dt - 6.5)); // Adjust for drift
+        };
+    
+        // Start the loop
+        setTimeout(step, interval);
     }
+        
+        
+        
+        
 }
 
 module.exports = Server;
