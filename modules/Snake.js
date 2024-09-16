@@ -199,13 +199,18 @@ class Snake {
         let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS
         
         let oneWayPing = this.client.ping / 2; // Half the RTT to get one-way time
-        oneWayPing = oneWayPing - this.server.config.GlobalWebLag
+        if (oneWayPing < this.server.config.GlobalWebLag)
+            oneWayPing = oneWayPing - this.server.config.GlobalWebLag
+        else
+            oneWayPing = oneWayPing
 
-        let totalDistanceTraveledDuringPing = totalSpeed * (oneWayPing / this.server.config.UpdateInterval);
+        let actualUpdateInterval = this.server.config.UpdateInterval + 10;
+
+        let totalDistanceTraveledDuringPing = totalSpeed * (oneWayPing / actualUpdateInterval);
 
         let timeSinceLastUpdate = (Date.now() - this.server.lastUpdate)
-        let timeUntilNextUpdate = this.server.config.UpdateInterval - (timeSinceLastUpdate % this.server.config.UpdateInterval)
-        let currentInterpPosition = (totalSpeed * (timeUntilNextUpdate / this.server.config.UpdateInterval))
+        let timeUntilNextUpdate = actualUpdateInterval - (timeSinceLastUpdate % actualUpdateInterval)
+        let currentInterpPosition = (totalSpeed * (timeUntilNextUpdate / actualUpdateInterval))
 
         totalDistanceTraveledDuringPing += currentInterpPosition
         
