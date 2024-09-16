@@ -18,8 +18,10 @@ class Snake {
         this.network = network.socket;
         this.user = network.user || null;
         this.client.dead = false;
+        this.client.spectating = false;
         this.leaderboardPosition = 0;
         this.SnakesRubbingAgainst = [];
+        
         //this.flags |= Enums.EntityFlags.DEBUG
         this.flags = 0;
         if (customPlayerColors[name]) {
@@ -437,6 +439,7 @@ class Snake {
         if (killedBy != this) {
             this.client.killedBy = killedBy
             killedBy.killedSnakes.push(this)
+            this.client.spectating = killedBy;
             // Sync up the loaded entities
             
             Object.values(killedBy.client.loadedEntities).forEach((entity) => {
@@ -461,12 +464,19 @@ class Snake {
         }
         this.killedSnakes.forEach((snake, index) => {
             if (snake.client.snake || !this.server.clients[snake.client.id]) {// If the snake respawned or disconnected, remove it from the list
+                snake.client.spectating = false;
                 delete this.killedSnakes[index]
                 return
             }
-            console.log("2Killed snake " + snake.nick + " with ID " + snake.id)
-            snake.client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, [entitiesToRemove]);
-            snake.client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, [entitiesToAdd]);
+            if (killedBy == this) { // No more snakes to spectate
+                snake.client.deadPosition = this.position
+                snake.client.spectating = false;
+            }
+            else {
+                snake.client.spectating = this;
+                snake.client.update(Enums.UpdateTypes.UPDATE_TYPE_DELETE, [entitiesToRemove]);
+                snake.client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, [entitiesToAdd]);
+            }
         })
         killedBy.killedSnakes = killedBy.killedSnakes.concat(this.killedSnakes) // Add the snakes that this snake killed to the killer's list
         this.spawned = false;

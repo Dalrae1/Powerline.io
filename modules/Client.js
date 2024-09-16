@@ -23,6 +23,7 @@ class Client extends EventEmitter {
         this.user = user || null
         this.messagesPerSecond = [];
         this.lastSecondCheck = 0;
+        this.spectating = false;
         server.clients[this.id] = this;
         this.sendConfig();
 

@@ -477,7 +477,7 @@ class Server {
                 //return
             let isSpawned = !client.dead;
 
-            if (isSpawned) {
+            if (isSpawned || !client.spectating) {
             
                 this.performance.tempStart = Date.now();
                 let entQuery = SnakeFunctions.GetEntitiesNearClient(client);
@@ -527,6 +527,7 @@ class Server {
                 if (isSpawned) {
                     snake.killedSnakes.forEach((killedSnake, index) => {
                         if (killedSnake.client.snake || !this.clients[killedSnake.client.id]) {// If the snake respawned or disconnected, remove it from the list
+                            snake.client.spectating = false;
                             delete snake.killedSnakes[index]
                             return
                         }
@@ -535,63 +536,59 @@ class Server {
                         killedSnake.client.update(Enums.UpdateTypes.UPDATE_TYPE_PARTIAL, updateEntities)
 
                     })
-                }
-
-                // HANDLE TALK STAMINA
-                this.performance.tempStart = Date.now();
-                if (snake.talkStamina < 255) {
-                    this.snakes[snake.id].talkStamina += 5;
-                    if (snake.talkStamina > 255)
-                        this.snakes[snake.id].talkStamina = 255;
-                }
-                this.performance.talkStaminaTime += Date.now() - this.performance.tempStart;
-
-
-
-
-                this.performance.tempStart = Date.now();
-                // CALCULATE TAIL LENGTH
-                let totalPointLength = 0;
-                for (let i = -1; i < snake.points.length - 1; i++) {
-                    let point;
-                    if (i == -1)
-                        point = snake.position;
-                    else
-                        point = snake.points[i];
-                    let nextPoint = snake.points[i + 1];
-                    
-                    let segmentLength = getSegmentLength(point, nextPoint);
-                    
-                    totalPointLength += segmentLength;
-                }
-
-                while (totalPointLength > snake.visualLength) {
-                    let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
-                    let lastPoint = snake.points[snake.points.length - 1] || snake.position;
-                    let direction = MapFunctions.GetNormalizedDirection(secondToLastPoint, lastPoint);
-
-                    let amountOverLength = totalPointLength - snake.visualLength;
-                    let lastSegmentLength = getSegmentLength(secondToLastPoint, lastPoint);
-
-                    if (lastSegmentLength > amountOverLength) { // Last segment can be decreased to fit length
-                        let newPoint = {
-                            x: lastPoint.x - direction.x * amountOverLength,
-                            y: lastPoint.y - direction.y * amountOverLength
-                        }
-                        snake.points[snake.points.length - 1] = newPoint;
-                        totalPointLength = snake.visualLength;
-                    } else { // Last segment is too short, remove it and decrease the next one
-                        totalPointLength -= lastSegmentLength;
-                        snake.points.pop();
+                    // HANDLE TALK STAMINA
+                    this.performance.tempStart = Date.now();
+                    if (snake.talkStamina < 255) {
+                        this.snakes[snake.id].talkStamina += 5;
+                        if (snake.talkStamina > 255)
+                            this.snakes[snake.id].talkStamina = 255;
                     }
+                    this.performance.talkStaminaTime += Date.now() - this.performance.tempStart;
+
+                    this.performance.tempStart = Date.now();
+                    // CALCULATE TAIL LENGTH
+                    let totalPointLength = 0;
+                    for (let i = -1; i < snake.points.length - 1; i++) {
+                        let point;
+                        if (i == -1)
+                            point = snake.position;
+                        else
+                            point = snake.points[i];
+                        let nextPoint = snake.points[i + 1];
+                        
+                        let segmentLength = getSegmentLength(point, nextPoint);
+                        
+                        totalPointLength += segmentLength;
+                    }
+
+                    while (totalPointLength > snake.visualLength) {
+                        let secondToLastPoint = snake.points[snake.points.length - 2] || snake.position;
+                        let lastPoint = snake.points[snake.points.length - 1] || snake.position;
+                        let direction = MapFunctions.GetNormalizedDirection(secondToLastPoint, lastPoint);
+
+                        let amountOverLength = totalPointLength - snake.visualLength;
+                        let lastSegmentLength = getSegmentLength(secondToLastPoint, lastPoint);
+
+                        if (lastSegmentLength > amountOverLength) { // Last segment can be decreased to fit length
+                            let newPoint = {
+                                x: lastPoint.x - direction.x * amountOverLength,
+                                y: lastPoint.y - direction.y * amountOverLength
+                            }
+                            snake.points[snake.points.length - 1] = newPoint;
+                            totalPointLength = snake.visualLength;
+                        } else { // Last segment is too short, remove it and decrease the next one
+                            totalPointLength -= lastSegmentLength;
+                            snake.points.pop();
+                        }
+                    }
+                    this.performance.tailLengthTime += Date.now() - this.performance.tempStart;
+                    
+                    // HANDLE LEADERBOARD
+                    
+                    this.performance.tempStart = Date.now();
+                    snake.updateLeaderboard();
+                    this.performance.leaderboardTime += Date.now() - this.performance.tempStart;
                 }
-                this.performance.tailLengthTime += Date.now() - this.performance.tempStart;
-                
-                // HANDLE LEADERBOARD
-                
-                this.performance.tempStart = Date.now();
-                snake.updateLeaderboard();
-                this.performance.leaderboardTime += Date.now() - this.performance.tempStart;
             }
             
         })
