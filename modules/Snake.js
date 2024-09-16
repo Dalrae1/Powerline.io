@@ -199,7 +199,7 @@ class Snake {
         let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS
         
         let oneWayPing = this.client.ping / 2; // Half the RTT to get one-way time
-        oneWayPing = Math.max(0, oneWayPing - this.server.config.GlobalWebLag) // Subtract input delay
+        oneWayPing = oneWayPing - this.server.config.GlobalWebLag
 
         let totalDistanceTraveledDuringPing = totalSpeed * (oneWayPing / this.server.config.UpdateInterval);
 
