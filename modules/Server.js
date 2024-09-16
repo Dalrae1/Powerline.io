@@ -608,7 +608,7 @@ class Server {
             const dt = now - expected; // Calculate drift
     
             // Log the actual time between loops
-            console.log(`Actual time between loops: ${interval + dt}ms`);
+            //console.log(`Actual time between loops: ${interval + dt}ms`);
     
             // Perform the main logic here
             if (Object.keys(this.clients).length > 0) {
