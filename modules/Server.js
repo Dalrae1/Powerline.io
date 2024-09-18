@@ -72,19 +72,6 @@ class Server {
         this.clients = [];
         this.snakes = [];
 
-        this.performance = {
-            tempStart: 0,
-            moveTime: 0,
-            visualLengthTime: 0,
-            getNearbyPointsTime: 0,
-            collisionCheckTime: 0,
-            rubCheckTime: 0,
-            talkStaminaTime: 0,
-            tailLengthTime: 0,
-            leaderboardTime: 0,
-            entitiesNearClientTime: 0
-        }
-
         this.httpServer = HttpServer(this.serverListener).listen(this.id)
 
         this.unsecureServer = new WebSocket.Server({ server: this.httpServer });
@@ -268,22 +255,22 @@ class Server {
     UpdateArena() {
         let numSnak = 0;
         let numPoints = 0;
+        //let tickMultiplier = (Date.now()-this.lastUpdate)/this.config.UpdateInterval;
+        let tickMultiplier = ((Date.now()-this.lastUpdate)/this.config.UpdateInterval)
+        //console.log(`Last update was ${(Date.now()-this.lastUpdate)}ms ago, tick multiplier is ${tickMultiplier}`)
         Object.values(this.snakes).forEach((snake) => {
             numSnak++
-            this.performance.tempStart = Date.now();
             // Make snakes move
             let totalSpeed = snake.speed //+ (snake.extraSpeed/255);
             if (snake.direction == Enums.Directions.UP) {
-                snake.position.y += totalSpeed * UPDATE_EVERY_N_TICKS;
+                snake.position.y += (totalSpeed * UPDATE_EVERY_N_TICKS)*tickMultiplier;
             } else if (snake.direction == Enums.Directions.LEFT) {
-                snake.position.x -= totalSpeed * UPDATE_EVERY_N_TICKS;
+                snake.position.x -= (totalSpeed * UPDATE_EVERY_N_TICKS)*tickMultiplier;
             } else if (snake.direction == Enums.Directions.DOWN) {
-                snake.position.y -= totalSpeed * UPDATE_EVERY_N_TICKS;
+                snake.position.y -= (totalSpeed * UPDATE_EVERY_N_TICKS)*tickMultiplier;
             } else if (snake.direction == Enums.Directions.RIGHT) {
-                snake.position.x += totalSpeed * UPDATE_EVERY_N_TICKS;
+                snake.position.x += (totalSpeed * UPDATE_EVERY_N_TICKS)*tickMultiplier;
             }
-            this.performance.moveTime += Date.now() - this.performance.tempStart;
-            this.performance.tempStart = Date.now();
 
             // Update visual length
             if (snake.actualLength > snake.visualLength) {
@@ -293,7 +280,6 @@ class Server {
                 else
                     snake.visualLength += totalSpeed * UPDATE_EVERY_N_TICKS;
             }
-            this.performance.visualLengthTime += Date.now() - this.performance.tempStart;
             
 
             // Collision Checks
@@ -344,9 +330,7 @@ class Server {
                 // Check if head of snake of near body of other snake
 
                 
-                this.performance.tempStart = Date.now();
                 let nearbyPoints = SnakeFunctions.GetPointsNearSnake(snake, otherSnake, 30);
-                this.performance.getNearbyPointsTime += Date.now() - this.performance.tempStart;
                 snake.client.pointsNearby[otherSnake.id] = nearbyPoints;
                 for (let i = 0; i < nearbyPoints.length - 1; i++) {
                     numPoints++
@@ -360,8 +344,6 @@ class Server {
                         continue
                     point = point.point;
                     nextPoint = nextPoint.point;
-                    
-                    this.performance.tempStart = Date.now();
                     // Rubbing Mechanics
 
                     let canRub = () => {
@@ -403,12 +385,9 @@ class Server {
                         }
                         
                     }
-                    this.performance.rubCheckTime += Date.now() - this.performance.tempStart;
                     
 
                     // Collision Mechanics
-
-                    this.performance.tempStart = Date.now();
                     if (snake.position != nextPoint && secondPoint != point && snake.position != secondPoint && snake.position != point) {
                         if (MapFunctions.DoIntersect(snake.position, secondPoint, point, nextPoint)) {
                             setTimeout(() => { // Make sure they didn't move out of the way
@@ -424,7 +403,6 @@ class Server {
                             }, snake.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
                         }
                     }
-                    this.performance.collisionCheckTime += Date.now() - this.performance.tempStart;
 
                     // Check if any points are colliding
 
@@ -457,7 +435,6 @@ class Server {
     }
 
     main() {
-        this.performance.moveTime = this.performance.visualLengthTime = this.performance.getNearbyPointsTime = this.performance.collisionCheckTime = this.performance.rubCheckTime = this.performance.talkStaminaTime = this.performance.tailLengthTime = this.performance.leaderboardTime = this.performance.entitiesNearClientTime = 0
         this.UpdateArena()
         this.RefreshLeaderboard()
 
@@ -478,10 +455,7 @@ class Server {
             let isSpawned = !client.dead;
 
             if (isSpawned || !client.spectating) {
-            
-                this.performance.tempStart = Date.now();
                 let entQuery = SnakeFunctions.GetEntitiesNearClient(client);
-                this.performance.entitiesNearClientTime += Date.now() - this.performance.tempStart;
                 
                 
                 
@@ -537,15 +511,11 @@ class Server {
 
                     })
                     // HANDLE TALK STAMINA
-                    this.performance.tempStart = Date.now();
                     if (snake.talkStamina < 255) {
                         this.snakes[snake.id].talkStamina += 5;
                         if (snake.talkStamina > 255)
                             this.snakes[snake.id].talkStamina = 255;
                     }
-                    this.performance.talkStaminaTime += Date.now() - this.performance.tempStart;
-
-                    this.performance.tempStart = Date.now();
                     // CALCULATE TAIL LENGTH
                     let totalPointLength = 0;
                     for (let i = -1; i < snake.points.length - 1; i++) {
@@ -581,13 +551,10 @@ class Server {
                             snake.points.pop();
                         }
                     }
-                    this.performance.tailLengthTime += Date.now() - this.performance.tempStart;
                     
                     // HANDLE LEADERBOARD
                     
-                    this.performance.tempStart = Date.now();
                     snake.updateLeaderboard();
-                    this.performance.leaderboardTime += Date.now() - this.performance.tempStart;
                 }
             }
             
@@ -597,37 +564,29 @@ class Server {
             if (snake)
                 snake.newPoints = []
         })
+        this.lastUpdate = Date.now();
     }
 
     start() {
-        const interval = this.config.UpdateInterval; // 100ms (or whatever your interval is)
+        /*const interval = this.config.UpdateInterval;
         let expected = Date.now() + interval;
     
         const step = () => {
             const now = Date.now();
             const dt = now - expected; // Calculate drift
-    
-            // Log the actual time between loops
-            //console.log(`Actual time between loops: ${interval + dt}ms`);
-    
-            // Perform the main logic here
             if (Object.keys(this.clients).length > 0) {
                 this.main();
             }
-    
-            // Check if drift is too large (if needed)
             if (dt > interval) {
-                console.warn(`Main loop is behind by ${dt}ms. Handling large drift...`);
-                // You could handle large drift scenarios here
+                console.warn(`Server is running ${dt-interval}ms behind!`);
             }
+            this.behindBy = dt
     
-            // Calculate next expected time and schedule the next step
             expected += interval;
-            setTimeout(step, Math.max(0, interval - dt - 6.5)); // Adjust for drift
+            setTimeout(step, Math.max(0, interval - dt - 6.5));
         };
-    
-        // Start the loop
-        setTimeout(step, interval);
+        setTimeout(step, interval);*/
+        setInterval(() => this.main(), this.config.UpdateInterval);
     }
         
         
