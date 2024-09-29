@@ -528,6 +528,7 @@ class Snake {
         }
     }
     Talk(id) {
+        this.flags &= ~Enums.EntityFlags.SHOW_CUSTOM_TALKING;
         this.flags |= Enums.EntityFlags.SHOW_TALKING;
         this.talkId = id;
         let oldTalkId = id;

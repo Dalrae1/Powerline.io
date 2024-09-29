@@ -1280,11 +1280,7 @@ var Snake = function () {
 			talkID = view.getUint8(offset, true);
 			offset += 1;
 
-			if(prevTalkID != talkID)
-			{
-				talkText = this.getTalkTextByTalkID(talkID);
-				prevTalkID = talkID;
-			}
+			talkText = this.getTalkTextByTalkID(talkID);
 		}else{
 			talkID = 0;
 		}
@@ -1294,6 +1290,8 @@ var Snake = function () {
 			talkID = 20
 			offset = talkMessage.offset;
 			talkText = talkMessage.nick;
+		}else{
+			talkID = 0;
 		}
 		if (flags & 0x100) // Custom color
 		{
