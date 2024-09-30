@@ -270,6 +270,7 @@ class Client extends EventEmitter {
                                     let message = commandArgs.slice(1).join(" ");
                                     message = message.substring(0, 25);
                                     this.snake.flags |= Enums.EntityFlags.SHOW_CUSTOM_TALKING
+                                    this.snake.flags &= ~Enums.EntityFlags.SHOW_TALKING;
                                     this.snake.customTalk = message;
                                     this.snake.talkStamina = 0;
                                     setTimeout(() => {
