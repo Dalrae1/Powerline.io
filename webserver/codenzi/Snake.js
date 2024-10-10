@@ -1282,17 +1282,17 @@ var Snake = function () {
 
 			talkText = this.getTalkTextByTalkID(talkID);
 		}else{
-			talkID = 0;
+			if (flags & 0x80) // Custom talk
+			{
+				var talkMessage = getString(view, offset);
+				talkID = 20
+				offset = talkMessage.offset;
+				talkText = talkMessage.nick;
+			}else{
+				talkID = 0;
+			}
 		}
-		if (flags & 0x80) // Custom talk
-		{
-			var talkMessage = getString(view, offset);
-			talkID = 20
-			offset = talkMessage.offset;
-			talkText = talkMessage.nick;
-		}else{
-			talkID = 0;
-		}
+		
 		if (flags & 0x100) // Custom color
 		{
 			var customHeadColor = getString(view, offset);
