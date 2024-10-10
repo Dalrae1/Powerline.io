@@ -586,7 +586,7 @@ class Server {
             setTimeout(step, Math.max(0, interval - dt - 6.5));
         };
         setTimeout(step, interval);*/
-        setInterval(() => this.main(), this.config.UpdateInterval);
+        setInterval(() => this.main(), this.config.UpdateInterval-6.5);
     }
         
         
