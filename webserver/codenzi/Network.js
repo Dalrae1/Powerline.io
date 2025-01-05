@@ -590,7 +590,7 @@ var Network = function () {
 			processEvents(view);
 		} else if (op == OPCODE_LEADERBOARD) {
 			let curTickTime = +new Date();
-			statsTPS.updateTps((curTickTime - lastTickTime)/10);
+			statsTPS.updateTps((curTickTime - lastTickTime));
 			lastTickTime = +new Date();
 			var offset = processLeaderboard(view);
 			var id = view.getUint16(offset, true);

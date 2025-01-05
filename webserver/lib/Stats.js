@@ -192,7 +192,7 @@
 			tpsMin = Math.min( tpsMin, tps );
 			tpsMax = Math.max( tpsMax, tps );
 
-			tpsText.textContent = ( tps) + ' TPS (' + ( tpsMin) + '-' + ( tpsMax) + ')';
+			tpsText.textContent = ( tps) + ' Updt (' + ( tpsMin) + '-' + ( tpsMax) + ')';
 			updateGraph( tpsGraph, tps / 30);
 
 			return;
