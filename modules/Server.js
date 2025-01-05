@@ -568,25 +568,14 @@ class Server {
     }
 
     start() {
-        /*const interval = this.config.UpdateInterval;
-        let expected = Date.now() + interval;
-    
-        const step = () => {
-            const now = Date.now();
-            const dt = now - expected; // Calculate drift
-            if (Object.keys(this.clients).length > 0) {
-                this.main();
-            }
-            if (dt > interval) {
-                console.warn(`Server is running ${dt-interval}ms behind!`);
-            }
-            this.behindBy = dt
-    
-            expected += interval;
-            setTimeout(step, Math.max(0, interval - dt - 6.5));
-        };
-        setTimeout(step, interval);*/
-        setInterval(() => this.main(), this.config.UpdateInterval-6.5);
+        this.startTime = Date.now();
+        this.main();
+        this.endTime = Date.now();
+        const drift = this.endTime - this.startTime
+        const nextInterval = Math.max(0, this.config.UpdateInterval - drift);
+        setTimeout(() => {
+            this.start()
+        }, nextInterval);
     }
         
         
