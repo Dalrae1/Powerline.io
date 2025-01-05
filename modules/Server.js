@@ -572,7 +572,7 @@ class Server {
         this.main();
         this.endTime = Date.now();
         const drift = this.endTime - this.startTime
-        const nextInterval = Math.max(0, this.config.UpdateInterval - drift - 6.5);
+        const nextInterval = Math.max(0, this.config.UpdateInterval - drift - 10);
         setTimeout(() => {
             this.start()
         }, nextInterval);
