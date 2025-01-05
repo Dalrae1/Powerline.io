@@ -11,13 +11,13 @@ class EntityFunctions {
             for (let i = -1; i < snake.points.length - 1; i++) {
                 const point = (i === -1) ? snake.position : snake.points[i];
                 const nextPoint = snake.points[i + 1];
-                if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX/2, windowSizeY/2)) {
+                if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
                     foundEntities.push(snake);
                     break;
                 }
             }
         })
-        const queryArea = { x: center.x-(windowSizeX/4), y: center.y-(windowSizeY/4), width: windowSizeX/2, height: windowSizeY/2};
+        const queryArea = { x: center.x-(windowSizeX/2), y: center.y-(windowSizeY/2), width: windowSizeX, height: windowSizeY};
         const foundEntities2 = client.server.entityQuadtree.query(queryArea); // Finds entities within queryArea
 
         foundEntities2.forEach(entity => {
