@@ -170,7 +170,6 @@ class Snake {
                         // Make sure that the last point did not intersect with another snake
                         if (this.position != nextPoint && secondPoint != point && secondPoint != nextPoint &&
                             this.position != secondPoint && this.position != point) {
-                            
                             if (MapFunctions.DoIntersect(this.position, secondPoint, point, nextPoint)) {
                                 /*this.DrawDebugCircle(this.position.x, this.position.y, 50, 4); // Yellow
                                 this.DrawDebugCircle(secondPoint.x, secondPoint.y, 50, 4); // Yellow
@@ -190,6 +189,7 @@ class Snake {
                     }
                 }
         })
+        //console.log(`Ping is ${this.client.ping}, GlobalWebLag is ${this.server.config.GlobalWebLag}`)
         
             
 
@@ -201,10 +201,10 @@ class Snake {
         let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS
         
         let oneWayPing = this.client.ping / 2; // Half the RTT to get one-way time
-        if (oneWayPing < this.server.config.GlobalWebLag)
+        //if (oneWayPing < this.server.config.GlobalWebLag)
             oneWayPing = oneWayPing - this.server.config.GlobalWebLag
-        else
-            oneWayPing = oneWayPing
+        //else
+            //oneWayPing = oneWayPing
 
         let actualUpdateInterval = this.server.config.UpdateInterval + 10;
 

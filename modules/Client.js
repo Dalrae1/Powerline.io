@@ -19,7 +19,7 @@ class Client extends EventEmitter {
         this.windowSizeY = 64;
         this.dead = true
         this.pointsNearby = {};
-        this.ping = 0;
+        this.ping = this.server.artificialPing;
         this.user = user || null
         this.messagesPerSecond = [];
         this.lastSecondCheck = 0;
