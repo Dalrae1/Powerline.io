@@ -420,7 +420,7 @@ class Server {
             if (Date.now()-snake.lastAte > 500)
                 snake.eatCombo = 0
             if (snake.eatCombo >= 5 && (snake.extraSpeed+1 <= this.config.MaxBoostSpeed || this.speedBypass)) {
-                snake.extraSpeed += 1;
+                snake.extraSpeed += 2;
                 snake.speed = 0.25 + (snake.extraSpeed / 1000)
                 snake.speeding = true;
             } else {
