@@ -17,7 +17,7 @@ var isSecure = (protocol == 'https:');
 var serverListLoaded = false;
 
 // Performance Stats
-var statsFPS, statsLAG;
+var statsFPS, statsLAG, statsTPS;
 
 // Admin
 var commandPallete = false;
@@ -421,12 +421,31 @@ var addStats = function() {
 
 	document.getElementById('fps').appendChild(statsFPS.domElement);
 
+
+
+
+
+
+	// TPS
+	statsTPS = new Stats();
+	statsTPS.setMode( 2 );
+	// align bottom right
+	statsTPS.domElement.style.position = 'absolute';
+	statsTPS.domElement.style.left = (canvas.width*percPosX + 100)+'px';
+	statsTPS.domElement.style.top = (canvas.height - 18 - offsetY)+'px';
+
+	document.getElementById('tpss').appendChild(statsTPS.domElement);
+	
 	setInterval(function () {
 	    statsFPS.update();
 	}, 1000/60);
 
-		statsLAG.domElement.style.visibility = "hidden";
-		statsFPS.domElement.style.visibility = "hidden";
+	statsLAG.domElement.style.visibility = "hidden";
+	statsFPS.domElement.style.visibility = "hidden";
+	statsTPS.domElement.style.visibility = "hidden";
+
+
+	
 }
 
 document.body.onselectstart = function() { return false; }
@@ -1353,15 +1372,15 @@ function loadScript(url){var head = document.getElementsByTagName('head')[0];var
 loadScript("codenzi/Grid.js?v=1");
 loadScript("codenzi/Utils.js?v=1");
 loadScript("codenzi/Resources.js?v=1");
-loadScript("codenzi/Input.js?v=1");
+loadScript("codenzi/Input.js?v=2");
 loadScript("codenzi/Effects.js?v=1");
 loadScript("codenzi/Hud.js?v=2");
 loadScript("codenzi/Snake.js?v=5");
 loadScript("codenzi/Food.js?v=1");
 loadScript("codenzi/Map.js?v=3");
 loadScript("codenzi/Minimap.js?v=4");
-loadScript("codenzi/Network.js?v=9");
-loadScript("codenzi/App.js?v=3");
+loadScript("codenzi/Network.js?v=10");
+loadScript("codenzi/App.js?v=4");
 loadScript("codenzi/Camera.js?v=1");
 loadScript("codenzi/Frame.js?v=1");
 loadScript("codenzi/AnimationManager.js?v=1");

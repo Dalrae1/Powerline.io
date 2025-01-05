@@ -90,6 +90,15 @@
 
 	container.appendChild( msDiv );
 
+	// TPS
+
+	var tps = 0, tpsMin = Infinity, tpsMax = 0;
+	var tpsDiv = createPanel( 'tps', '#0f0', '#020' );
+	var tpsText = tpsDiv.children[ 0 ];
+	var tpsGraph = tpsDiv.children[ 1 ];
+
+	container.appendChild( tpsDiv );
+
 	// MEM
 
 	if ( self.performance && self.performance.memory ) {
@@ -177,6 +186,16 @@
 
 			return;
 
+		},
+
+		updateTps: function (tps) {
+			tpsMin = Math.min( tpsMin, tps );
+			tpsMax = Math.max( tpsMax, tps );
+
+			tpsText.textContent = ( tps) + ' TPS (' + ( tpsMin) + '-' + ( tpsMax) + ')';
+			updateGraph( tpsGraph, tps / 30);
+
+			return;
 		},
 
 		update: function () {

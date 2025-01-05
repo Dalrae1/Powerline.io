@@ -28,6 +28,7 @@ var Network = function () {
 	this.directed = false;
 	this.roomID = 0;
 	this.connectVar = null;
+	var lastTickTime = +new Date();
 
 	// opcodes
 
@@ -588,6 +589,9 @@ var Network = function () {
 		} else if (op == OPCODE_EVENTS) {
 			processEvents(view);
 		} else if (op == OPCODE_LEADERBOARD) {
+			let curTickTime = +new Date();
+			statsTPS.updateTps((curTickTime - lastTickTime)/10);
+			lastTickTime = +new Date();
 			var offset = processLeaderboard(view);
 			var id = view.getUint16(offset, true);
 			offset += 2;

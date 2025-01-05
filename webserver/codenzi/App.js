@@ -473,6 +473,13 @@ var App = function(aCanvas) {
 			statsLAG.domElement.style.left = ((canvas.width*percPosX-100/res)*res)+'px';
 			statsLAG.domElement.style.top = (canvas.height*res - 18 - offsetY)+'px';
 		}
+
+		if(statsTPS){
+			// align bottom right
+			statsTPS.domElement.style.position = 'absolute';
+			statsTPS.domElement.style.left = ((canvas.width*percPosX+100/res)*res)+'px';
+			statsTPS.domElement.style.top = (canvas.height*res - 18 - offsetY)+'px';
+		}
 	};
 
 	app.getMouseWorldPosition = function() {

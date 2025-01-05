@@ -103,9 +103,11 @@ var Input = function() {
 			{
 				statsLAG.domElement.style.visibility = "hidden";
 				statsFPS.domElement.style.visibility = "hidden";
+				statsTPS.domElement.style.visibility = "hidden";
 			}else{
 				statsLAG.domElement.style.visibility = "visible";
 				statsFPS.domElement.style.visibility = "visible";
+				statsTPS.domElement.style.visibility = "visible";
 				network.ping();
 			}
 			statsVisible = !statsVisible;
