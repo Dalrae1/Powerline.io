@@ -195,7 +195,7 @@ class Server {
             })
         }
         else {
-            let client = new Client(this, ws, -1);
+            let client = new Client(this, ws, null);
             ws.on('message', async function incoming(message, req) {
                 let view = new DataView(new Uint8Array(message).buffer);
                 let messageType = view.getUint8(0);

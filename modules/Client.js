@@ -29,11 +29,10 @@ class Client extends EventEmitter {
 
         this.sendMapBarriers()
         
-
         if (this.user)
-            console.log(`Client connected to server ${server.name} from user "${this.user.userid}"`);
+            console.log(`Client connected to server ${server.name} from user (${this.user.userid})${this.user.username}`);
         else
-            console.log(`Client connected to server ${server.name}`);
+            console.log(`Client connected to server ${server.name} from an unautheicated user`);
 
 
     }

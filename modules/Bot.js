@@ -19,7 +19,7 @@ class Bot {
 
     initializeClient(server) {
         const simulatedWs = { send: (data) => {} };
-        return new Client(server, simulatedWs, -1);
+        return new Client(server, simulatedWs, null);
     }
 
     generateNickname() {
