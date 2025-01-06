@@ -330,6 +330,17 @@ class Client extends EventEmitter {
                                 }
                             }
                             break;
+                        case "createfood":
+                            // Creates amount of food specified near player
+                            if (commandArgs[1]) {
+                                let amount = parseInt(commandArgs[1]);
+                                if (amount && amount > 0 && amount <= 1000) {
+                                    for (let i = 0; i < amount; i++) {
+                                        new Food(this.server, this.snake.position.x + Math.random() * 10, this.snake.position.y + Math.random() * 10 - 5);
+                                    }
+                                }
+                            }
+                            break;
 
                     }
                 }
