@@ -256,7 +256,7 @@ class Server {
         let numSnak = 0;
         let numPoints = 0;
         //let tickMultiplier = (Date.now()-this.lastUpdate)/this.config.UpdateInterval;
-        let tickMultiplier = ((Date.now()-this.lastUpdate)/this.config.UpdateInterval)
+        let tickMultiplier = 1//((Date.now()-this.lastUpdate)/this.config.UpdateInterval)
         //console.log(`Last update was ${(Date.now()-this.lastUpdate)}ms ago, tick multiplier is ${tickMultiplier}`)
         Object.values(this.snakes).forEach((snake) => {
             numSnak++
