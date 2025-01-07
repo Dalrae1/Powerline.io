@@ -232,7 +232,7 @@ class Server {
         offset+=1
         for (let pair of this.leaderboard.reverseOrderTraversal()) {
             let snake = this.entities[pair.data]
-            if (!snake || !snake.spawned || !snake.nick)
+            if (!snake || !snake.spawned)
                 continue
             count++
             snake.leaderboardPosition = count
