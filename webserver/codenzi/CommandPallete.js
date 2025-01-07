@@ -40,7 +40,22 @@ var CommandPallete = function () {
     
     
     enterCommand = function (command) {
-        network.sendCommand(command);
+        let commandArgs = command.split(' ');
+        if (commandArgs.length == 0) {
+            return;
+        }
+        switch (commandArgs[0]) {
+            case "edit":
+                let chatIndex = parseInt(commandArgs[1]);
+                let chatReplace = commandArgs.slice(2).join(' ');
+                if (chatIndex != NaN) {
+                    window.localStorage[`chatOverride${commandArgs[1]}`] = chatReplace;
+                }
+                break;
+            default: 
+                network.sendCommand(command);
+                break;
+        }
         element.style.display = 'none';
         visible = false
     }

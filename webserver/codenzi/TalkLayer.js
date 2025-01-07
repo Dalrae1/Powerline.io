@@ -85,6 +85,9 @@ var TalkLayer = function() {
 
 			var text = talkTexts[i];
 			var width = contextLayer.measureText(text).width;
+			if (window.localStorage[`chatOverride${index}`]) {
+				text = window.localStorage[`chatOverride${index}`];
+			}
 			contextLayer.fillText(text, 35 + (labelWidth-35)/2.0 - width/2.0, baseY+i*31 + 5 + 15);
 		}
 		contextLayer.globalAlpha = 1.0;

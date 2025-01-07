@@ -849,6 +849,10 @@ var Network = function () {
 	}
 
 	this.sendTalk = function(dialogID) {
+		if (window.localStorage['chatOverride' + dialogID]) {
+			this.sendCommand(`say ${window.localStorage['chatOverride' + dialogID]}`);
+			return
+		}
 		var buf = new ArrayBuffer(2);
 		var view = new DataView(buf);
 		view.setUint8(0, OPCODE_TALK);
