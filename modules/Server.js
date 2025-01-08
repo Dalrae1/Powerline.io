@@ -1,6 +1,7 @@
 const WebSocket = require('ws');
 const HttpsServer = require('https').createServer;
 const HttpServer = require('http').createServer;
+const http = require('http');
 const fs = require("fs");
 
 
@@ -135,6 +136,33 @@ class Server {
         for (let i = 0; i < this.maxNaturalFood; i++) {
             new Food(this);
         }
+        if (this.type == "remote") {
+            setInterval(() => {
+                // Send POST request to master server
+                let data = {
+                    name: this.name,
+                    host: "127.0.0.1",
+                    port: this.id,
+                    players: Object.keys(this.clients).length,
+                    maxPlayers: this.MaxPlayers
+                }
+                let options = {
+                    hostname: "127.0.0.1",
+                    method: 'POST',
+                    path: '/heartbeat',
+                    port: 1335,
+                }
+                let req = http.request(options, (res) => {
+                    res.on('data', (d) => {
+                        console.log(d.toString())
+                    })
+                })
+                req.write(JSON.stringify(data))
+                req.end()
+
+            }, 1000)
+        }
+
         this.start()
         return this;
     }

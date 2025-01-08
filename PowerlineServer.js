@@ -86,16 +86,51 @@ function sendBadResponse(req, res, code, message) {
         success: false,
         message: message
     }));
-
-
 }
+
+let remoteServers = []
 
 async function serverListener(req, res) {
     let directory = req.url.split("/")[1];
     if (directory.includes("?"))
         directory = directory.split("?")[0];
     switch (directory) {
-        case "createserver":
+        case "heartbeat": // Remote servers will send a heartbeat to the master server
+            switch (req.method) {
+                case "OPTIONS":
+                    res.writeHead(204, {
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                        'Access-Control-Allow-Methods': 'POST',
+                        'Access-Control-Allow-Headers': 'Content-Type',
+                        'Access-Control-Allow-Credentials': true
+                    });
+                    res.end();
+                    break;
+                case "POST":
+                    let body = '';
+                    req.on('data', chunk => {
+                        body += chunk.toString();
+                    });
+                    req.on('end', async () => {
+                        let json = JSON.parse(body);
+                        if (!json.name) {
+                            sendBadResponse(req, res, 400, "No server name provided");
+                            return;
+                        }
+                        //Check for duplicates
+                        let host = req.connection.remoteAddress.split(":")[3]
+                        let containsDuplicate = remoteServers.find(server => server.host == `${host}:${json.port}`);
+                        if (!containsDuplicate) {
+                            remoteServers.push({
+                                name: json.name,
+                                host: `${host}:${json.port}`,
+                                type: "remote"
+                            })
+                        }
+                    })
+            }
+            break
+        /*case "createserver":
             switch (req.method) {
                 case "OPTIONS":
                     res.writeHead(204, {
@@ -362,8 +397,7 @@ async function serverListener(req, res) {
 
                     break
                 }
-            break
-
+            break */
         case "getservers":
             switch (req.method) {
                 case "OPTIONS":
@@ -389,13 +423,6 @@ async function serverListener(req, res) {
                             config: JSON.stringify(thisConfig, true, 4)
                         }
                     })
-                    let remoteServers = [
-                        {
-                            name: "Americas Server 1",
-                            host: "158-69-123-15.powerline.io:9190",
-                            type: "remote",
-                        }
-                    ]
                     servers = servers.concat(remoteServers)
                     res.writeHead(200, {
                         'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
@@ -416,7 +443,7 @@ async function serverListener(req, res) {
                     break
             }
             break
-        case "fetchserverinfo":
+        /* case "fetchserverinfo":
             switch (req.method) {
                 case "OPTIONS":
                     res.writeHead(204, {
@@ -461,7 +488,7 @@ async function serverListener(req, res) {
                     res.end(JSON.stringify(serverInfo));
 
             }
-            break
+            break */
         case "fetchuser":
             switch (req.method) {
                 case "OPTIONS":
@@ -504,7 +531,31 @@ async function serverListener(req, res) {
                     break
             }
             break
+        case "fetchservers": // Retrieve a list of user-created servers
+            switch (req.method) {
+                case "OPTIONS":
+                    res.writeHead(204, {
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                        'Access-Control-Allow-Methods': 'GET',
+                        'Access-Control-Allow-Headers': 'Content-Type',
+                        'Access-Control-Allow-Credentials': true
+                    });
+                    res.end();
+                    break;
+                case "GET":
+                    let serversFile = fs.readFileSync('./servers.json', 'utf8');
+                    let servers = JSON.parse(serversFile);
+                    res.writeHead(200, {
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                        'Access-Control-Allow-Methods': 'GET',
+                        'Access-Control-Allow-Headers': 'Content-Type',
+                        'Access-Control-Allow-Credentials': true
+                    });
+                    res.end(JSON.stringify(servers));
+                    break;
+                }
         default:
+            console.log("404: ", req.url);
                 sendBadResponse(req, res, 404, "Endpoint not found");
                 break;
     }
@@ -554,7 +605,7 @@ Servers = []
     })
 })*/
 
-DBFunctions.GetServers().then(async (servers) => {
+/*DBFunctions.GetServers().then(async (servers) => {
     servers.forEach(server => {
         Servers[server.id] = new Server(server);
 
@@ -567,12 +618,12 @@ DBFunctions.GetServers().then(async (servers) => {
     console.log("DB servers loaded")
 }).catch(err => {
     console.error("Error fetching DB servers: ", err);
-})
+})*/
 
 fs.readFile('./servers.json', 'utf8', function (err, data) {
     if (err) return console.error("Error reading servers.json: ", err);
     let servers = JSON.parse(data);
-    servers.servers.forEach(server => {
+    servers.forEach(server => {
         Servers[server.id] = new Server(server);
     })
     console.log("servers.json loaded");
