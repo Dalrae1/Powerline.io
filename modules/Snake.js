@@ -257,11 +257,6 @@ class Snake {
             if (killedBy.client.dead) {
                 return
             }
-            // Remove all the snakes that were rubbing against this snake
-            for (let snake of this.SnakesRubbingAgainst) {
-                snake.stopRubbing();
-            }
-            this.stopRubbing();
             killedBy.killstreak += 1;
             if (killedBy.killstreak >= 8) {
                 killedBy.flags |= Enums.EntityFlags.KILLSTREAK;
@@ -304,6 +299,12 @@ class Snake {
             this.network.send(Bit8);
         }
         // Update other snakes
+
+        // Remove all the snakes that were rubbing against this snake
+        for (let snake of this.SnakesRubbingAgainst) {
+            snake.stopRubbing();
+        }
+        this.stopRubbing();
         
         if (!this.spawned) {
             return
@@ -484,7 +485,9 @@ class Snake {
         this.client.dead = true;
         this.client.snake = undefined;
         this.server.leaderboard.deleteByValue(this.id);
-        this.server.entityIDs.releaseID(this.id);
+        setTimeout(() => {
+            this.server.entityIDs.releaseID(this.id);
+        }, 1000);
         delete this.server.snakes[this.id];
         delete this.server.entities[this.id]
 

@@ -38,7 +38,9 @@ class Food {
                 //console.log(`Failed to insert food ID ${this.id} into server ${this.server.id} into quadtree because ${didInsert}`);
             if (this.natural)
                 this.server.naturalFood--;
-            this.server.entityIDs.releaseID(this.id);
+            setTimeout(() => {
+                this.server.entityIDs.releaseID(this.id);
+            }, 1000);
             return
         }
 
@@ -108,7 +110,10 @@ class Food {
             this.server.naturalFood--;
         this.lastUpdate = Date.now();
         this.spawned = false
-        this.server.entityIDs.releaseID(this.id);
+
+        setTimeout(() => {
+            this.server.entityIDs.releaseID(this.id);
+        }, 1000);
         
         delete this.server.entities[this.id]; 
     }
