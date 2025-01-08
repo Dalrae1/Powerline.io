@@ -148,13 +148,12 @@ class Server {
                 // Send POST request to master server
                 let data = {
                     name: this.name,
-                    host: "127.0.0.1",
                     port: this.id,
                     players: Object.keys(this.clients).length,
                     maxPlayers: this.MaxPlayers
                 }
                 let options = {
-                    hostname: "127.0.0.1",
+                    hostname: "dalr.ae",
                     method: 'POST',
                     path: '/heartbeat',
                     port: 1335,
