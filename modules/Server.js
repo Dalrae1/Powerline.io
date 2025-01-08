@@ -16,6 +16,7 @@ const Client = require("./Client.js");
 const DatabaseFunctions = require("./DatabaseFunctions.js");
 const AVLTree = require("./AVLTree.js");
 const GlobalFunctions = require("./GlobalFunctions.js")
+const Bot = require("./Bot.js");
 
 let DBFunctions = new DatabaseFunctions();
 
@@ -129,6 +130,12 @@ class Server {
                         height: barrier.height
                     })
                 })
+            }
+        }
+
+        if (this.config.Bots) {
+            for (let i = 0; i < this.config.Bots; i++) {
+                let bot = new Bot(this)
             }
         }
 
