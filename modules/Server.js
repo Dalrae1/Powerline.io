@@ -607,7 +607,7 @@ class Server {
         this.main();
         this.endTime = Date.now();
         const drift = this.endTime - this.startTime
-        const nextInterval = Math.max(0, this.config.UpdateInterval - drift - 10);
+        const nextInterval = Math.max(0, this.config.UpdateInterval - drift);
         setTimeout(() => {
             this.start()
         }, nextInterval);
