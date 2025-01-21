@@ -267,7 +267,7 @@ class Client extends EventEmitter {
                                     if (this.snake.talkStamina < 255)
                                         return
                                     let message = commandArgs.slice(1).join(" ");
-                                    message = message.substring(0, 25);
+                                    message = message.substring(0, 50);
                                     this.snake.flags |= Enums.EntityFlags.SHOW_CUSTOM_TALKING
                                     this.snake.flags &= ~Enums.EntityFlags.SHOW_TALKING;
                                     this.snake.customTalk = message;
@@ -276,6 +276,20 @@ class Client extends EventEmitter {
                                         if (!this.dead)
                                             this.snake.flags &= ~Enums.EntityFlags.SHOW_CUSTOM_TALKING;
                                     }, 5000)
+
+                                    // Send 0XA8 to all clients with name and message    
+                                    var Bit8 = new DataView(new ArrayBuffer(5 + (this.snake.nick.length*2) + (message.length * 2)));
+                                    let offset = 0;
+                                    Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_CUSTOM_TALK);
+                                    offset += 1;
+                                    Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, this.snake.nick);
+                                    Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, message);
+                                    this.server.clients.forEach((client) => {
+                                        
+                                        client.socket.send(Bit8);
+                                        
+                                    })
+
                                 }
                             }
                             break;

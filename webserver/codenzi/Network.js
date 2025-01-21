@@ -642,19 +642,17 @@ var Network = function () {
 
 		}
 		else if (op == 0xA8) { // Custom talk
+			console.log("Custom talk received")
 			var offset = 1;
-			var id = view.getUint16(offset, true);
-			offset += 2;
+			var res = getString(view, offset);
+			var nick = res.nick;
+			offset = res.offset;
 			var res = getString(view, offset);
 			var message = res.nick;
 			offset = res.offset;
-			// Get entity
-			var entity = entities[id];
-			if (entity)
-				entity.talk(message);
 
-
-
+			console.log("Adding message: " + message)
+			chatt.addMessage(message, nick);
 		}
 
 		else if (op == 0xA9) { // Map barriers
@@ -671,9 +669,6 @@ var Network = function () {
 				map.addBarrier(x, y, width, height);
 				minimap.addBarrier(x, y, width, height);
 			}
-		
-
-
 		}
 	}
 
@@ -810,7 +805,6 @@ var Network = function () {
 		for(var i = 0; i < command.length; ++i){
 			view.setUint16(1 + i * 2, command.charCodeAt(i), true);
 		}
-		console.log("Sent command")
 		webSocket.send(buf);
 	}
 	/*

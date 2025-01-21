@@ -63,9 +63,8 @@ var Input = function() {
 			commandPallete.toggle();
 		}
 
-		if (commandPallete.isVisible()) {
+		if (document.activeElement && document.activeElement.tagName == 'INPUT' && (e.keyCode > 40 || e.keyCode < 37)) {
 			return;
-
 		}
 			
 

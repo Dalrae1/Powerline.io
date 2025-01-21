@@ -539,6 +539,8 @@ var App = function(aCanvas) {
 		// Speed Up Tutorial
 		speedupTutorial = new SpeedupTutorial();
 
+		chatt = new Chat();
+
 		// Load sounds
 		soundManager = new SoundManager();
 		soundManager.load(function(){
