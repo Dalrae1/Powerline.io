@@ -146,12 +146,14 @@ var Chat = function () {
                     e.preventDefault(); break; 
 
                 case 13: // Focus
-                    if (document.activeElement == chatInput) {
-                        chatInput.blur();
-                        break
-                    }
-                    if (document.activeElement && document.activeElement.tagName != 'INPUT') {
-                        chatInput.focus();
+                    if (!(UIVisible && isStatsVisible)) {
+                        if (document.activeElement == chatInput) {
+                            chatInput.blur();
+                            break
+                        }
+                        if (document.activeElement && document.activeElement.tagName != 'INPUT') {
+                            chatInput.focus();
+                        }
                     }
                     break
                 default: break; 
