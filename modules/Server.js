@@ -49,6 +49,7 @@ class Server {
         }, 10)
         this.stopped = false
         this.barriers = [];
+        this.chatHistory = [];
 
        
 

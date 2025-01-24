@@ -28,6 +28,8 @@ class Client extends EventEmitter {
         this.sendConfig();
 
         this.sendMapBarriers()
+
+        this.sendChatHistory()
         
         if (this.user)
             console.log(`Client connected to server ${server.name} from user (${this.user.userid})${this.user.username}`);
@@ -278,6 +280,7 @@ class Client extends EventEmitter {
                                     }, 5000)
 
                                     // Send 0XA8 to all clients with name and message    
+                                    this.server.chatHistory.push({ nick: this.snake.nick, message: message });
                                     var Bit8 = new DataView(new ArrayBuffer(5 + (this.snake.nick.length*2) + (message.length * 2)));
                                     let offset = 0;
                                     Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_CUSTOM_TALK);
@@ -285,9 +288,7 @@ class Client extends EventEmitter {
                                     Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, this.snake.nick);
                                     Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, message);
                                     this.server.clients.forEach((client) => {
-                                        
                                         client.socket.send(Bit8);
-                                        
                                     })
 
                                 }
@@ -426,6 +427,21 @@ class Client extends EventEmitter {
             offset += 4;
         }
         this.socket.send(Bit8);
+    }
+
+    sendChatHistory() {
+        // send last 50 messages
+        this.server.chatHistory.slice(-50).forEach((message) => {
+            
+            var Bit8 = new DataView(new ArrayBuffer(5 + (message.nick.length * 2) + (message.message.length * 2)));
+            let offset = 0;
+            Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_CUSTOM_TALK);
+            offset += 1;
+            Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, message.nick);
+            Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, message.message);
+            this.socket.send(Bit8);
+        })
+
     }
 
 
