@@ -42,7 +42,7 @@ class Client extends EventEmitter {
         this.doPing();
         setTimeout(() => {
             this.pingLoop();
-        }, 100);
+        }, 100+this.ping);
     }
     async RecieveMessage(messageType, view) {
         await new Promise(r => setTimeout(r, this.server.artificialPing/2));
