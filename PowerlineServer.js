@@ -118,7 +118,8 @@ async function serverListener(req, res) {
                             return;
                         }
                         //Check for duplicates
-                        let host = req.connection.remoteAddress.split(":")[3]
+                        //let host = req.connection.remoteAddress.split(":")[3] // This won't work with a reverse proxy, so we use the host header
+                        let host = json.hostname || req.connection.remoteAddress;
                         let containsDuplicate = remoteServers.find(server => server.host == `${host}:${json.port}`);
                         if (!containsDuplicate) {
                             remoteServers.push({
