@@ -125,8 +125,12 @@ async function serverListener(req, res) {
                             remoteServers.push({
                                 name: json.name,
                                 host: `${host}:${json.port}`,
-                                type: "remote"
+                                type: "remote",
+                                lastHeartbeat: Date.now(),
                             })
+                        } else {
+                            containsDuplicate.name = json.name;
+                            containsDuplicate.lastHeartbeat = Date.now();
                         }
                     })
             }
@@ -423,6 +427,10 @@ async function serverListener(req, res) {
                             playerCount: Object.keys(server.snakes).length,
                             config: JSON.stringify(thisConfig, true, 4)
                         }
+                    })
+                    // Check if remote servers are heartbeating
+                    remoteServers = remoteServers.filter(server => {
+                        return (Date.now() - server.lastHeartbeat) < 30000; // Keep servers that have sent a heartbeat in the last 30 seconds
                     })
                     servers = servers.concat(remoteServers)
                     res.writeHead(200, {
