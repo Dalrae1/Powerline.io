@@ -183,7 +183,7 @@ class Snake {
                                             this.kill(Enums.KillReasons.KILLED, snake);
                                         }
                                     }
-                                }, snake.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
+                                }, client.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
                             }
                         }
                     }
@@ -201,12 +201,12 @@ class Snake {
         let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS
         
         let oneWayPing = this.client.ping / 2; // Half the RTT to get one-way time
-        //if (oneWayPing < this.server.config.GlobalWebLag)
+        if (oneWayPing < this.server.config.GlobalWebLag)
             oneWayPing = oneWayPing - this.server.config.GlobalWebLag
-        //else
-            //oneWayPing = oneWayPing
+        else
+            oneWayPing = oneWayPing
 
-        let actualUpdateInterval = this.server.config.UpdateInterval + 10;
+        let actualUpdateInterval = this.server.config.UpdateInterval;
 
         let totalDistanceTraveledDuringPing = totalSpeed * (oneWayPing / actualUpdateInterval);
 

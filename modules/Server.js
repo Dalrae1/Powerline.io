@@ -144,30 +144,44 @@ class Server {
         for (let i = 0; i < this.maxNaturalFood; i++) {
             new Food(this);
         }
-        if (this.type == "remote") {
+        const agent = new http.Agent({ keepAlive: true });
+
+        if (this.type === "remote") {
             setInterval(() => {
-                // Send POST request to master server
-                let data = {
+                const data = {
                     name: this.name,
-                    port: this.id,
+                    hostname: this.hostname,
+                    port: this.id + 1, // +1 for secure server
                     players: Object.keys(this.clients).length,
                     maxPlayers: this.MaxPlayers
-                }
-                let options = {
-                    hostname: "dalr.ae",
-                    method: 'POST',
-                    path: '/heartbeat',
-                    port: 1335,
-                }
-                let req = http.request(options, (res) => {
-                    res.on('data', (d) => {
-                        console.log(d.toString())
-                    })
-                })
-                req.write(JSON.stringify(data))
-                req.end()
+                };
 
-            }, 1000)
+                const options = {
+                    hostname: "dalr.ae",
+                    port: 1335,
+                    path: "/heartbeat",
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Content-Length": Buffer.byteLength(JSON.stringify(data))
+                    },
+                    agent: agent // <-- reuse persistent TCP connection
+                };
+
+                const req = http.request(options, (res) => {
+                    res.setEncoding("utf8");
+                    res.on("data", (chunk) => {
+                        console.log(chunk);
+                    });
+                });
+
+                req.on("error", (err) => {
+                    console.error("Heartbeat error:", err.message);
+                });
+
+                req.write(JSON.stringify(data));
+                req.end();
+            }, 1000);
         }
 
         this.start()
@@ -333,7 +347,7 @@ class Server {
                     ) {
                         snake.kill(Enums.KillReasons.BOUNDARY, snake);
                     }
-                }, snake.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
+                }, snake.client.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
             }
             let secondPoint = snake.points[0];
 
@@ -353,7 +367,7 @@ class Server {
                         if (snake.position.x > x1 && snake.position.x < x2 && snake.position.y > y1 && snake.position.y < y2) {
                             snake.kill(Enums.KillReasons.BOUNDARY, snake);
                         }
-                    }, snake.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
+                    }, snake.client.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
                 }
             })
 
@@ -435,7 +449,7 @@ class Server {
                                         }
                                     }
                                 }
-                            }, snake.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
+                            }, snake.client.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
                         }
                     }
 
