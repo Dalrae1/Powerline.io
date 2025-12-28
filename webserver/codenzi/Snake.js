@@ -30,6 +30,9 @@ var Snake = function () {
 	this.curLengthDst = 0;
 
 	this.direction = DIRECTION_UP;
+	this.waitingPoints = [];
+	this.lastTurnPoint = null;
+	this.pathCorrection = { x: 0, y: 0 };
 
 	this.hue = 0;
 	this.attached = true;
@@ -107,10 +110,6 @@ var Snake = function () {
 	//this.lastLen = 0;
 	this.lastSpeed = 0;
 
-	// Waiting Points
-	this.waitingPoints = [];
-	var waitingPointCount = 0;
-
 	// Ping
 	var ping = 0;
 	this.headPos = undefined;
@@ -155,8 +154,11 @@ var Snake = function () {
 	this.processPoint = function(point) {
 
 		this.setTurnPoint(point.d, point.x, point.y);
-		waitingPointCount--;
 		this.waitingPoints.splice(0, 1);
+
+		if (this.waitingPoints.length === 0 && this.pathCorrection) {
+      this.pathCorrection = { x: 0, y: 0 };
+    }
 
 		var distanceLeft = CalcLength(this.x, this.y, point.x, point.y);
 		var directionVectorNorm = GetDirectionVector(point.d);
@@ -164,7 +166,7 @@ var Snake = function () {
 		this.y = point.y + directionVectorNorm.y*distanceLeft;
 
 		// More points to process?
-		if(waitingPointCount > 0)
+		if(this.waitingPoints.length > 0)
 		{
 			var nextPoint = this.waitingPoints[0];
 			var deltaPoints = CalcLength(nextPoint.x, nextPoint.y, point.x, point.y);
@@ -219,7 +221,7 @@ var Snake = function () {
 			var speedY = this.y - this.prevY;
 
 			// Test if we have a waiting turn point (no straight line afterall)
-			if(waitingPointCount > 0)
+			if(this.waitingPoints.length > 0)
 			{
 				var point = this.waitingPoints[0];
 				var waitingPointDistance = CalcLength(this.x, this.y, point.x, point.y);
@@ -1152,7 +1154,7 @@ var Snake = function () {
 		//console.log('curPointCount ' + curPointCount);
 
 		// Update head
-		if(waitingPointCount == 0 && pendingConfirmationPointCount <= 0)
+		if(this.waitingPoints.length == 0 && pendingConfirmationPointCount <= 0)
 		{
 			this.origX = this.x;
 			this.origY = this.y;
@@ -1432,10 +1434,17 @@ var Snake = function () {
 							this.points[i] = newPoints[i+offsetReplace];
 						}
 					}
-					for(var i = 0; i < (newPointCount - fixPointNum); i++)
+					const pointsToAdd = newPointCount - fixPointNum;
+					for(var i = 0; i < pointsToAdd; i++)
 					{
 						//newPoints.splice(offsetReplace, 1);
-						this.pointServerFix.unshift(newPoints[i]);
+						if (window.fixCoord) {
+							// Server sends points in reverse chronological order (newest to oldest)
+							// Reverse them while adding to maintain chronological order in the queue
+							this.pointServerFix.push(newPoints[pointsToAdd - 1 - i]);
+						} else {
+							this.pointServerFix.unshift(newPoints[i]);
+						}
 					}
 					//console.log(this.pointServerFix);
 
@@ -1485,9 +1494,10 @@ var Snake = function () {
 		if(this.pointServerFix.length > 0)
 		{
 			//console.log('Replacing ' + x + ',' + y + ' with ' + this.pointServerFix[0].x + ',' + this.pointServerFix[0].y);
-			x = this.pointServerFix[0].x;
-			y = this.pointServerFix[0].y;
-			this.pointServerFix.splice(0, 1);
+			const index = 0;
+			x = this.pointServerFix[index].x;
+			y = this.pointServerFix[index].y;
+			this.pointServerFix.splice(index, 1); 
 		}
 
 		this.points.unshift({x: x, y: y});
@@ -1498,53 +1508,188 @@ var Snake = function () {
 			soundManager.playSound(SOUND_TURN, VOLUME_TURN*lastDistVolume*masterVolume, 1.0, PLAY_RULE_ALWAYSPLAY, null);
 	}
 
-	// Return last waiting turn point (local)
-	this.findLastWaitingPoint = function(direction) {
-		var prevPointX = this.x;
-		var prevPointY = this.y;
-		var distAcc = 0.0;
-		for(var i = 0; i < waitingPointCount; i++)
-		{
-			var p = this.waitingPoints[i];
-			distAcc += CalcLength(prevPointX, prevPointY, p.x, p.y);
-			prevPointX = p.x;
-			prevPointY = p.y;
-			direction = p.d;
-		}
-		return {x: prevPointX, y: prevPointY, dist: distAcc, direction: direction};
-	}
+	// Find the last waiting turn point and calculate total distance
+  this.findLastWaitingPoint = function(direction) {
+    let prevPointX = this.x;
+    let prevPointY = this.y;
+    let distAcc = 0.0;
 
-	// Add local turn to take place in 'delay' milliseconds
-	this.addTurnPoint = function(direction, delay) {
+    for (const p of this.waitingPoints) {
+      distAcc += CalcLength(prevPointX, prevPointY, p.x, p.y);
+      prevPointX = p.x;
+      prevPointY = p.y;
+      direction = p.d;
+    }
 
-		if(myPing > 300)
-		{
-			var extraDelay = myPing - 300;
-			delay += extraDelay;
-		}
+    return {
+      x: prevPointX,
+      y: prevPointY,
+      dist: distAcc,
+      direction: direction
+    };
+  }
 
-		// Predict distance of turn from where we are now
-		var distance = (delay * this.lastSpeed)/INTERP_TIME;
+  // Calculates the snake's position along its path at a specific distance from the head
+  this.findPositionAtDistance = function(direction, targetDistance) {
+    let prevPointX = this.x;
+    let prevPointY = this.y;
+    let distAcc = 0.0;
+    let movingDirection = direction;
 
-		// If more points are pending local turn, take that into account
-		// Find that last point and return distance left
-		var pointInfo = this.findLastWaitingPoint(this.direction);
-		var distanceLeft = distance - pointInfo.dist;
+    // Walk through each queued turn point
+    for (const p of this.waitingPoints) {
+      const segmentDist = CalcLength(prevPointX, prevPointY, p.x, p.y);
 
-		// Calculate position of new turn point
-		var directionVectorNorm = GetDirectionVector(pointInfo.direction);
-		var turnPointX = pointInfo.x + directionVectorNorm.x*distanceLeft;
-		var turnPointY = pointInfo.y + directionVectorNorm.y*distanceLeft;
+      // Check if target distance falls within this segment
+      if (distAcc + segmentDist > targetDistance) {
+        const remainingDist = targetDistance - distAcc;
+        const directionVectorNorm = GetDirectionVector(movingDirection);
 
-		// Add to list
-		waitingPointCount++;
-		this.waitingPoints.push({x: turnPointX, y: turnPointY, d: direction});
+        // Interpolate position within the segment
+        return {
+          x: prevPointX + directionVectorNorm.x * remainingDist,
+          y: prevPointY + directionVectorNorm.y * remainingDist,
+          direction: movingDirection
+        };
+      }
 
-		//console.log('waitingPointCount: ' + waitingPointCount + ' X: ' + turnPointX + ', Y: ' + turnPointY);
+      // Move to next segment
+      distAcc += segmentDist;
+      prevPointX = p.x;
+      prevPointY = p.y;
+      movingDirection = p.d; // Direction changes at each turn point
+    }
+
+    // Target distance is beyond all waiting points -> project forward from last point
+    const remainingDist = targetDistance - distAcc;
+    const directionVectorNorm = GetDirectionVector(movingDirection);
+
+    return {
+      x: prevPointX + directionVectorNorm.x * remainingDist,
+      y: prevPointY + directionVectorNorm.y * remainingDist,
+      direction: movingDirection
+    };
+  }
+
+  // Adds a new turn point to the snakes path in 'delay' milliseconds
+  this.addTurnPoint = function(direction, delay, fixCoord) {
+    // Extra compensation for very high ping
+    if (myPing > 300) {
+      delay += myPing - 300;
+    }
+
+    // Predict distance of turn from where we are now
+    const distance = (delay * this.lastSpeed) / INTERP_TIME;
+    const minTurnGap = 2;
+
+    let position = this.calculateTurnPosition(distance, minTurnGap, fixCoord);
+
+    if (fixCoord && this.lastTurnPoint) {
+      position = this.applyGapCorrection(position.x, position.y, direction, minTurnGap);
+    }
+
+    // Queue the turn point for processing when the snake reaches it
+    this.waitingPoints.push({
+      x: position.x,
+      y: position.y,
+      d: direction
+    });
+
+    const turnPoint = {
+      x: position.x / GAME_SCALE,
+      y: position.y / GAME_SCALE
+    };
+
+    // Track last turn for gap correction calculations
+    if (fixCoord) {
+      this.lastTurnPoint = turnPoint;
+    }
 
 		// Return it because it needs to be sent to the server
-		return {x: turnPointX/GAME_SCALE, y: turnPointY/GAME_SCALE};
-	}
+    return turnPoint;
+  }
+
+  // Calculates the initial position for a new turn point based on the current path state
+  this.calculateTurnPosition = function(distance, turnGap, fixCoord) {
+		if (!fixCoord) {
+			// Project from last waiting point without path corrections
+      const pointInfo = this.findLastWaitingPoint(this.direction);
+      const distanceLeft = distance - pointInfo.dist;
+      const directionVectorNorm = GetDirectionVector(pointInfo.direction);
+      return {
+        x: pointInfo.x + directionVectorNorm.x * distanceLeft,
+        y: pointInfo.y + directionVectorNorm.y * distanceLeft
+      };
+    }
+
+    const hasCorrections = this.pathCorrection.x !== 0 || this.pathCorrection.y !== 0;
+
+    // Use minimum distance for rapid turns to avoid self collisions in snake path
+    if (this.waitingPoints.length > 0 && hasCorrections) {
+      const lastPoint = this.waitingPoints[this.waitingPoints.length - 1];
+      const directionVectorNorm = GetDirectionVector(lastPoint.d);
+      const adjustedDistance = Math.min(distance, turnGap);
+
+      return {
+        x: lastPoint.x + directionVectorNorm.x * adjustedDistance,
+        y: lastPoint.y + directionVectorNorm.y * adjustedDistance
+      };
+    }
+
+    // Walk through waiting points to find the exact position
+    const positionInfo = this.findPositionAtDistance(this.direction, distance);
+    return { x: positionInfo.x, y: positionInfo.y };
+  }
+
+	// Pushes next turn away if its too close to the previous turn
+  this.applyGapCorrection = function(turnX, turnY, direction, turnGap) {
+    const lastX = this.lastTurnPoint.x * GAME_SCALE;
+    const lastY = this.lastTurnPoint.y * GAME_SCALE;
+
+    // Determine which direction we are currently moving (before this turn)
+    const currentMovementDirection = this.waitingPoints.length > 0
+      ? this.waitingPoints[this.waitingPoints.length - 1].d
+      : this.direction;
+
+    const movementVector = GetDirectionVector(currentMovementDirection);
+
+    // Horizontal turns (LEFT/RIGHT) check Y-axis gap, vertical turns (UP/DOWN) check X-axis gap
+    const isHorizontalTurn = direction % 2 === 0;
+    const axisToCheck = isHorizontalTurn ? 'y' : 'x';
+    const lastValue = isHorizontalTurn ? lastY : lastX;
+    const currentValue = isHorizontalTurn ? turnY : turnX;
+    const gap = Math.abs(currentValue - lastValue);
+
+    // No correction needed if gap is big enough
+    if (gap >= turnGap) return { x: turnX, y: turnY };
+
+    // Push in current movement direction if perpendicular otherwise push away from last turn
+    const movementComponent = isHorizontalTurn ? movementVector.y : movementVector.x;
+    const pushDirection = movementComponent !== 0
+      ? Math.sign(movementComponent)
+      : (currentValue > lastValue ? 1 : -1);
+
+    const correctedValue = lastValue + turnGap * pushDirection;
+    const correctionDelta = correctedValue - currentValue;
+
+    // Track accumulated correction for next points in the queue
+    this.pathCorrection[axisToCheck] += correctionDelta;
+
+    const result = isHorizontalTurn
+      ? { x: turnX, y: correctedValue }
+      : { x: correctedValue, y: turnY };
+
+    console.table([{
+			Axis: axisToCheck.toUpperCase(),
+			Gap: gap.toFixed(1),
+			Threshold: turnGap,
+			Before: currentValue.toFixed(1),
+			After: correctedValue.toFixed(1),
+			Correction: this.pathCorrection[axisToCheck].toFixed(1)
+		}]);
+
+    return result;
+  }
 
 	this.deleteNetwork = function(view, offset) {
 		if(this.id == localPlayerID && killCount+1 >= KILLS_TO_FOLLOW) // +1 because wasKilled is only called after this

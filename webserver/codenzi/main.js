@@ -121,6 +121,8 @@ var killStreak = 0;
 var showBigPicture = false;
 var darkenOverlay = false;
 
+window.fixCoord = true;
+
 // Ads
 var readyToRefreshAd = true;
 var refreshAdInterval = 2; // In minutes
