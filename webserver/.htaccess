@@ -1,6 +1,5 @@
 <Files "users.json">
-    Order deny,allow
-    Deny from all
+    Require all denied
 </Files>
 
 <IfModule mod_setenvif.c>
