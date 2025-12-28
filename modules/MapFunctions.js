@@ -74,7 +74,7 @@ class MapFunctions {
         return false; 
     }
 
-    static DoIntersect( p1,  q1,  p2,  q2) 
+    static DoIntersect( p1,  q1,  p2,  q2, includeCollinear = false) 
     { 
         // Find the four orientations needed for general and 
         // special cases 
@@ -86,6 +86,8 @@ class MapFunctions {
         // General case 
         if (o1 != o2 && o3 != o4) 
             return true; 
+
+        if (!includeCollinear) return false;
     
         // Special Cases 
         // p1, q1 and p2 are collinear and p2 lies on segment p1q1 
