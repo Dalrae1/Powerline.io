@@ -10,6 +10,13 @@ var Input = function() {
 	var boosting = false
 	var invincible = false;
 
+	var directionMap = {
+		'w': DIRECTION_UP, 'arrowup': DIRECTION_UP, 'numpad8': DIRECTION_UP,
+		'a': DIRECTION_LEFT, 'arrowleft': DIRECTION_LEFT, 'numpad4': DIRECTION_LEFT,
+		's': DIRECTION_DOWN, 'arrowdown': DIRECTION_DOWN, 'numpad2': DIRECTION_DOWN,
+		'd': DIRECTION_RIGHT, 'arrowright': DIRECTION_RIGHT, 'numpad6': DIRECTION_RIGHT
+	};
+
 	input.mousedown = function(e) {
 		if(UIVisible)
 			return;
@@ -240,37 +247,15 @@ var Input = function() {
 
 		if(localPlayer)
 		{
-			var x = localPlayer.x;
-			var y = localPlayer.y;
-			var fakelag1 = globalWebLag;
+			const requested = directionMap[e.key.toLowerCase()];
 
-			// Should be half because its only one wy trip
-			var fakelag2 = 0;
+			// Turn only if requested direction is valid, not current or opposite
+			if (requested &&
+				input.direction !== DIRECTION_NONE &&
+				requested !== input.direction &&
+				Math.abs(input.direction - requested) !== 2) {
 
-			if(e.keyCode == 38 || e.keyCode == 87){ // Up
-				if(input.direction != DIRECTION_UP && input.direction != DIRECTION_DOWN && input.direction != DIRECTION_NONE)
-				{
-					input.direction = DIRECTION_UP;
-					input.turn(input.direction, x, y, fakelag1, fakelag2);
-				}
-			}else if(e.keyCode == 37 || e.keyCode == 65){ // Left
-				if(input.direction != DIRECTION_LEFT && input.direction != DIRECTION_RIGHT && input.direction != DIRECTION_NONE)
-				{
-					input.direction = DIRECTION_LEFT;
-					input.turn(input.direction, x, y, fakelag1, fakelag2);
-				}
-			}else if(e.keyCode == 40 || e.keyCode == 83){ // Down
-				if(input.direction != DIRECTION_DOWN && input.direction != DIRECTION_UP && input.direction != DIRECTION_NONE)
-				{
-					input.direction = DIRECTION_DOWN;
-					input.turn(input.direction, x, y, fakelag1, fakelag2);
-				}
-			}else if(e.keyCode == 39 || e.keyCode == 68){ // Right
-				if(input.direction != DIRECTION_RIGHT && input.direction != DIRECTION_LEFT && input.direction != DIRECTION_NONE)
-				{
-					input.direction = DIRECTION_RIGHT;
-					input.turn(input.direction, x, y, fakelag1, fakelag2);
-				}
+				input.turn(requested, globalWebLag);
 			}
 		}else if(showBigPicture)
 		{
@@ -320,38 +305,29 @@ var Input = function() {
 		}
 	};
 
-	this.turn = function(direction, x, y, fakelag1, fakelag2) {
+	this.turn = function (direction, fakelag) {
 		directionPresses++;
-		if(antiLagEnabled)
-		{
-			if(0)
-			{
-				localPlayer.setTurnPoint(direction, x, y);
-			}else{
-				var timeNow = +new Date();
-				var deltaTime = timeNow - lastTurnTime;
-				lastTurnTime = timeNow;
-				if(deltaTime < 30){
-					fakelag1 += 30;
-				}
 
-				var selectedPoint = localPlayer.addTurnPoint(direction, fakelag1);
-				x = selectedPoint.x*GAME_SCALE;
-				y = selectedPoint.y*GAME_SCALE;
-			}
-
-			// Should be immediate. setTimeout is for testing.
-			//setTimeout(function(){
-				var coord; // Only send the needed coordinate
-				if(direction == DIRECTION_UP || direction == DIRECTION_DOWN)
-					coord = x/GAME_SCALE;
-				else
-					coord = -y/GAME_SCALE;
-				network.sendTurnPoint(direction, coord);
-			//}, fakelag2);
-		}else{
+		if (!antiLagEnabled) {
+			localPlayer.addTurnPoint(direction, fakelag);
 			network.sendDirection(direction);
+			return;
 		}
+
+		const timeNow = Date.now();
+		const deltaTime = timeNow - lastTurnTime;
+		lastTurnTime = timeNow;
+
+		if (deltaTime < 30) {
+			fakelag += 30;
+		}
+
+		input.direction = direction;
+
+		const { x, y } = localPlayer.addTurnPoint(direction, fakelag, window.fixCoord);
+		// Only send the needed coordinate
+		const coordinate = direction & 1 ? x : -y;
+		network.sendTurnPoint(direction, coordinate);
 	};
 	
 	this.addListeners = function() {
