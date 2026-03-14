@@ -1085,7 +1085,7 @@ function createServer() {
 			button.disabled = true
 			button.innerHTML = "Creating..."
 
-			fetch(`${isSecure ? "https" : "http"}://${window.location.hostname}:${isSecure ? "1336" : "1335"}/createserver`, {
+			fetch(`/createserver`, {
 				method: 'POST',
 				body: JSON.stringify({
 					name: serverName,
@@ -1125,7 +1125,7 @@ function createServer() {
 			button.disabled = true
 			button.innerHTML = "Saving..."
 
-			fetch(`${isSecure ? "https" : "http"}://${window.location.hostname}:${isSecure ? "1336" : "1335"}/editserver`, {
+			fetch(`/editserver`, {
 				method: 'POST',
 				body: JSON.stringify({
 					name: serverName,
@@ -1188,7 +1188,7 @@ function refreshServers() {
         remoteTableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
     }
 
-    fetch(`${isSecure ? "https" : "http"}://${window.location.hostname}:${isSecure ? "1336" : "1335"}/getservers`)
+    fetch(`/getservers`)
         .then(response => response.json())
         .then(async servers => {
             moddedTableBody.innerHTML = "";
@@ -1282,7 +1282,7 @@ function refreshServers() {
             });
 
             // Fetch user information asynchronously
-            let userInfoUrl = `${isSecure ? "https" : "http"}://${urlSplit[2]}:${isSecure ? "1336" : "1335"}/fetchuser?id=${servers.map(server => server.owner).join("&id=")}`;
+            let userInfoUrl = `/fetchuser?id=${servers.map(server => server.owner).join("&id=")}`;
             fetch(userInfoUrl).then(response => response.json()).then(userInfos => {
                 let users = {};
                 Object.values(userInfos).forEach(user => {
@@ -1381,7 +1381,7 @@ loadScript("codenzi/Snake.js?v=5");
 loadScript("codenzi/Food.js?v=1");
 loadScript("codenzi/Map.js?v=3");
 loadScript("codenzi/Minimap.js?v=4");
-loadScript("codenzi/Network.js?v=11");
+loadScript("codenzi/Network.js?v=13");
 loadScript("codenzi/App.js?v=5");
 loadScript("codenzi/Camera.js?v=1");
 loadScript("codenzi/Frame.js?v=1");

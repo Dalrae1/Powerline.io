@@ -15,7 +15,6 @@ const cyrb53 = (str, seed = 0) => {
     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 };
 
-
 var Network = function () {
 	var webSocket;
 	var pingStart, pingCheckInterval = 150;
@@ -28,6 +27,7 @@ var Network = function () {
 	this.directed = false;
 	this.roomID = 0;
 	this.connectVar = null;
+	this.serverId = null;
 	var lastTickTime = +new Date();
 
 	// opcodes
@@ -98,67 +98,80 @@ var Network = function () {
 		MASTER_URL = 'master.'+domain;
 	}
 	//console.log('Master URL is: ' + MASTER_URL);
+
 	this.connectRemote = function(host) { // Connects to a remote host
-		if (!serverListLoaded) return
-		if (!host) return
+		if (!serverListLoaded) return;
+		if (!host) return;
+
+		network.disconnect();
+
 		var protocol = isSecure ? 'wss' : 'ws';
 		webSocket = new WebSocket(`${protocol}://${host}`);
-		console.log(`Attempting to connect to remote host "${host}"`)
+		console.log(`Attempting to connect to remote host "${host}"`);
 		network.remoteHost = host;
+		network.serverId = null;
 		webSocket.binaryType = "arraybuffer";
 		webSocket.onopen = network.onSocketOpen;
 		webSocket.onclose = network.onSocketClose;
 		webSocket.onmessage = network.onSocketMessage;
 		webSocket.onerror = network.onError;
-
-
-
-	}
+	};
 
 	this.connect = function (serverId) {
-		if (!serverListLoaded) return
+		if (!serverListLoaded) return;
+
 		if (nextConnectServer) {
 			serverId = nextConnectServer;
 			nextConnectServer = null;
 		}
-		if (!serverId) { // If no port is provided, find the last connected to server
+
+		if (!serverId) {
 			let lastServer = window.localStorage.lastServer;
 			if (!lastServer || !document.getElementById(`server${lastServer}`)) {
-				console.log("No last server found, connecting to default server")
+				console.log("No last server found, connecting to default server");
 				serverId = 1337;
-			}
-			else {
+			} else {
 				serverId = lastServer;
 			}
-			if (network.serverId == serverId) return;
 		}
-		network.disconnect()
+
+		// Do not reconnect if we are already connected to this same server
+		if (
+			network.hasConnection &&
+			webSocket &&
+			webSocket.readyState === WebSocket.OPEN &&
+			String(network.serverId) === String(serverId)
+		) {
+			return;
+		}
+
+		network.disconnect();
 		window.localStorage.lastServer = serverId;
+
 		var protocol = isSecure ? 'wss' : 'ws';
-		let remoteHost = window.location.href.split('/')[2].split(":")[0];
-		network.remoteHost = remoteHost
-		
-		let port = isSecure ? parseInt(serverId)+1 : serverId;
+		let remoteHost = window.location.host;
+		network.remoteHost = remoteHost;
 
 		let oldServerElm = document.getElementById(`server${network.serverId}`);
 		let serverElm = document.getElementById(`server${serverId}`);
 		if (oldServerElm)
 			oldServerElm.classList.remove("selected");
-		serverElm.classList.add("selected");
-		var fullhost = `${protocol}://${remoteHost}:${port}`
+		if (serverElm)
+			serverElm.classList.add("selected");
 
-		console.log(`Attempting to connect to server id ${serverId} host is "${fullhost}"`)
-		
+		var fullhost = `${protocol}://${remoteHost}/ws?server=${encodeURIComponent(serverId)}`;
+
+		console.log(`Attempting to connect to server id ${serverId} host is "${fullhost}"`);
+
 		network.serverId = serverId;
 
 		webSocket = new WebSocket(fullhost);
-		webSocket.binaryType 	= "arraybuffer";
-		webSocket.onopen 		= network.onSocketOpen;
-		webSocket.onclose		= network.onSocketClose;
-		webSocket.onmessage 	= network.onSocketMessage;
+		webSocket.binaryType = "arraybuffer";
+		webSocket.onopen = network.onSocketOpen;
+		webSocket.onclose = network.onSocketClose;
+		webSocket.onmessage = network.onSocketMessage;
 		webSocket.onerror = network.onError;
-	}
-	
+	};
 
 	this.disconnect = function() {
 		if(network.directed){
@@ -169,10 +182,15 @@ var Network = function () {
 			network.directed = false;
 		}
 		network.roomID = 0;
-		minimap.clearBarriers()
-		map.clearBarriers()
-		if(webSocket)
+		minimap.clearBarriers();
+		map.clearBarriers();
+
+		if (webSocket && (
+			webSocket.readyState === WebSocket.OPEN ||
+			webSocket.readyState === WebSocket.CONNECTING
+		)) {
 			webSocket.close();
+		}
 	};
 
 	this.onSocketOpen = function(e) {
@@ -201,7 +219,7 @@ var Network = function () {
 	};
 
 	this.onError = function(e) {
-		console.log("socket error");
+		console.log("socket error", e);
 	};
 
 	this.hello = function() {
@@ -217,7 +235,7 @@ var Network = function () {
 		buttons.removeAttr('disabled');
 
 		$('#nick').focus();
-	}
+	};
 
 	// TODO: This should go to a different file
 	function CreateEntity(type, subType){
@@ -268,14 +286,14 @@ var Network = function () {
 			offset += 1;
 
 			if(byte_ == 0x0)
-			break;
+				break;
 
 			switch(byte_)
 			{
 				case EVENT_DID_KILL:
 				{
 					var id = view.getUint16(offset, true);
-					offset+=2;
+					offset += 2;
 
 					var res = getString(view, offset);
 					var nick = res.nick;
@@ -289,7 +307,7 @@ var Network = function () {
 				case EVENT_WAS_KILLED:
 				{
 					var id = view.getUint16(offset, true);
-					offset+=2;
+					offset += 2;
 
 					var res = getString(view, offset);
 					var nick = res.nick;
@@ -304,13 +322,13 @@ var Network = function () {
 				}
 				default:
 					console.log('Unknown event code');
-				break;
+					break;
 			}
 		}
 	}
 
 	function processLeaderboard(view){
-	var offset = 1; // Skip opcode
+		var offset = 1; // Skip opcode
 
 		var leaderboardInfo = [];
 		var containsData = false;
@@ -356,7 +374,6 @@ var Network = function () {
 
 		while(true)
 		{
-
 			var id = view.getUint16(offset, true);
 			offset += 2;
 
@@ -391,45 +408,43 @@ var Network = function () {
 			switch(flags)
 			{
 				case 0x0: // Partial
-
-				entity = entities[id];
-				if(entity)
-					offset = entity.updateNetwork(view, offset, false);
-				else
-					console.log('entity with id: ' + id + ' not found'); //debug.log();
-				break;
+					entity = entities[id];
+					if(entity)
+						offset = entity.updateNetwork(view, offset, false);
+					else
+						console.log('entity with id: ' + id + ' not found'); //debug.log();
+					break;
 				case 0x1: // Full
+					var entityType = view.getUint8(offset, true);
+					offset += 1;
 
-				var entityType = view.getUint8(offset, true);
-				offset += 1;
+					var entitySubType = view.getUint8(offset, true);
+					offset += 1;
 
-				var entitySubType = view.getUint8(offset, true);
-				offset += 1;
+					//console.log('Creating new entity: ' + entityType);
 
-				//console.log('Creating new entity: ' + entityType);
+					// Get Nick if available
+					// WARNING: this should go to entity updateNetwork
+					var res = getString(view, offset);
+					var nick = res.nick;
+					if(nick.indexOf('﷽') != -1){
+						nick = '<Unnamed>';
+					}
 
-				// Get Nick if available
-				// WARNING: this should go to entity updateNetwork
-				var res = getString(view, offset);
-				var nick = res.nick;
-				if(nick.indexOf('﷽') != -1){
-					nick = '<Unnamed>';
-				}
+					offset = res.offset;
 
-				offset = res.offset;
-
-				// Create entity according to entityType and entitySubType
-				var entity = CreateEntity(entityType, entitySubType);
-				if(entity)
-				{
-					entity.nick = nick;
-					entity.id = id;
-					entities[id] = entity;
-					offset = entity.updateNetwork(view, offset, true);
-				}else{
-					console.log('Unable to create entity. Entity Type is: ' + entityType);
-				}
-				break;
+					// Create entity according to entityType and entitySubType
+					var entity = CreateEntity(entityType, entitySubType);
+					if(entity)
+					{
+						entity.nick = nick;
+						entity.id = id;
+						entities[id] = entity;
+						offset = entity.updateNetwork(view, offset, true);
+					}else{
+						console.log('Unable to create entity. Entity Type is: ' + entityType);
+					}
+					break;
 				case 0x2: // Delete
 				{
 					var killedByID = view.getUint16(offset, true);
@@ -463,9 +478,8 @@ var Network = function () {
 				break;
 				default:
 					console.log('Invalid entity flag');
-				break;
+					break;
 			}
-
 		}
 	}
 
@@ -524,7 +538,7 @@ var Network = function () {
 		//console.log('Lag: ' + globalWebLag);
 		//console.log('LagLenMult: ' + lagLenMult);
 		receivedConfig = true;
-	}
+	};
 
 	var lastPosTime;
 	this.processMessage = function(data) {
@@ -626,7 +640,7 @@ var Network = function () {
 			let visible = view.getUint8(offset, true) == 1;
 			if (!visible) {
 				delete debugCircle[id];
-				return
+				return;
 			}
 			offset += 1;
 			let X = view.getFloat32(offset, true);
@@ -636,41 +650,37 @@ var Network = function () {
 			let color = view.getUint16(offset, true);
 			offset += 2;
 			let size = view.getUint8(offset, true);
-			debugCircle[id] = { x: X, y: Y, hue: color, size: size }
-
-
-
+			debugCircle[id] = { x: X, y: Y, hue: color, size: size };
 		}
 		else if (op == 0xA8) { // Custom talk
-			console.log("Custom talk received")
+			console.log("Custom talk received");
 			var offset = 1;
 			var res = getString(view, offset);
 			var nick = res.nick;
 			offset = res.offset;
-			var res = getString(view, offset);
-			var message = res.nick;
-			offset = res.offset;
+			var res2 = getString(view, offset);
+			var message = res2.nick;
+			offset = res2.offset;
 
-			console.log("Adding message: " + message)
+			console.log("Adding message: " + message);
 			chatt.addMessage(message, nick);
 		}
-
 		else if (op == 0xA9) { // Map barriers
 			var offset = 1;
 			while (offset < view.byteLength) {
-				let x = view.getFloat32(offset, true)*10;
+				let x = view.getFloat32(offset, true) * 10;
 				offset += 4;
-				let y = -view.getFloat32(offset, true)*10;
+				let y = -view.getFloat32(offset, true) * 10;
 				offset += 4;
-				let width = view.getFloat32(offset, true)*10;
+				let width = view.getFloat32(offset, true) * 10;
 				offset += 4;
-				let height = view.getFloat32(offset, true)*10;
+				let height = view.getFloat32(offset, true) * 10;
 				offset += 4;
 				map.addBarrier(x, y, width, height);
 				minimap.addBarrier(x, y, width, height);
 			}
 		}
-	}
+	};
 
 	this.connectionClosed = function() {
 		app.gameCleanup();
@@ -685,12 +695,20 @@ var Network = function () {
 		var buttons = $('.btn-needs-server');
 		buttons.attr('disabled','disabled');
 
-		var retryIn = this.connectRetry
+		var retryIn = this.connectRetry;
 		if(retryIn > 5)
 			retryIn = 5;
 
-		if(focus){
-			setTimeout(this.connect, 1000 + retryIn*1000);
+		if (focus) {
+			let reconnectServerId = network.serverId;
+			let reconnectRemoteHost = network.remoteHost;
+			setTimeout(function () {
+				if (reconnectServerId) {
+					network.connect(reconnectServerId);
+				} else if (reconnectRemoteHost) {
+					network.connectRemote(reconnectRemoteHost);
+				}
+			}, 1000 + retryIn * 1000);
 		}
 		network.connectRetry++;
 	};
@@ -700,7 +718,7 @@ var Network = function () {
 		var view = new DataView(buf);
 		view.setUint8(0, b);
 		webSocket.send(buf);
-	}
+	};
 
 	this.sendHello = function() {
 		var buf = new ArrayBuffer(1+2+2);
@@ -713,7 +731,7 @@ var Network = function () {
 		view.setUint16(1, (screenWidth/GAME_SCALE)*visionPerc, true);
 		view.setUint16(3, (screenHeight/GAME_SCALE)*visionPerc, true);
 		webSocket.send(buf);
-	}
+	};
 
 	this.sendNick = function(nick, countingDown) {
 		myName = nick;
@@ -726,7 +744,7 @@ var Network = function () {
 			view.setUint16(1 + i * 2, nick.charCodeAt(i), true);
 		}
 		webSocket.send(buf);
-	}
+	};
 
 	this.sendTurnPoint = function(direction, coord) {
 		var buf = new ArrayBuffer(1 + 1 + 4 + 4 + 1);
@@ -742,11 +760,11 @@ var Network = function () {
 
 		var flags = 0x0;
 		if(!focus || UIVisible)
-		flags = flags | 0x1; // Paused ?
+			flags = flags | 0x1; // Paused ?
 
 		view.setUint8(offset, flags, true);
 		webSocket.send(buf);
-	}
+	};
 
 	this.sendDirection = function() {
 		var buf = new ArrayBuffer(1 + 1 + 1);
@@ -756,13 +774,13 @@ var Network = function () {
 
 		var flags = 0x0;
 		if(!focus || UIVisible)
-		flags = flags | 0x1; // Paused ?
+			flags = flags | 0x1; // Paused ?
 
 		// Note: Add a bit at 0x2 if this is a bot
 
 		view.setUint8(1+1, flags, true);
 		webSocket.send(buf);
-	}
+	};
 
 	this.sendResize = function() {
 		var buf = new ArrayBuffer(1+2+2);
@@ -776,7 +794,7 @@ var Network = function () {
 		view.setUint16(1, (screenWidth/GAME_SCALE)*visionPerc*mult, true);
 		view.setUint16(3, (screenHeight/GAME_SCALE)*visionPerc*mult, true);
 		webSocket.send(buf);
-	}
+	};
 
 	this.sendBoost = function(boosting) {
 		var buf = new ArrayBuffer(1 + 1);
@@ -788,7 +806,8 @@ var Network = function () {
 			view.setUint8(1, 0x0);
 
 		webSocket.send(buf);
-	}
+	};
+
 	this.sendInvincible = function (invincible) {
 		var buf = new ArrayBuffer(1 + 1);
 		var view = new DataView(buf);
@@ -797,7 +816,8 @@ var Network = function () {
 		else view.setUint8(1, 0x0);
 
 		webSocket.send(buf);
-	}
+	};
+
 	this.sendCommand = function (command) {
 		var buf = new ArrayBuffer(3 + command.length*2);
 		var view = new DataView(buf);
@@ -806,7 +826,8 @@ var Network = function () {
 			view.setUint16(1 + i * 2, command.charCodeAt(i), true);
 		}
 		webSocket.send(buf);
-	}
+	};
+
 	/*
 	this.sendClick = function(shooting) {
 		var buf = new ArrayBuffer(1 + 1);
@@ -826,33 +847,33 @@ var Network = function () {
 		var view = new DataView(buf);
 		view.setUint8(0, OPCODE_LEAVE_GAME);
 		webSocket.send(buf);
-	}
+	};
 
 	this.bigPicture = function() {
 		var buf = new ArrayBuffer(1);
 		var view = new DataView(buf);
 		view.setUint8(0, OPCODE_BIG_PICTURE);
 		webSocket.send(buf);		
-	}
+	};
 
 	this.debugFoodGrab = function() {
 		var buf = new ArrayBuffer(1);
 		var view = new DataView(buf);
 		view.setUint8(0, OPCODE_DEBUG_GRAB);
 		webSocket.send(buf);		
-	}
+	};
 
 	this.sendTalk = function(dialogID) {
 		if (window.localStorage['chatOverride' + dialogID]) {
 			this.sendCommand(`say ${window.localStorage['chatOverride' + dialogID]}`);
-			return
+			return;
 		}
 		var buf = new ArrayBuffer(2);
 		var view = new DataView(buf);
 		view.setUint8(0, OPCODE_TALK);
 		view.setUint8(1, dialogID);
 		webSocket.send(buf);		
-	}
+	};
 
 	this.ping = function() {
 		if(!this.hasConnection)
@@ -863,7 +884,7 @@ var Network = function () {
 		view.setUint8(0, OPCODE_CS_PING);
 		webSocket.send(buf);
 		pingStart = +new Date();
-	}
+	};
 
 	this.pong = function() {
 		if(!this.hasConnection)
@@ -872,5 +893,5 @@ var Network = function () {
 		var view = new DataView(buf);
 		view.setUint8(0, OPCODE_CS_PONG);
 		webSocket.send(buf);
-	}
+	};
 }
