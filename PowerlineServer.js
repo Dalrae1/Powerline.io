@@ -47,7 +47,215 @@ customPlayerColors = {
         context.fill();
         `,
         customTail: ``
-    }
+    },
+    "Rainbow": {
+        customHead: ``,
+        customBody: `
+            let pts = this.renderedPoints;
+
+            if (pts.length > 1) {
+                context.save();
+
+                context.lineWidth = w * this.snakeScale;
+                context.lineCap = 'round';
+                context.lineJoin = 'round';
+                context.shadowBlur = 14;
+                context.shadowColor = 'rgba(255,255,255,0.8)';
+
+                let totalDist = 0;
+                let rainbowLength = 120; // lower = faster color cycling
+                let speed = Date.now() / 25;
+
+                for (let i = 0; i < pts.length - 1; i++) {
+                    let p1 = pts[i];
+                    let p2 = pts[i + 1];
+
+                    let dx = p2.x - p1.x;
+                    let dy = p2.y - p1.y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+
+                    let hue1 = (speed + totalDist * 360 / rainbowLength) % 360;
+                    let hue2 = (speed + (totalDist + dist) * 360 / rainbowLength) % 360;
+
+                    let grad = context.createLinearGradient(p1.x, p1.y, p2.x, p2.y);
+                    grad.addColorStop(0, 'hsl(' + hue1 + ', 100%, 55%)');
+                    grad.addColorStop(1, 'hsl(' + hue2 + ', 100%, 55%)');
+
+                    context.beginPath();
+                    context.moveTo(p1.x, p1.y);
+                    context.lineTo(p2.x, p2.y);
+                    context.strokeStyle = grad;
+                    context.stroke();
+
+                    totalDist += dist;
+                }
+
+                context.restore();
+            }
+
+            context.strokeStyle = 'rgba(0,0,0,0)';
+            context.shadowBlur = 0;
+        `,
+        customTail: ``
+    },
+
+    "Pastel": {
+        customHead: ``,
+        customBody: `
+            context.save();
+            context.lineWidth = w * this.snakeScale;
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+
+            let pts = this.renderedPoints;
+            let grad = context.createLinearGradient(pts[0].x, pts[0].y, pts[pts.length - 1].x, pts[pts.length - 1].y);
+            grad.addColorStop(0, 'rgba(255,0,180,1)');
+            grad.addColorStop(0.5, 'rgba(0,255,255,1)');
+            grad.addColorStop(1, 'rgba(255,230,0,1)');
+
+            context.strokeStyle = grad;
+            context.shadowColor = 'rgba(0,255,255,1)';
+            context.shadowBlur = 18;
+            this.drawTail(this.renderedPoints, context);
+
+            context.lineWidth = (w * 0.35) * this.snakeScale;
+            context.strokeStyle = 'rgba(255,255,255,0.7)';
+            context.shadowBlur = 0;
+            this.drawTail(this.renderedPoints, context);
+
+            context.restore();
+            context.strokeStyle = 'rgba(0,0,0,0)';
+        `,
+        customTail: ``
+    },
+
+    "Void": {
+        customHead: ``,
+        customBody: `
+            context.save();
+
+            context.lineWidth = (w + 1.5) * this.snakeScale;
+            context.strokeStyle = 'rgba(110,0,255,1)';
+            context.shadowColor = 'rgba(140,0,255,1)';
+            context.shadowBlur = 22;
+            this.drawTail(this.renderedPoints, context);
+
+            context.lineWidth = w * this.snakeScale;
+            context.strokeStyle = 'rgba(5,0,15,1)';
+            context.shadowColor = 'rgba(0,0,0,1)';
+            context.shadowBlur = 6;
+            this.drawTail(this.renderedPoints, context);
+
+            context.restore();
+            context.strokeStyle = 'rgba(0,0,0,0)';
+            context.shadowBlur = 0;
+        `,
+        customTail: ``
+    },
+
+    "Laser": {
+        customHead: ``,
+        customBody: `
+            context.save();
+
+            context.lineWidth = w * this.snakeScale;
+            context.strokeStyle = 'rgba(0,20,30,1)';
+            context.shadowColor = 'rgba(0,255,255,1)';
+            context.shadowBlur = 12;
+            this.drawTail(this.renderedPoints, context);
+
+            context.lineWidth = (w * 0.55) * this.snakeScale;
+            context.setLineDash([w * 1.8, w * 1.1]);
+            context.lineDashOffset = -Date.now() / 35;
+            context.strokeStyle = 'rgba(0,255,255,1)';
+            this.drawTail(this.renderedPoints, context);
+
+            context.setLineDash([]);
+            context.restore();
+
+            context.strokeStyle = 'rgba(0,0,0,0)';
+            context.shadowBlur = 0;
+        `,
+        customTail: ``
+    },
+
+    "Gold": {
+        customHead: ``,
+        customBody: `
+            let pts = this.renderedPoints;
+            context.save();
+
+            let grad = context.createLinearGradient(pts[0].x, pts[0].y, pts[pts.length - 1].x, pts[pts.length - 1].y);
+            grad.addColorStop(0, 'rgba(255,180,0,1)');
+            grad.addColorStop(0.35, 'rgba(255,255,180,1)');
+            grad.addColorStop(0.7, 'rgba(180,90,0,1)');
+            grad.addColorStop(1, 'rgba(255,220,80,1)');
+
+            context.lineWidth = w * this.snakeScale;
+            context.strokeStyle = grad;
+            context.shadowColor = 'rgba(255,190,0,1)';
+            context.shadowBlur = 16;
+            this.drawTail(this.renderedPoints, context);
+
+            context.restore();
+
+            context.strokeStyle = 'rgba(0,0,0,0)';
+            context.shadowBlur = 0;
+        `,
+        customTail: ``
+    },
+
+    "Matrix": {
+        customHead: ``,
+        customBody: `
+            context.save();
+
+            context.lineWidth = w * this.snakeScale;
+            context.strokeStyle = 'rgba(0,40,0,1)';
+            context.shadowColor = 'rgba(0,255,60,1)';
+            context.shadowBlur = 14;
+            this.drawTail(this.renderedPoints, context);
+
+            context.lineWidth = (w * 0.45) * this.snakeScale;
+            context.setLineDash([w * 0.7, w * 1.2]);
+            context.lineDashOffset = Date.now() / 30;
+            context.strokeStyle = 'rgba(120,255,120,1)';
+            this.drawTail(this.renderedPoints, context);
+
+            context.setLineDash([]);
+            context.restore();
+
+            context.strokeStyle = 'rgba(0,0,0,0)';
+            context.shadowBlur = 0;
+        `,
+        customTail: ``
+    },
+
+    "Fire And Ice": {
+        customHead: ``,
+        customBody: `
+            let pts = this.renderedPoints;
+            context.save();
+
+            let grad = context.createLinearGradient(pts[0].x, pts[0].y, pts[pts.length - 1].x, pts[pts.length - 1].y);
+            grad.addColorStop(0, 'rgba(255,50,0,1)');
+            grad.addColorStop(0.45, 'rgba(255,220,80,1)');
+            grad.addColorStop(0.55, 'rgba(180,240,255,1)');
+            grad.addColorStop(1, 'rgba(0,160,255,1)');
+
+            context.lineWidth = w * this.snakeScale;
+            context.strokeStyle = grad;
+            context.shadowColor = 'rgba(100,200,255,1)';
+            context.shadowBlur = 18;
+            this.drawTail(this.renderedPoints, context);
+
+            context.restore();
+
+            context.strokeStyle = 'rgba(0,0,0,0)';
+            context.shadowBlur = 0;
+        `,
+        customTail: ``
+    },
 }
 
 defaultConfig = {
