@@ -101,26 +101,22 @@ class SnakeFunctions {
     
             // Check if the line between the points is within the given distance
             if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, width, height)) {
-                let distToPoint = MapFunctions.GetDistance(center, point);
-    
-                if (distToPoint <= distance) {
-                    let beforePoint = i > 0 ? points[i - 1] : null;
-                    let afterPoint = i < points.length - 1 ? points[i + 1] : null; // Getting next point
-                    if (beforePoint)
-                        foundPoints.push({
-                            index: i-1,
-                            point: beforePoint
-                        })
+                let beforePoint = i > 0 ? points[i - 1] : null;
+                let afterPoint = i < points.length - 1 ? points[i + 1] : null; // Getting next point
+                if (beforePoint)
                     foundPoints.push({
-                        index: i,
-                        point: point
+                        index: i-1,
+                        point: beforePoint
                     })
-                    if (afterPoint)
-                        foundPoints.push({
-                            index: i+1,
-                            point: afterPoint
-                        })
-                }
+                foundPoints.push({
+                    index: i,
+                    point: point
+                })
+                if (afterPoint)
+                    foundPoints.push({
+                        index: i+1,
+                        point: afterPoint
+                    })
             }
         }
     
