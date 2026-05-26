@@ -184,13 +184,12 @@ var Snake = function () {
 
 		if(!this.beingDeleted)
 		{
-			prevT = t;
-			//t = (now - this.lastUpdateTime) / INTERP_TIME; // Test without clamping
-			t = clamp((now - this.lastUpdateTime) / INTERP_TIME, 0.0, 1.0);
-			// Interpolate
+			var elapsed = now - this.lastUpdateTime;
+			t = clamp(elapsed / INTERP_TIME, 0.0, 1.0);
 
-			if(prevT == t)
+			if(prevT == t && elapsed <= INTERP_TIME)
 				return;
+			prevT = t;
 
 			// First point (tail)
 			this.prevX = this.x;
@@ -201,12 +200,20 @@ var Snake = function () {
 			var dx;
 			var dy;
 
-			// For now, lets assume we are in a straight line
-			newPosX = t * (this.dstX - this.origX) + this.origX;
-			newPosY = t * (this.dstY - this.origY) + this.origY;
-
-			dx = this.dstX - this.origX;
-			dy = this.dstY - this.origY;
+			if(elapsed <= INTERP_TIME) {
+				newPosX = t * (this.dstX - this.origX) + this.origX;
+				newPosY = t * (this.dstY - this.origY) + this.origY;
+				dx = this.dstX - this.origX;
+				dy = this.dstY - this.origY;
+			} else {
+				var extraTime = Math.min(elapsed - INTERP_TIME, INTERP_TIME);
+				var extraDist = (extraTime * this.lastSpeed) / INTERP_TIME;
+				var drDir = GetDirectionVector(this.direction);
+				newPosX = this.dstX + drDir.x * extraDist;
+				newPosY = this.dstY + drDir.y * extraDist;
+				dx = newPosX - this.origX;
+				dy = newPosY - this.origY;
+			}
 
 			// Calc head angle
 			headAngle = Math.atan(dy/dx);
@@ -1164,8 +1171,8 @@ var Snake = function () {
 			this.origX = this.x;
 			this.origY = this.y;
 			var direction = GetDirectionVector(this.direction);
-			this.dstX += direction.x*this.lastSpeed;
-			this.dstY += direction.y*this.lastSpeed;
+			this.dstX = this.x + direction.x*this.lastSpeed;
+			this.dstY = this.y + direction.y*this.lastSpeed;
 		}
 
 		// Flags

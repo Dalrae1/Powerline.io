@@ -198,26 +198,9 @@ class Snake {
         this.direction = direction;
         this.addPoint(this.position.x, this.position.y);
         // Move the snake forward for however long it takes to send
-        let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS
-        
-        let oneWayPing = this.client.ping / 2; // Half the RTT to get one-way time
-        if (oneWayPing < this.server.config.GlobalWebLag)
-            oneWayPing = oneWayPing - this.server.config.GlobalWebLag
-        else
-            oneWayPing = oneWayPing
-
-        let actualUpdateInterval = this.server.config.UpdateInterval;
-
-        let totalDistanceTraveledDuringPing = totalSpeed * (oneWayPing / actualUpdateInterval);
-
-        let timeSinceLastUpdate = (Date.now() - this.server.lastUpdate)
-        let timeUntilNextUpdate = actualUpdateInterval - (timeSinceLastUpdate % actualUpdateInterval)
-        let currentInterpPosition = (totalSpeed * (timeUntilNextUpdate / actualUpdateInterval))
-
-        totalDistanceTraveledDuringPing += currentInterpPosition
-        
-        
-        //console.log(`Distance traveled in ${oneWayPing}ms with speed ${totalSpeed}: ${totalDistanceTraveledDuringPing}`)
+        let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS;
+        let extraLatency = Math.max(0, this.client.ping / 2 - this.server.config.GlobalWebLag);
+        let totalDistanceTraveledDuringPing = totalSpeed * (extraLatency / this.server.config.UpdateInterval);
         if (goingUp)
             this.position[oppositeVector] += totalDistanceTraveledDuringPing;
         else
