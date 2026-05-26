@@ -16,6 +16,19 @@ var protocol = window.location.protocol;
 var isSecure = (protocol == 'https:');
 var serverListLoaded = false;
 
+const IS_DEV =
+    location.hostname === "localhost" ||
+    location.hostname === "127.0.0.1" ||
+    location.hostname.startsWith("192.168.");
+
+const NODE_API_BASE = IS_DEV
+    ? "http://127.0.0.1:1335"
+    : "";
+
+function nodeApi(path) {
+    return `${NODE_API_BASE}${path}`;
+}
+
 // Performance Stats
 var statsFPS, statsLAG, statsTPS;
 
@@ -1188,7 +1201,7 @@ function refreshServers() {
         remoteTableBody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
     }
 
-    fetch(`/getservers`)
+    fetch(nodeApi("/getservers"))
         .then(response => response.json())
         .then(async servers => {
             moddedTableBody.innerHTML = "";
@@ -1282,7 +1295,7 @@ function refreshServers() {
             });
 
             // Fetch user information asynchronously
-            let userInfoUrl = `/fetchuser?id=${servers.map(server => server.owner).join("&id=")}`;
+            let userInfoUrl = nodeApi(`/fetchuser?id=${servers.map(server => server.owner).join("&id=")}`);
             fetch(userInfoUrl).then(response => response.json()).then(userInfos => {
                 let users = {};
                 Object.values(userInfos).forEach(user => {
@@ -1381,7 +1394,7 @@ loadScript("codenzi/Snake.js?v=5");
 loadScript("codenzi/Food.js?v=1");
 loadScript("codenzi/Map.js?v=3");
 loadScript("codenzi/Minimap.js?v=4");
-loadScript("codenzi/Network.js?v=13");
+loadScript("codenzi/Network.js?v=14");
 loadScript("codenzi/App.js?v=5");
 loadScript("codenzi/Camera.js?v=1");
 loadScript("codenzi/Frame.js?v=1");

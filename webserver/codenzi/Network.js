@@ -135,7 +135,6 @@ var Network = function () {
 			}
 		}
 
-		// Do not reconnect if we are already connected to this same server
 		if (
 			network.hasConnection &&
 			webSocket &&
@@ -148,18 +147,29 @@ var Network = function () {
 		network.disconnect();
 		window.localStorage.lastServer = serverId;
 
-		var protocol = isSecure ? 'wss' : 'ws';
-		let remoteHost = window.location.host;
-		network.remoteHost = remoteHost;
+		const IS_DEV =
+			window.location.hostname === "localhost" ||
+			window.location.hostname === "127.0.0.1" ||
+			window.location.hostname.startsWith("192.168.");
+
+		let fullhost;
+
+		if (IS_DEV) {
+			network.remoteHost = "127.0.0.1:1335";
+			fullhost = `ws://127.0.0.1:1335/ws?server=${encodeURIComponent(serverId)}`;
+		} else {
+			network.remoteHost = window.location.host;
+			fullhost = `wss://${window.location.host}/ws?server=${encodeURIComponent(serverId)}`;
+		}
 
 		let oldServerElm = document.getElementById(`server${network.serverId}`);
 		let serverElm = document.getElementById(`server${serverId}`);
+
 		if (oldServerElm)
 			oldServerElm.classList.remove("selected");
+
 		if (serverElm)
 			serverElm.classList.add("selected");
-
-		var fullhost = `${protocol}://${remoteHost}/ws?server=${encodeURIComponent(serverId)}`;
 
 		console.log(`Attempting to connect to server id ${serverId} host is "${fullhost}"`);
 

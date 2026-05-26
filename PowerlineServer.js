@@ -506,7 +506,6 @@ wss.on('connection', (ws, req) => {
             ws.close(1008, "Invalid server id");
             return;
         }
-
         targetServer.attachWebSocket(ws, req);
     } catch (err) {
         console.error("WebSocket routing error:", err);

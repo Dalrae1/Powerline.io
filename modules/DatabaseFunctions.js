@@ -42,7 +42,7 @@ class DatabaseFunctions {
             return userData[0]
         } catch (err) {
             console.error("Error fetching session data: ", err);
-            throw err; // Re-throw the error after logging it
+            //throw err; // Re-throw the error after logging it
         }
     }
 
@@ -61,7 +61,7 @@ class DatabaseFunctions {
             return servers;
         } catch (err) {
             console.error("Error fetching servers: ", err);
-            throw err; // Re-throw the error after logging it
+            //throw err; // Re-throw the error after logging it
         }
     }
 
@@ -91,7 +91,7 @@ class DatabaseFunctions {
             return JSON.stringify(users); // Assuming you want to return JSON serialized result
         } catch (err) {
             console.error("Error fetching users: ", err);
-            throw err; // Re-throw the error after logging it
+            //throw err; // Re-throw the error after logging it
         }
     }
 
@@ -110,7 +110,7 @@ class DatabaseFunctions {
             return result;
         } catch (err) {
             console.error("Error creating server: ", err);
-            throw err; // Re-throw the error after logging it
+            //throw err; // Re-throw the error after logging it
         }
 
     }
@@ -130,7 +130,7 @@ class DatabaseFunctions {
             return result;
         } catch (err) {
             console.error("Error editing server: ", err);
-            throw err; // Re-throw the error after logging it
+            //throw err; // Re-throw the error after logging it
         }
     }
 }
