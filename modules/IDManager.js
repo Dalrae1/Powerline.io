@@ -9,6 +9,7 @@ class MinHeap {
     }
 
     pop() {
+        if (this.heap.length === 0) return undefined;
         if (this.heap.length === 1) return this.heap.pop();
         const min = this.heap[0];
         this.heap[0] = this.heap.pop();
