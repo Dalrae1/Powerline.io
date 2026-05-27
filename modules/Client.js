@@ -588,6 +588,7 @@ class Client extends EventEmitter {
                                 offset += 4;
                                 Bit8.setFloat32(offset, entity.visualLength, true);
                                 offset += 4;
+                                Bit8.setUint8(offset, entity.direction, true);
                                 offset += 1;
                                 Bit8.setUint16(offset, entity.points.length, true);
                                 offset += 2;

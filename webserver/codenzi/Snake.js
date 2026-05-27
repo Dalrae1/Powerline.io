@@ -1153,7 +1153,12 @@ var Snake = function () {
 		this.curLengthDst = view.getFloat32(offset, true)*GAME_SCALE;
 		offset += 4;
 
-		//this.direction = view.getUint8(offset, true);
+		// For other snakes, update direction from server so dead-reckoning uses the correct axis.
+		// Don't override for local player — direction is managed by the input system.
+		if (this.id != localPlayerID) {
+			var serverDir = view.getUint8(offset, true);
+			if (serverDir > 0) this.direction = serverDir;
+		}
 		offset += 1;
 
 		curPointCount = view.getUint16(offset, true);
