@@ -199,7 +199,11 @@ class Snake {
         this.addPoint(this.position.x, this.position.y);
         // Move the snake forward for however long it takes to send
         let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS;
-        let extraLatency = Math.max(0, this.client.ping / 2 - this.server.config.GlobalWebLag);
+        // Compensate for the full round-trip latency (not just ping/2).
+        // The client predicts GlobalWebLag ms ahead. By the time the client RECEIVES
+        // the server confirmation, a full RTT has elapsed. So advance by (ping - GlobalWebLag),
+        // not (ping/2 - GlobalWebLag), to match what the client's ELSE branch predicted.
+        let extraLatency = Math.max(0, this.client.ping - this.server.config.GlobalWebLag);
         let totalDistanceTraveledDuringPing = totalSpeed * (extraLatency / this.server.config.UpdateInterval);
         if (goingUp)
             this.position[oppositeVector] += totalDistanceTraveledDuringPing;
