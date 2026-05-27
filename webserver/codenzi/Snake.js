@@ -1581,11 +1581,6 @@ var Snake = function () {
 
   // Adds a new turn point to the snakes path in 'delay' milliseconds
   this.addTurnPoint = function(direction, delay, fixCoord) {
-    // Extra compensation for very high ping
-    if (myPing > 300) {
-      delay += myPing - 300;
-    }
-
     // Predict distance of turn from where we are now
     const distance = (delay * this.lastSpeed) / INTERP_TIME;
     const minTurnGap = 2;
