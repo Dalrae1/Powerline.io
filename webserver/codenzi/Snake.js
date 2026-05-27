@@ -512,80 +512,59 @@ var Snake = function () {
 		var pointArray = [];
 		var count = this.points.length;
 
-		var length = 0.0;
-		var lastPx = this.x;
-		var lastPy = this.y;
-
-		var startPoint = 0;
-
 		var shiftLen = 0.0;
 		var headPos = {x: this.x, y: this.y};
 		if(localPlayerID != this.id && !this.tutorial){
-			var fakelag;
-			if(mobile)
-				fakelag = globalMobileLag;
-			else
-				fakelag = globalWebLag;
-
 			var shiftLag = Math.max((myPing/2.0+ping/2.0)-globalWebLag+lagAddRender, 0);
-			var distance = (shiftLag * this.lastSpeed)/INTERP_TIME;
-			shiftLen = distance;
-			//console.log('My Ping: ' + myPing + ', Ping: ' + ping + ', Shift: ' + shiftLag + ', shiftLen: ' + shiftLen);
+			shiftLen = (shiftLag * this.lastSpeed)/INTERP_TIME;
+
+			// Shift head backward along the current direction of travel only.
+			// The old approach walked shiftLen through body points, which caused
+			// Y-axis jitter: when the walk crossed a turn corner the render point
+			// jumped onto the previous segment (different axis), producing visible
+			// oscillation perpendicular to travel. Clamping to the first corner
+			// keeps headPos on the current segment and eliminates the jitter.
+			var dir = GetDirectionVector(this.direction);
+			var clampedShift = shiftLen;
+			if(count > 0) {
+				var distToCorner = CalcLength(this.x, this.y, this.points[0].x, this.points[0].y);
+				if(clampedShift > distToCorner)
+					clampedShift = distToCorner;
+			}
+			headPos.x = this.x - dir.x * clampedShift;
+			headPos.y = this.y - dir.y * clampedShift;
 		}
-		var shouldAddPoints = false;
-		var p;
-		for(var i = startPoint; i < count; i++)
+
+		// Build rendered body starting from the (shifted) head position
+		var length = 0.0;
+		var lastPx = headPos.x;
+		var lastPy = headPos.y;
+		pointArray.push({x: lastPx, y: lastPy});
+
+		for(var i = 0; i < count; i++)
 		{
-				p = this.points[i];
+			var p = this.points[i];
+			var l = CalcLength(lastPx, lastPy, p.x, p.y);
+			length += l;
 
-				var l = CalcLength(lastPx, lastPy, p.x, p.y);
-				length += l;
+			if(length > this.curLength)
+			{
+				var extraLength = length - this.curLength;
+				var dx = lastPx - p.x;
+				var dy = lastPy - p.y;
+				var vLen = VectorLength(dx, dy);
+				var remainingLength = vLen - extraLength;
+				var n = Normalize(dx, dy);
+				n.x *= remainingLength;
+				n.y *= remainingLength;
+				pointArray.push({x: lastPx-n.x, y: lastPy-n.y});
+				break;
+			}else{
+				pointArray.push({x: p.x, y: p.y});
+			}
 
-				if(shouldAddPoints)
-				{
-					if(length > this.curLength)
-					{
-						var extraLength = length - this.curLength;
-						var dx = lastPx - p.x;
-						var dy = lastPy - p.y;
-						var vLen = VectorLength(dx, dy);
-						var remainingLength = vLen - extraLength;
-						var n = Normalize(dx,dy);
-						n.x *= remainingLength;
-						n.y *= remainingLength;
-						pointArray.push({x: lastPx-n.x, y: lastPy-n.y});
-						break;
-					}else{
-						pointArray.push({x: p.x, y: p.y});
-					}
-				}else{
-					if(length > shiftLen)
-					{
-						// Push First Point
-						var extraLength = length - shiftLen;
-						var dx = lastPx - p.x;
-						var dy = lastPy - p.y;
-						var vLen = VectorLength(dx, dy);
-						var remainingLength = vLen - extraLength;
-						var n = Normalize(dx,dy);
-						n.x *= remainingLength;
-						n.y *= remainingLength;
-						lastPx = lastPx-n.x;
-						lastPy = lastPy-n.y;
-						pointArray.push({x: lastPx, y: lastPy});
-						headPos.x = lastPx;
-						headPos.y = lastPy;
-						
-						// Loop and start from this point						
-						length = 0; // Reset length
-						shouldAddPoints = true;
-						i--;
-						continue;
-					}
-				}
-
-				lastPx = p.x;
-				lastPy = p.y;
+			lastPx = p.x;
+			lastPy = p.y;
 		}
 
 		// Prevent crash on startup
