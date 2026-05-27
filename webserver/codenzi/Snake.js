@@ -1479,9 +1479,10 @@ var Snake = function () {
 
 	this.fixPoints = function(direction, x, y) {
 
-		// Calc len after and before turn
-		var len = CalcLength(x, y, this.dstX, this.dstY);
-		var prevDelta = CalcLength(this.origX, this.origY, x, y);
+		// Use visual position (this.x/y) for span, not the server-corrected turn point.
+		// This guarantees len + prevDelta == lastSpeed regardless of pointServerFix correction.
+		var len = CalcLength(this.x, this.y, this.dstX, this.dstY);
+		var prevDelta = CalcLength(this.origX, this.origY, this.x, this.y);
 
 		var directionVectorNorm = GetDirectionVector(direction);
 		var directionVector = {x: directionVectorNorm.x*len, y: directionVectorNorm.y*len};
