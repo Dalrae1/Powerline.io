@@ -169,6 +169,7 @@
 			</div>
 		</div>
 		<div id="loginButton" class="login-button">Login</div>
+		<div id="userIdDisplay" style="display:none; font-size:0.55vw; color:#aaa; text-align:right; padding:2px 6px; cursor:default;" title="Your user ID — share this so others can add you as admin"></div>
 		<div id="loginModal" class="modal">
 			<div class="modal-content">
 				<h4>Login</h4>
@@ -199,7 +200,7 @@
 			<div class="tab-container">
 				<div class="tab-button active" onclick="showTab('modded')">Default Servers</div>
 				<div class="tab-button" onclick="showTab('remote')">Remote Servers</div>
-				<div class="tab-button" onclick="showTab('custom'); loadCustomServerTab()">Custom Servers</div>
+				<div class="tab-button" onclick="showTab('custom')">Custom Servers</div>
 			</div>
 
 			<div class="tab-content modded active">
@@ -245,10 +246,14 @@
 							<button class="btn btn-play btn-primary" onclick="joinMyCustomServer()" style="font-size:0.75em; padding:4px 10px;">Join</button>
 							<button class="btn btn-play" onclick="deleteMyCustomServer()" style="font-size:0.75em; padding:4px 10px; background:#c0392b;">Delete Server</button>
 						</div>
-						<div style="margin-top:8px;">
-							<input type="text" id="customAdminInput" placeholder="User ID to add/remove as admin" class="clickable" style="font-size:0.8em; padding:4px 6px; width:180px;">
-							<button class="btn btn-play btn-primary" onclick="addCustomAdmin()" style="font-size:0.75em; padding:4px 8px;">Add Admin</button>
-							<button class="btn btn-play" onclick="removeCustomAdmin()" style="font-size:0.75em; padding:4px 8px; background:#7f8c8d;">Remove Admin</button>
+						<div style="margin-top:8px; position:relative;">
+							<input type="text" id="customAdminSearch" placeholder="Search username to add/remove admin" class="clickable" autocomplete="off" style="font-size:0.8em; padding:4px 6px; width:220px;">
+							<input type="hidden" id="customAdminId">
+							<div id="customAdminResults" class="search-results" style="position:absolute; z-index:100; width:220px; background:#003a3a; border:1px solid #05ffff;"></div>
+							<div style="margin-top:4px; display:flex; gap:6px;">
+								<button class="btn btn-play btn-primary" onclick="addCustomAdmin()" style="font-size:0.75em; padding:4px 8px;">Add Admin</button>
+								<button class="btn btn-play" onclick="removeCustomAdmin()" style="font-size:0.75em; padding:4px 8px; background:#7f8c8d;">Remove Admin</button>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -416,60 +421,38 @@
 				});
 			});
 			document.addEventListener('DOMContentLoaded', function() {
-				const players = [
-					'Alice',
-					'Bob',
-					'Charlie',
-					'David',
-					'Eve',
-					'Frank',
-					'Grace',
-					'Heidi',
-					'Ivan',
-					'Judy'
-				];
-
 				const adminSearch = document.getElementById('adminSearch');
 				const searchResults = document.getElementById('searchResults');
+				let adminSearchTimeout = null;
 
 				adminSearch.addEventListener('input', function() {
-					const query = adminSearch.value.toLowerCase();
+					const query = adminSearch.value.trim();
 					searchResults.innerHTML = '';
+					clearTimeout(adminSearchTimeout);
+					if (query.length < 2) return;
 
-					if (query) {
-						const filteredPlayers = players.filter(player => player.toLowerCase().includes(query));
-						filteredPlayers.forEach(player => {
-							const div = document.createElement('div');
-							div.textContent = player;
-							div.addEventListener('click', function() {
-								adminSearch.value = player;
+					adminSearchTimeout = setTimeout(() => {
+						fetch(nodeApi(`/searchuser?q=${encodeURIComponent(query)}`))
+							.then(r => r.json())
+							.then(users => {
 								searchResults.innerHTML = '';
-							});
-							searchResults.appendChild(div);
-						});
-					}
+								users.forEach(user => {
+									const div = document.createElement('div');
+									div.textContent = `${user.username} (ID: ${user.userid})`;
+									div.dataset.userid = user.userid;
+									div.dataset.username = user.username;
+									div.addEventListener('click', function() {
+										adminSearch.value = user.username;
+										adminSearch.dataset.selectedId = user.userid;
+										searchResults.innerHTML = '';
+									});
+									searchResults.appendChild(div);
+								});
+							})
+							.catch(() => {});
+					}, 300);
 				});
 
-				const difficultySlider = document.getElementById('difficulty');
-				const difficultyValue = document.getElementById('difficultyValue');
-
-				const defaultLengthSlider = document.getElementById('defaultLength');
-				const defaultLengthValue = document.getElementById('defaultLengthValue');
-
-				const arenaSizeSlider = document.getElementById('arenaSize');
-				const arenaSizeValue = document.getElementById('arenaSizeValue');
-
-				difficultySlider.addEventListener('input', function() {
-					difficultyValue.textContent = difficultySlider.value;
-				});
-
-				defaultLengthSlider.addEventListener('input', function() {
-					defaultLengthValue.textContent = defaultLengthSlider.value;
-				});
-
-				arenaSizeSlider.addEventListener('input', function() {
-					arenaSizeValue.textContent = arenaSizeSlider.value;
-				});
 			});
 
 			let button = document.getElementById('discordLogin');
@@ -616,7 +599,7 @@
 <script src="lib/howler.min.js?v=1"></script>
 
 
-<script src = "codenzi/main.js?v=30"></script>
+<script src = "codenzi/main.js?v=31"></script>
 
 
 

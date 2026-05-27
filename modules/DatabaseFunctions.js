@@ -115,6 +115,25 @@ class DatabaseFunctions {
 
     }
 
+    async SearchUsers(query) {
+        try {
+            const users = await new Promise((resolve, reject) => {
+                this.pool.query(
+                    "SELECT userid, username FROM users WHERE username LIKE ? LIMIT 10",
+                    [`%${query}%`],
+                    function (err, result) {
+                        if (err) reject(err);
+                        else resolve(result);
+                    }
+                );
+            });
+            return users;
+        } catch (err) {
+            console.error("Error searching users: ", err);
+            return [];
+        }
+    }
+
     async UpdateServer(serverInfo) {
         try {
             const result = await new Promise((resolve, reject) => {

@@ -511,6 +511,50 @@ async function serverListener(req, res) {
             }
             break;
 
+        case "searchuser":
+            switch (req.method) {
+                case "OPTIONS":
+                    res.writeHead(204, {
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type',
+                        'Access-Control-Allow-Credentials': true
+                    });
+                    res.end();
+                    break;
+                case "GET":
+                    try {
+                        const rawQuery = req.url.split("?")[1] || "";
+                        const queryParam = rawQuery.split("&").find(p => p.startsWith("q="));
+                        const searchTerm = queryParam ? decodeURIComponent(queryParam.slice(2)) : "";
+                        if (!searchTerm || searchTerm.length < 2) {
+                            res.writeHead(200, {
+                                'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                                'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
+                            });
+                            res.end(JSON.stringify([]));
+                            return;
+                        }
+                        const users = await DBFunctions.SearchUsers(searchTerm);
+                        res.writeHead(200, {
+                            'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                            'Access-Control-Allow-Headers': 'Content-Type',
+                            'Access-Control-Allow-Credentials': true
+                        });
+                        res.end(JSON.stringify(users || []));
+                    } catch (err) {
+                        sendBadResponse(req, res, 500, "Internal server error.");
+                    }
+                    break;
+                default:
+                    sendBadResponse(req, res, 405, "Method not allowed");
+                    break;
+            }
+            break;
+
         case "createserver":
             switch (req.method) {
                 case "OPTIONS":
@@ -555,7 +599,6 @@ async function serverListener(req, res) {
                             while (Servers[nextEphemeralId]) nextEphemeralId++;
                             const newId = nextEphemeralId++;
 
-                            const { SnakeFunctions: SF } = require("./modules/EntityFunctions.js");
                             const serverInfo = {
                                 id: newId,
                                 name: serverName,
@@ -566,7 +609,7 @@ async function serverListener(req, res) {
                                 pinned: false,
                                 config: {
                                     ...defaultConfig,
-                                    FoodValue: SF.ScoreToLength(foodValue),
+                                    FoodValue: SnakeFunctions.ScoreToLength(foodValue),
                                     DefaultLength: defaultLength,
                                     ArenaSize: arenaSize,
                                 }

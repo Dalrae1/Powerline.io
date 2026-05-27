@@ -1098,7 +1098,7 @@ function createServer() {
 			button.disabled = true
 			button.innerHTML = "Creating..."
 
-			fetch(`/createserver`, {
+			fetch(nodeApi(`/createserver`), {
 				method: 'POST',
 				body: JSON.stringify({
 					name: serverName,
@@ -1122,7 +1122,10 @@ function createServer() {
 				} else {
 					alert(json.message)
 				}
-
+			}).catch(err => {
+				button.disabled = false
+				button.innerHTML = "Create"
+				alert("Failed to create server: " + err.message)
 			})
 			break
 		case "Save":
@@ -1377,6 +1380,12 @@ fetch('/fetchuser.php')
 				delete_cookie('session_id', '/');
 				location.reload();
 			});
+			// Show the user's own ID so they can share it for admin access
+			const idDisplay = document.getElementById('userIdDisplay');
+			if (idDisplay) {
+				idDisplay.textContent = "Your ID: " + data.userid;
+				idDisplay.style.display = '';
+			}
 		}
 	});
 
@@ -1402,6 +1411,53 @@ function showCreateServerModal() {
     document.querySelector("#createserverbutton").textContent = "Create";
 }
 
+let customAdminSearchTimeout = null;
+
+function initCustomAdminSearch() {
+    const searchInput = document.getElementById('customAdminSearch');
+    const resultsDiv = document.getElementById('customAdminResults');
+    const idInput = document.getElementById('customAdminId');
+    if (!searchInput || searchInput.dataset.bound) return;
+    searchInput.dataset.bound = '1';
+
+    searchInput.addEventListener('input', function() {
+        const q = searchInput.value.trim();
+        resultsDiv.innerHTML = '';
+        if (idInput) idInput.value = '';
+        clearTimeout(customAdminSearchTimeout);
+        if (q.length < 2) return;
+
+        customAdminSearchTimeout = setTimeout(() => {
+            fetch(nodeApi(`/searchuser?q=${encodeURIComponent(q)}`))
+                .then(r => r.json())
+                .then(users => {
+                    resultsDiv.innerHTML = '';
+                    users.forEach(user => {
+                        const div = document.createElement('div');
+                        div.textContent = `${user.username} (ID: ${user.userid})`;
+                        div.style.cssText = 'padding:4px 8px; cursor:pointer; font-size:0.75vw; color:#e0e0e0;';
+                        div.addEventListener('mouseenter', () => div.style.background = '#005a5a');
+                        div.addEventListener('mouseleave', () => div.style.background = '');
+                        div.addEventListener('click', () => {
+                            searchInput.value = user.username;
+                            if (idInput) idInput.value = user.userid;
+                            resultsDiv.innerHTML = '';
+                        });
+                        resultsDiv.appendChild(div);
+                    });
+                })
+                .catch(() => {});
+        }, 300);
+    });
+
+    // Close results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+            resultsDiv.innerHTML = '';
+        }
+    }, { capture: true });
+}
+
 function loadCustomServerTab() {
     const panel = document.getElementById('customServerPanel');
     const createDiv = document.getElementById('customServerCreate');
@@ -1415,6 +1471,7 @@ function loadCustomServerTab() {
     }
 
     if (loginPrompt) loginPrompt.style.display = 'none';
+    initCustomAdminSearch();
 
     fetch(nodeApi('/myserver'), { credentials: 'include' })
         .then(r => r.json())
@@ -1430,7 +1487,7 @@ function loadCustomServerTab() {
                 document.getElementById('customServerStatus').textContent =
                     `Players: ${srv.playerCount}/${srv.maxplayers}  |  Auto-deletes in: ${mins}m ${secs}s`;
                 document.getElementById('customServerAdmins').textContent =
-                    `Admins: ${srv.admins.join(', ')}`;
+                    `Admins (IDs): ${srv.admins.join(', ')}`;
                 // Store serverId for join button
                 if (panel) panel.setAttribute('data-serverid', srv.id);
             } else {
@@ -1466,10 +1523,18 @@ function deleteMyCustomServer() {
     });
 }
 
+function getCustomAdminId() {
+    // Prefer the hidden ID field (populated by username search); fall back to raw text as numeric ID
+    const idField = document.getElementById('customAdminId');
+    const searchField = document.getElementById('customAdminSearch');
+    if (idField && idField.value) return parseInt(idField.value);
+    if (searchField && /^\d+$/.test(searchField.value.trim())) return parseInt(searchField.value.trim());
+    return NaN;
+}
+
 function addCustomAdmin() {
-    const input = document.getElementById('customAdminInput');
-    const userId = parseInt(input.value.trim());
-    if (isNaN(userId)) { alert("Enter a valid user ID."); return; }
+    const userId = getCustomAdminId();
+    if (isNaN(userId)) { alert("Search for a user by username or enter their numeric ID."); return; }
     fetch(nodeApi('/addadmin'), {
         method: 'POST',
         credentials: 'include',
@@ -1477,7 +1542,8 @@ function addCustomAdmin() {
         body: JSON.stringify({ userId })
     }).then(r => r.json()).then(data => {
         if (data.success) {
-            input.value = '';
+            document.getElementById('customAdminSearch').value = '';
+            document.getElementById('customAdminId').value = '';
             loadCustomServerTab();
         } else {
             alert(data.message || "Failed to add admin.");
@@ -1486,9 +1552,8 @@ function addCustomAdmin() {
 }
 
 function removeCustomAdmin() {
-    const input = document.getElementById('customAdminInput');
-    const userId = parseInt(input.value.trim());
-    if (isNaN(userId)) { alert("Enter a valid user ID."); return; }
+    const userId = getCustomAdminId();
+    if (isNaN(userId)) { alert("Search for a user by username or enter their numeric ID."); return; }
     fetch(nodeApi('/removeadmin'), {
         method: 'POST',
         credentials: 'include',
@@ -1496,7 +1561,8 @@ function removeCustomAdmin() {
         body: JSON.stringify({ userId })
     }).then(r => r.json()).then(data => {
         if (data.success) {
-            input.value = '';
+            document.getElementById('customAdminSearch').value = '';
+            document.getElementById('customAdminId').value = '';
             loadCustomServerTab();
         } else {
             alert(data.message || "Failed to remove admin.");
@@ -1523,10 +1589,16 @@ function showTab(tabName) {
         activeTab.classList.add('active');
     }
 
-    // Add 'active' class to the clicked button
-    const activeButton = document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`);
+    // Add 'active' class to the clicked button — match by contains so extra calls in onclick are OK
+    const allButtons = Array.from(document.querySelectorAll('.tab-button'));
+    const activeButton = allButtons.find(btn => (btn.getAttribute('onclick') || '').includes(`showTab('${tabName}')`));
     if (activeButton) {
         activeButton.classList.add('active');
+    }
+
+    // Tab-specific side effects
+    if (tabName === 'custom') {
+        loadCustomServerTab();
     }
 }
 
