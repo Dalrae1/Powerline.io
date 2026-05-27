@@ -199,8 +199,9 @@
 			<div class="tab-container">
 				<div class="tab-button active" onclick="showTab('modded')">Default Servers</div>
 				<div class="tab-button" onclick="showTab('remote')">Remote Servers</div>
+				<div class="tab-button" onclick="showTab('custom'); loadCustomServerTab()">Custom Servers</div>
 			</div>
-		
+
 			<div class="tab-content modded active">
 				<!-- Content for Modded Servers -->
 				<table class="table server-table">
@@ -215,7 +216,7 @@
 					<tbody></tbody>
 				</table>
 			</div>
-		
+
 			<div class="tab-content remote">
 				<!-- Content for Remote Servers -->
 				<table class="table server-table">
@@ -232,8 +233,46 @@
 					</tbody>
 				</table>
 			</div>
-		
-			<!--<div id="createServer">+</div>-->
+
+			<div class="tab-content custom">
+				<!-- Content for Custom Servers -->
+				<div id="customServerPanel" style="display:none;">
+					<div id="customServerInfo" class="custom-server-info">
+						<div id="customServerName" style="font-weight:bold; margin-bottom:4px;"></div>
+						<div id="customServerStatus"></div>
+						<div id="customServerAdmins" style="margin-top:6px; font-size:0.9em; color:#aaa;"></div>
+						<div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
+							<button class="btn btn-play btn-primary" onclick="joinMyCustomServer()" style="font-size:0.75em; padding:4px 10px;">Join</button>
+							<button class="btn btn-play" onclick="deleteMyCustomServer()" style="font-size:0.75em; padding:4px 10px; background:#c0392b;">Delete Server</button>
+						</div>
+						<div style="margin-top:8px;">
+							<input type="text" id="customAdminInput" placeholder="User ID to add/remove as admin" class="clickable" style="font-size:0.8em; padding:4px 6px; width:180px;">
+							<button class="btn btn-play btn-primary" onclick="addCustomAdmin()" style="font-size:0.75em; padding:4px 8px;">Add Admin</button>
+							<button class="btn btn-play" onclick="removeCustomAdmin()" style="font-size:0.75em; padding:4px 8px; background:#7f8c8d;">Remove Admin</button>
+						</div>
+					</div>
+				</div>
+				<div id="customServerCreate" style="display:none; text-align:center; padding:10px;">
+					<p style="color:#aaa; font-size:0.9em;">You don't have a custom server yet.</p>
+					<button class="btn btn-play btn-primary" onclick="showCreateServerModal()" style="margin-top:4px;">Create Server</button>
+				</div>
+				<div id="customServerLoginPrompt" style="text-align:center; padding:10px;">
+					<p style="color:#aaa; font-size:0.9em;">You must be logged in to use custom servers.</p>
+				</div>
+				<div style="margin-top:10px;">
+					<table class="table server-table">
+						<thead>
+							<tr>
+								<th>Server Name</th>
+								<th>Players</th>
+								<th>Owner</th>
+								<th>Select</th>
+							</tr>
+						</thead>
+						<tbody id="customServersTableBody"></tbody>
+					</table>
+				</div>
+			</div>
 		</div>
 
 		
@@ -577,7 +616,7 @@
 <script src="lib/howler.min.js?v=1"></script>
 
 
-<script src = "codenzi/main.js?v=29"></script>
+<script src = "codenzi/main.js?v=30"></script>
 
 
 

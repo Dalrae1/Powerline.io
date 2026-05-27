@@ -188,6 +188,16 @@ body {
     display: block; /* Show the active tab content */
 }
 
+.custom-server-info {
+    background-color: #002a2a;
+    border: 1px solid #05ffff;
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    font-size: 0.75vw;
+    color: #e0e0e0;
+}
+
 .modal-content {
     background-color: #003a3a;
     margin: 10% auto;

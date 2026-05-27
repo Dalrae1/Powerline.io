@@ -357,12 +357,81 @@ class Client extends EventEmitter {
                             }
                             break;
 
+                        case "timeleft":
+                            if (this.server.isEphemeral) {
+                                const EPHEMERAL_TIMEOUT = 60 * 60 * 1000; // 1 hour in ms
+                                const elapsed = Date.now() - this.server.lastConnectionTime;
+                                const timeLeftMs = Math.max(0, EPHEMERAL_TIMEOUT - elapsed);
+                                const mins = Math.floor(timeLeftMs / 60000);
+                                const secs = Math.floor((timeLeftMs % 60000) / 1000);
+                                this.sendAdminMessage(`Server auto-deletes in: ${mins}m ${secs}s`);
+                            } else {
+                                this.sendAdminMessage("This is not an ephemeral server.");
+                            }
+                            break;
+
+                        case "addadmin":
+                            if (this.server.isEphemeral && commandArgs[1] && this.user && this.user.userid == parseInt(this.server.owner)) {
+                                const addId = parseInt(commandArgs[1]);
+                                if (!isNaN(addId)) {
+                                    const added = this.server.addAdmin(addId);
+                                    this.sendAdminMessage(added ? `Added user ${addId} as admin.` : `User ${addId} is already an admin.`);
+                                } else {
+                                    this.sendAdminMessage("Usage: addadmin <userid>");
+                                }
+                            } else if (!this.server.isEphemeral) {
+                                this.sendAdminMessage("This command only works on custom servers.");
+                            } else {
+                                this.sendAdminMessage("Only the server owner can add admins.");
+                            }
+                            break;
+
+                        case "removeadmin":
+                            if (this.server.isEphemeral && commandArgs[1] && this.user && this.user.userid == parseInt(this.server.owner)) {
+                                const removeId = parseInt(commandArgs[1]);
+                                if (!isNaN(removeId)) {
+                                    const removed = this.server.removeAdmin(removeId);
+                                    this.sendAdminMessage(removed ? `Removed user ${removeId} from admins.` : `Cannot remove user ${removeId} (not an admin or is owner).`);
+                                } else {
+                                    this.sendAdminMessage("Usage: removeadmin <userid>");
+                                }
+                            } else if (!this.server.isEphemeral) {
+                                this.sendAdminMessage("This command only works on custom servers.");
+                            } else {
+                                this.sendAdminMessage("Only the server owner can remove admins.");
+                            }
+                            break;
+
+                        case "deleteserver":
+                            if (this.server.isEphemeral && this.user && this.user.userid == parseInt(this.server.owner)) {
+                                this.sendAdminMessage("Deleting server...");
+                                setTimeout(() => { this.server.destroy(); }, 500);
+                            } else if (!this.server.isEphemeral) {
+                                this.sendAdminMessage("This command only works on custom servers.");
+                            } else {
+                                this.sendAdminMessage("Only the server owner can delete this server.");
+                            }
+                            break;
+
                     }
                 }
                 break;
 
         }
     }
+    sendAdminMessage(message) {
+        const Bit8 = new DataView(new ArrayBuffer(1 + (message.length + 1) * 2));
+        let offset = 0;
+        Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_SERVER_MESSAGE);
+        offset += 1;
+        for (let i = 0; i < message.length; i++) {
+            Bit8.setUint16(offset, message.charCodeAt(i), true);
+            offset += 2;
+        }
+        Bit8.setUint16(offset, 0, true); // null terminator
+        this.socket.send(Bit8);
+    }
+
     async doPing() { // Send a ping to the client, and wait for a pong
         this.pingStart = Date.now();
         var Bit8 = new DataView(new ArrayBuffer(3));

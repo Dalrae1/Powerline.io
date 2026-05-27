@@ -1117,11 +1117,12 @@ function createServer() {
 				button.innerHTML = "Create"
 				if (json.success) {
 					refreshServers()
+					loadCustomServerTab()
 					document.getElementById('createServerModal').style.display = 'none';
 				} else {
 					alert(json.message)
 				}
-				
+
 			})
 			break
 		case "Save":
@@ -1194,6 +1195,7 @@ function refreshServers() {
 
     let moddedTableBody = document.querySelector(".modded .server-table tbody");
     let remoteTableBody = document.querySelector(".remote .server-table tbody");
+    let customTableBody = document.getElementById("customServersTableBody");
 
     // Show loading message only on the first load
     if (!moddedTableBody.hasChildNodes()) {
@@ -1206,6 +1208,7 @@ function refreshServers() {
         .then(async servers => {
             moddedTableBody.innerHTML = "";
             remoteTableBody.innerHTML = "";
+            if (customTableBody) customTableBody.innerHTML = "";
 
             // Sort servers by player count and pinned status
             servers.sort((a, b) => b.playerCount - a.playerCount);
@@ -1213,9 +1216,38 @@ function refreshServers() {
 
             servers.forEach(server => {
 				switch(server.type) {
-				
+
+					case "custom":
+					if (!customTableBody) break;
+					tableBody = customTableBody;
+					let custRow = tableBody.insertRow();
+					custRow.id = `server${server.id}`;
+					custRow.insertCell();
+					custRow.insertCell().innerText = `${server.playerCount}/${server.maxplayers}`;
+					custRow.insertCell().innerText = loadedUsernames.has(server.owner) ? loadedUsernames.get(server.owner) : "...";
+					let custButtonCell = custRow.insertCell();
+					let custButton = document.createElement("button");
+					custButton.type = "submit";
+					custButton.innerText = "Join";
+					custButton.classList.add("btn", "btn-play", "btn-primary");
+					if (Number(network.serverId) == Number(server.id))
+						custRow.classList.add("selected");
+					custButton.addEventListener('click', () => { selectServer(server.id); });
+					custButtonCell.appendChild(custButton);
+					custRow.cells[0].innerText = server.name;
+					let custConfig = JSON.parse(server.config || "{}");
+					custRow.setAttribute("name", server.name);
+					custRow.setAttribute("maxplayers", server.maxplayers);
+					custRow.setAttribute("foodvalue", custConfig.FoodValue || "");
+					custRow.setAttribute("ispublic", false);
+					custRow.setAttribute("defaultlength", custConfig.DefaultLength || "");
+					custRow.setAttribute("arenasize", custConfig.ArenaSize || "");
+					custRow.setAttribute("owner", server.owner);
+					custRow.setAttribute("serverid", server.id);
+					break;
+
 					case "remote":
-					
+
 					tableBody = remoteTableBody;
 					let regRow = tableBody.insertRow();
 					regRow.insertCell().innerText = server.name;
@@ -1352,6 +1384,126 @@ fetch('/fetchuser.php')
 refreshServers()
 refreshAd();
 
+// ─── Custom (Ephemeral) Server Management ────────────────────────────────────
+
+function showCreateServerModal() {
+    document.getElementById('createServerModal').style.display = 'block';
+    document.querySelector('#serverName').value = myUser ? myUser.username + "'s Server" : "";
+    document.querySelector('#maxPlayers').value = 10;
+    document.querySelector("#maxPlayersValue").textContent = 10;
+    document.querySelector('#foodValue').value = 10;
+    document.querySelector("#foodValueValue").textContent = 10;
+    document.querySelector('#defaultLength').value = 10;
+    document.querySelector('#defaultLengthValue').textContent = 10;
+    document.querySelector('#arenaSize').value = 300;
+    document.querySelector('#arenaSizeValue').textContent = 300;
+    document.querySelector('#isPublic').checked = true;
+    document.querySelector("#createServerModal .modal-content h4").textContent = "Create custom server";
+    document.querySelector("#createserverbutton").textContent = "Create";
+}
+
+function loadCustomServerTab() {
+    const panel = document.getElementById('customServerPanel');
+    const createDiv = document.getElementById('customServerCreate');
+    const loginPrompt = document.getElementById('customServerLoginPrompt');
+
+    if (!myUser) {
+        if (loginPrompt) loginPrompt.style.display = '';
+        if (panel) panel.style.display = 'none';
+        if (createDiv) createDiv.style.display = 'none';
+        return;
+    }
+
+    if (loginPrompt) loginPrompt.style.display = 'none';
+
+    fetch(nodeApi('/myserver'), { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            if (data.server) {
+                if (panel) panel.style.display = '';
+                if (createDiv) createDiv.style.display = 'none';
+                const srv = data.server;
+                document.getElementById('customServerName').textContent = srv.name;
+                const mins = Math.floor(srv.timeLeftMs / 60000);
+                const secs = Math.floor((srv.timeLeftMs % 60000) / 1000);
+                document.getElementById('customServerStatus').textContent =
+                    `Players: ${srv.playerCount}/${srv.maxplayers}  |  Auto-deletes in: ${mins}m ${secs}s`;
+                document.getElementById('customServerAdmins').textContent =
+                    `Admins: ${srv.admins.join(', ')}`;
+                // Store serverId for join button
+                if (panel) panel.setAttribute('data-serverid', srv.id);
+            } else {
+                if (panel) panel.style.display = 'none';
+                if (createDiv) createDiv.style.display = '';
+            }
+        })
+        .catch(() => {
+            if (panel) panel.style.display = 'none';
+            if (createDiv) createDiv.style.display = '';
+        });
+}
+
+function joinMyCustomServer() {
+    const panel = document.getElementById('customServerPanel');
+    if (!panel) return;
+    const serverId = panel.getAttribute('data-serverid');
+    if (serverId) selectServer(parseInt(serverId));
+}
+
+function deleteMyCustomServer() {
+    if (!confirm("Are you sure you want to delete your custom server? This cannot be undone.")) return;
+    fetch(nodeApi('/deleteserver'), {
+        method: 'POST',
+        credentials: 'include'
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            loadCustomServerTab();
+            refreshServers();
+        } else {
+            alert(data.message || "Failed to delete server.");
+        }
+    });
+}
+
+function addCustomAdmin() {
+    const input = document.getElementById('customAdminInput');
+    const userId = parseInt(input.value.trim());
+    if (isNaN(userId)) { alert("Enter a valid user ID."); return; }
+    fetch(nodeApi('/addadmin'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            input.value = '';
+            loadCustomServerTab();
+        } else {
+            alert(data.message || "Failed to add admin.");
+        }
+    });
+}
+
+function removeCustomAdmin() {
+    const input = document.getElementById('customAdminInput');
+    const userId = parseInt(input.value.trim());
+    if (isNaN(userId)) { alert("Enter a valid user ID."); return; }
+    fetch(nodeApi('/removeadmin'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            input.value = '';
+            loadCustomServerTab();
+        } else {
+            alert(data.message || "Failed to remove admin.");
+        }
+    });
+}
+
 
 function showTab(tabName) {
     // Get all tab content elements
@@ -1394,7 +1546,7 @@ loadScript("codenzi/Snake.js?v=11");
 loadScript("codenzi/Food.js?v=1");
 loadScript("codenzi/Map.js?v=3");
 loadScript("codenzi/Minimap.js?v=4");
-loadScript("codenzi/Network.js?v=14");
+loadScript("codenzi/Network.js?v=15");
 loadScript("codenzi/App.js?v=5");
 loadScript("codenzi/Camera.js?v=1");
 loadScript("codenzi/Frame.js?v=1");

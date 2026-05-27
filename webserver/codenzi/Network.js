@@ -690,6 +690,11 @@ var Network = function () {
 				minimap.addBarrier(x, y, width, height);
 			}
 		}
+		else if (op == 0xAA) { // Server admin message
+			var res = getString(view, 1);
+			var message = res.nick;
+			hud.showTip(message);
+		}
 	};
 
 	this.connectionClosed = function() {

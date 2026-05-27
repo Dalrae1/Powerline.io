@@ -280,6 +280,40 @@ defaultConfig = {
 UPDATE_EVERY_N_TICKS = 3;
 SCORE_MULTIPLIER = 10 / defaultConfig.FoodValue;
 
+// Ephemeral server tracking: userId (number) -> serverId (number)
+global.ephemeralServers = new Map();
+let nextEphemeralId = 5000;
+
+const EPHEMERAL_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
+
+// Auto-cleanup: check every 5 minutes for idle ephemeral servers
+setInterval(() => {
+    if (typeof Servers === 'undefined') return;
+    for (const [userId, serverId] of global.ephemeralServers.entries()) {
+        const server = Servers[serverId];
+        if (!server) {
+            global.ephemeralServers.delete(userId);
+            continue;
+        }
+        const hasClients = Object.keys(server.clients).length > 0;
+        if (!hasClients && (Date.now() - server.lastConnectionTime) > EPHEMERAL_TIMEOUT_MS) {
+            console.log(`Auto-deleting idle ephemeral server ${serverId} (owner: ${userId})`);
+            server.destroy();
+        }
+    }
+}, 5 * 60 * 1000);
+
+// Helper: parse session cookie from request headers
+async function getUserFromRequest(req) {
+    const cookies = req.headers.cookie;
+    if (!cookies) return null;
+    const sessionCookie = cookies.split(";").find(c => c.trim().includes("session_id="));
+    if (!sessionCookie) return null;
+    const session = sessionCookie.trim().split("=")[1];
+    if (!session) return null;
+    return await DBFunctions.GetUserFromSession(session);
+}
+
 const HttpServer = require('http').createServer;
 
 function sendBadResponse(req, res, code, message) {
@@ -376,6 +410,7 @@ async function serverListener(req, res) {
                             owner: server.owner,
                             maxplayers: server.MaxPlayers,
                             pinned: server.pinned,
+                            type: server.isEphemeral ? "custom" : undefined,
                             playerCount: Object.keys(server.snakes).length,
                             config: JSON.stringify(thisConfig, true, 4)
                         };
@@ -472,6 +507,283 @@ async function serverListener(req, res) {
                         'Access-Control-Allow-Credentials': true
                     });
                     res.end(JSON.stringify(servers));
+                    break;
+            }
+            break;
+
+        case "createserver":
+            switch (req.method) {
+                case "OPTIONS":
+                    res.writeHead(204, {
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type',
+                        'Access-Control-Allow-Credentials': true
+                    });
+                    res.end();
+                    break;
+                case "POST":
+                    let csBody = '';
+                    req.on('data', chunk => { csBody += chunk.toString(); });
+                    req.on('end', async () => {
+                        try {
+                            const user = await getUserFromRequest(req);
+                            if (!user) {
+                                sendBadResponse(req, res, 401, "You must be logged in to create a server.");
+                                return;
+                            }
+
+                            if (global.ephemeralServers.has(parseInt(user.userid))) {
+                                const existingId = global.ephemeralServers.get(parseInt(user.userid));
+                                if (Servers[existingId]) {
+                                    sendBadResponse(req, res, 400, "You already have a custom server. Delete it first.");
+                                    return;
+                                }
+                                global.ephemeralServers.delete(parseInt(user.userid));
+                            }
+
+                            let json = {};
+                            try { json = JSON.parse(csBody); } catch (e) {}
+
+                            const serverName = (json.name || `${user.username}'s Server`).substring(0, 30);
+                            const maxPlayers = Math.min(Math.max(parseInt(json.maxPlayers) || 10, 1), 100);
+                            const foodValue = Math.min(Math.max(parseFloat(json.foodValue) || 10, 1), 100);
+                            const defaultLength = Math.min(Math.max(parseInt(json.defaultLength) || 10, 1), 200);
+                            const arenaSize = Math.min(Math.max(parseInt(json.arenaSize) || 300, 50), 2000);
+
+                            // Find a free ID starting at nextEphemeralId
+                            while (Servers[nextEphemeralId]) nextEphemeralId++;
+                            const newId = nextEphemeralId++;
+
+                            const { SnakeFunctions: SF } = require("./modules/EntityFunctions.js");
+                            const serverInfo = {
+                                id: newId,
+                                name: serverName,
+                                maxplayers: maxPlayers,
+                                owner: user.userid,
+                                type: "custom",
+                                isEphemeral: true,
+                                pinned: false,
+                                config: {
+                                    ...defaultConfig,
+                                    FoodValue: SF.ScoreToLength(foodValue),
+                                    DefaultLength: defaultLength,
+                                    ArenaSize: arenaSize,
+                                }
+                            };
+
+                            Servers[newId] = new Server(serverInfo);
+                            global.ephemeralServers.set(parseInt(user.userid), newId);
+                            console.log(`Created ephemeral server ${newId} for user ${user.userid} (${user.username})`);
+
+                            res.writeHead(200, {
+                                'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
+                            });
+                            res.end(JSON.stringify({ success: true, serverId: newId }));
+                        } catch (err) {
+                            console.error("createserver error:", err);
+                            sendBadResponse(req, res, 500, "Internal server error.");
+                        }
+                    });
+                    break;
+                default:
+                    sendBadResponse(req, res, 405, "Method not allowed");
+                    break;
+            }
+            break;
+
+        case "deleteserver":
+            switch (req.method) {
+                case "OPTIONS":
+                    res.writeHead(204, {
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type',
+                        'Access-Control-Allow-Credentials': true
+                    });
+                    res.end();
+                    break;
+                case "POST":
+                    req.on('data', () => {});
+                    req.on('end', async () => {
+                        try {
+                            const user = await getUserFromRequest(req);
+                            if (!user) {
+                                sendBadResponse(req, res, 401, "You must be logged in.");
+                                return;
+                            }
+                            const serverId = global.ephemeralServers.get(parseInt(user.userid));
+                            if (!serverId || !Servers[serverId]) {
+                                sendBadResponse(req, res, 404, "You don't have a custom server.");
+                                return;
+                            }
+                            Servers[serverId].destroy();
+                            res.writeHead(200, {
+                                'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
+                            });
+                            res.end(JSON.stringify({ success: true }));
+                        } catch (err) {
+                            console.error("deleteserver error:", err);
+                            sendBadResponse(req, res, 500, "Internal server error.");
+                        }
+                    });
+                    break;
+                default:
+                    sendBadResponse(req, res, 405, "Method not allowed");
+                    break;
+            }
+            break;
+
+        case "myserver":
+            switch (req.method) {
+                case "OPTIONS":
+                    res.writeHead(204, {
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type',
+                        'Access-Control-Allow-Credentials': true
+                    });
+                    res.end();
+                    break;
+                case "GET":
+                    try {
+                        const user = await getUserFromRequest(req);
+                        if (!user) {
+                            sendBadResponse(req, res, 401, "You must be logged in.");
+                            return;
+                        }
+                        const serverId = global.ephemeralServers.get(parseInt(user.userid));
+                        if (!serverId || !Servers[serverId]) {
+                            res.writeHead(200, {
+                                'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                                'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
+                            });
+                            res.end(JSON.stringify({ success: true, server: null }));
+                            return;
+                        }
+                        const server = Servers[serverId];
+                        const timeLeftMs = Math.max(0, EPHEMERAL_TIMEOUT_MS - (Date.now() - server.lastConnectionTime));
+                        const thisConfig = JSON.parse(JSON.stringify(server.config));
+                        thisConfig.FoodValue = SnakeFunctions.LengthToScore(thisConfig.FoodValue);
+                        res.writeHead(200, {
+                            'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                            'Access-Control-Allow-Headers': 'Content-Type',
+                            'Access-Control-Allow-Credentials': true
+                        });
+                        res.end(JSON.stringify({
+                            success: true,
+                            server: {
+                                id: server.id,
+                                name: server.name,
+                                maxplayers: server.MaxPlayers,
+                                playerCount: Object.keys(server.snakes).length,
+                                admins: server.admins,
+                                timeLeftMs: timeLeftMs,
+                                config: JSON.stringify(thisConfig, true, 4)
+                            }
+                        }));
+                    } catch (err) {
+                        console.error("myserver error:", err);
+                        sendBadResponse(req, res, 500, "Internal server error.");
+                    }
+                    break;
+                default:
+                    sendBadResponse(req, res, 405, "Method not allowed");
+                    break;
+            }
+            break;
+
+        case "addadmin":
+            switch (req.method) {
+                case "OPTIONS":
+                    res.writeHead(204, {
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type',
+                        'Access-Control-Allow-Credentials': true
+                    });
+                    res.end();
+                    break;
+                case "POST":
+                    let aaBody = '';
+                    req.on('data', chunk => { aaBody += chunk.toString(); });
+                    req.on('end', async () => {
+                        try {
+                            const user = await getUserFromRequest(req);
+                            if (!user) { sendBadResponse(req, res, 401, "You must be logged in."); return; }
+                            const serverId = global.ephemeralServers.get(parseInt(user.userid));
+                            if (!serverId || !Servers[serverId]) { sendBadResponse(req, res, 404, "You don't have a custom server."); return; }
+                            let json = {};
+                            try { json = JSON.parse(aaBody); } catch(e) {}
+                            const adminId = parseInt(json.userId);
+                            if (isNaN(adminId)) { sendBadResponse(req, res, 400, "Invalid user id."); return; }
+                            const added = Servers[serverId].addAdmin(adminId);
+                            res.writeHead(200, {
+                                'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
+                            });
+                            res.end(JSON.stringify({ success: true, added }));
+                        } catch (err) {
+                            sendBadResponse(req, res, 500, "Internal server error.");
+                        }
+                    });
+                    break;
+                default:
+                    sendBadResponse(req, res, 405, "Method not allowed");
+                    break;
+            }
+            break;
+
+        case "removeadmin":
+            switch (req.method) {
+                case "OPTIONS":
+                    res.writeHead(204, {
+                        'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type',
+                        'Access-Control-Allow-Credentials': true
+                    });
+                    res.end();
+                    break;
+                case "POST":
+                    let raBody = '';
+                    req.on('data', chunk => { raBody += chunk.toString(); });
+                    req.on('end', async () => {
+                        try {
+                            const user = await getUserFromRequest(req);
+                            if (!user) { sendBadResponse(req, res, 401, "You must be logged in."); return; }
+                            const serverId = global.ephemeralServers.get(parseInt(user.userid));
+                            if (!serverId || !Servers[serverId]) { sendBadResponse(req, res, 404, "You don't have a custom server."); return; }
+                            let json = {};
+                            try { json = JSON.parse(raBody); } catch(e) {}
+                            const adminId = parseInt(json.userId);
+                            if (isNaN(adminId)) { sendBadResponse(req, res, 400, "Invalid user id."); return; }
+                            const removed = Servers[serverId].removeAdmin(adminId);
+                            res.writeHead(200, {
+                                'Access-Control-Allow-Origin': req.headers.origin || req.headers.host || "null",
+                                'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                                'Access-Control-Allow-Headers': 'Content-Type',
+                                'Access-Control-Allow-Credentials': true
+                            });
+                            res.end(JSON.stringify({ success: true, removed }));
+                        } catch (err) {
+                            sendBadResponse(req, res, 500, "Internal server error.");
+                        }
+                    });
+                    break;
+                default:
+                    sendBadResponse(req, res, 405, "Method not allowed");
                     break;
             }
             break;

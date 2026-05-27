@@ -57,6 +57,8 @@ class Server {
 
         this.king = null;
         this.lastUpdate = 0;
+        this.isEphemeral = serverInfo.isEphemeral || false;
+        this.lastConnectionTime = Date.now();
         this.admins = [
             parseInt(this.owner)
         ];
@@ -168,6 +170,7 @@ class Server {
     }
 
     websocketListener = (ws, req) => {
+        this.lastConnectionTime = Date.now();
         let cookies = req.headers.cookie;
         let session;
 
@@ -216,6 +219,7 @@ class Server {
                     }
                     this.clientIDs.releaseID(client.id);
                     delete this.clients[client.id];
+                    this.lastConnectionTime = Date.now();
                 });
             }).catch((err) => {
                 console.error("Error: " + err);
@@ -244,6 +248,7 @@ class Server {
                 }
                 this.clientIDs.releaseID(client.id);
                 delete this.clients[client.id];
+                this.lastConnectionTime = Date.now();
             });
         }
     }
@@ -616,6 +621,34 @@ class Server {
         setTimeout(() => {
             this.start();
         }, nextInterval);
+    }
+
+    addAdmin(userId) {
+        const id = parseInt(userId);
+        if (!isNaN(id) && !this.admins.includes(id)) {
+            this.admins.push(id);
+            return true;
+        }
+        return false;
+    }
+
+    removeAdmin(userId) {
+        const id = parseInt(userId);
+        const idx = this.admins.indexOf(id);
+        if (idx !== -1 && id !== parseInt(this.owner)) {
+            this.admins.splice(idx, 1);
+            return true;
+        }
+        return false;
+    }
+
+    destroy() {
+        this.Stop();
+        delete Servers[this.id];
+        if (global.ephemeralServers) {
+            global.ephemeralServers.delete(parseInt(this.owner));
+        }
+        console.log(`Ephemeral server ${this.id} (${this.name}) destroyed.`);
     }
 }
 
