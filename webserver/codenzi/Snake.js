@@ -1165,8 +1165,19 @@ var Snake = function () {
 		{
 			this.origX = this.x;
 			this.origY = this.y;
-			this.dstX = curX;
-			this.dstY = curY;
+			if (this.id == localPlayerID) {
+				// The server position in curX/curY is ping/2 ms old by the time we receive it.
+				// The ELSE branch (while turns were pending) was extrapolating forward continuously,
+				// so naively snapping to curX/curY causes a backwards lurch equal to ping/2 * speed.
+				// Fix: project curX/curY forward by ping/2 to estimate the current server position.
+				var dir = GetDirectionVector(this.direction);
+				var pingComp = (myPing / 2 / INTERP_TIME) * this.lastSpeed;
+				this.dstX = curX + dir.x * pingComp;
+				this.dstY = curY + dir.y * pingComp;
+			} else {
+				this.dstX = curX;
+				this.dstY = curY;
+			}
 		}else{
 			this.origX = this.x;
 			this.origY = this.y;
