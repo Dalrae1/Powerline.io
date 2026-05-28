@@ -1149,12 +1149,14 @@ var Snake = function () {
 		{
 			this.origX = this.x;
 			this.origY = this.y;
-			if(this.id != localPlayerID) {
+			if(this.id != localPlayerID && !this.tutorial) {
 				// For other snakes, predict one step ahead of the server position.
 				// dstX = curX would cause backward lurching: if the update arrives even
 				// a few ms late, dead-reckoning overshoots curX and the next lerp goes
 				// backward. Adding lastSpeed keeps dstX ahead of this.x regardless of
 				// timing jitter, so movement is always forward.
+				// NOTE: tutorial snakes are excluded — they drive position directly via
+				// locally-built packets and have no real direction to predict from.
 				var predDir = GetDirectionVector(this.direction);
 				this.dstX = curX + predDir.x * this.lastSpeed;
 				this.dstY = curY + predDir.y * this.lastSpeed;
