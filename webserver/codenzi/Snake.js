@@ -1150,18 +1150,15 @@ var Snake = function () {
 			this.origX = this.x;
 			this.origY = this.y;
 			if(this.id != localPlayerID && !this.tutorial) {
-				// For other snakes, predict ahead of the server position to prevent
-				// backward lurching when packets arrive late.
-				// predSteps scales with the round-trip lag: at low ping it stays at 1
-				// (one step ahead, same as before), and at high/jittery ping it grows
-				// so dstX stays ahead of the dead-reckoned this.x even through spikes.
-				// NOTE: tutorial snakes are excluded — they drive position directly via
-				// locally-built packets and have no real direction to predict from.
+				// Predict one step ahead in the current direction so the head doesn't
+				// snap backward when packets arrive. Turn-snapping (below) handles the
+				// on-turn case. We intentionally do NOT scale by lag here — doing so
+				// pushes the head visually far ahead of the snake's actual position on
+				// other clients' screens, making it look like collisions should have
+				// occurred when they haven't.
 				var predDir = GetDirectionVector(this.direction);
-				var lagMs = Math.max(ping / 2 + myPing / 2, 0);
-				var predSteps = Math.max(1.0, lagMs / INTERP_TIME + 1.0);
-				this.dstX = curX + predDir.x * this.lastSpeed * predSteps;
-				this.dstY = curY + predDir.y * this.lastSpeed * predSteps;
+				this.dstX = curX + predDir.x * this.lastSpeed;
+				this.dstY = curY + predDir.y * this.lastSpeed;
 			} else {
 				this.dstX = curX;
 				this.dstY = curY;
@@ -1420,17 +1417,11 @@ var Snake = function () {
 						soundManager.playSound(SOUND_TURN, VOLUME_TURN*lastDistVolume*masterVolume, 1.0, PLAY_RULE_ALWAYSPLAY, null);
 
 					// On a confirmed turn for another player, snap the interpolation
-					// origin to the server's current position. Without this, the head
-					// slides backward from the dead-reckoned position (old direction) to
-					// the turn point, which looks like a "teleport backwards" effect.
-					// Starting origX/Y at curX/Y means interpolation moves forward in
-					// the new direction immediately instead of correcting backward first.
-					//
-					// Also reset dstX/Y to plain 1-step prediction (ignoring predSteps).
-					// The lag-scaled predSteps is intentional for straight segments but
-					// overshoots on turn frames: the head races ahead of the turn corner,
-					// making the corner appear "behind" the head. 1-step prediction keeps
-					// the head 1–2 steps past the corner — the correct visual for lag.
+					// Snap the interpolation origin to the server's confirmed turn position.
+					// Without this, the head slides backward from the dead-reckoned position
+					// (old direction) to the turn point, producing a visible "teleport back"
+					// effect at high ping. Starting origX/Y at curX/Y means interpolation
+					// moves forward in the new direction immediately.
 					if (this.id != localPlayerID && !this.tutorial) {
 						this.origX = curX;
 						this.origY = curY;
