@@ -1150,16 +1150,18 @@ var Snake = function () {
 			this.origX = this.x;
 			this.origY = this.y;
 			if(this.id != localPlayerID && !this.tutorial) {
-				// For other snakes, predict one step ahead of the server position.
-				// dstX = curX would cause backward lurching: if the update arrives even
-				// a few ms late, dead-reckoning overshoots curX and the next lerp goes
-				// backward. Adding lastSpeed keeps dstX ahead of this.x regardless of
-				// timing jitter, so movement is always forward.
+				// For other snakes, predict ahead of the server position to prevent
+				// backward lurching when packets arrive late.
+				// predSteps scales with the round-trip lag: at low ping it stays at 1
+				// (one step ahead, same as before), and at high/jittery ping it grows
+				// so dstX stays ahead of the dead-reckoned this.x even through spikes.
 				// NOTE: tutorial snakes are excluded — they drive position directly via
 				// locally-built packets and have no real direction to predict from.
 				var predDir = GetDirectionVector(this.direction);
-				this.dstX = curX + predDir.x * this.lastSpeed;
-				this.dstY = curY + predDir.y * this.lastSpeed;
+				var lagMs = Math.max(ping / 2 + myPing / 2, 0);
+				var predSteps = Math.max(1.0, lagMs / INTERP_TIME + 1.0);
+				this.dstX = curX + predDir.x * this.lastSpeed * predSteps;
+				this.dstY = curY + predDir.y * this.lastSpeed * predSteps;
 			} else {
 				this.dstX = curX;
 				this.dstY = curY;
@@ -1416,6 +1418,17 @@ var Snake = function () {
 					}
 					if(this.playSounds)
 						soundManager.playSound(SOUND_TURN, VOLUME_TURN*lastDistVolume*masterVolume, 1.0, PLAY_RULE_ALWAYSPLAY, null);
+
+					// On a confirmed turn for another player, snap the interpolation
+					// origin to the server's current position. Without this, the head
+					// slides backward from the dead-reckoned position (old direction) to
+					// the turn point, which looks like a "teleport backwards" effect.
+					// Starting origX/Y at curX/Y means interpolation moves forward in
+					// the new direction immediately instead of correcting backward first.
+					if (this.id != localPlayerID && !this.tutorial) {
+						this.origX = curX;
+						this.origY = curY;
+					}
 				}else{
 					//console.log("pendingConfirmationPointCount: " + pendingConfirmationPointCount);
 
