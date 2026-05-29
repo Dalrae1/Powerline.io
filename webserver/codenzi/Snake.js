@@ -519,20 +519,32 @@ var Snake = function () {
 			shiftLen = (shiftLag * this.lastSpeed)/INTERP_TIME;
 
 			// Shift head backward along the current direction of travel only.
-			// The old approach walked shiftLen through body points, which caused
-			// Y-axis jitter: when the walk crossed a turn corner the render point
-			// jumped onto the previous segment (different axis), producing visible
-			// oscillation perpendicular to travel. Clamping to the first corner
-			// keeps headPos on the current segment and eliminates the jitter.
+			// We use projection (dot product onto dir) instead of Euclidean distance
+			// to clamp the shift. This prevents the head from being displaced sideways
+			// when this.x is temporarily in the old direction (e.g. during a burst of
+			// packets after a turn — subsequent packets can set origX to the extrapolated
+			// old-direction position before the renderer has had a chance to run).
+			// With projection: if this.x is at/behind the first corner in current direction,
+			// projAhead <= 0 and we pin headPos to the corner instead of subtracting shiftLen
+			// in a direction that is perpendicular/opposite to (this.x - corner).
 			var dir = GetDirectionVector(this.direction);
-			var clampedShift = shiftLen;
 			if(count > 0) {
-				var distToCorner = CalcLength(this.x, this.y, this.points[0].x, this.points[0].y);
-				if(clampedShift > distToCorner)
-					clampedShift = distToCorner;
+				var cornerPt = this.points[0];
+				var projAhead = (this.x - cornerPt.x) * dir.x + (this.y - cornerPt.y) * dir.y;
+				if (projAhead <= 0) {
+					// this.x is at or behind the corner in the current direction —
+					// pin the rendered head to the corner (avoids wild sideways displacement).
+					headPos.x = cornerPt.x;
+					headPos.y = cornerPt.y;
+				} else {
+					var clampedShift = Math.min(shiftLen, projAhead);
+					headPos.x = this.x - dir.x * clampedShift;
+					headPos.y = this.y - dir.y * clampedShift;
+				}
+			} else {
+				headPos.x = this.x - dir.x * shiftLen;
+				headPos.y = this.y - dir.y * shiftLen;
 			}
-			headPos.x = this.x - dir.x * clampedShift;
-			headPos.y = this.y - dir.y * clampedShift;
 		}
 
 		// Build rendered body starting from the (shifted) head position
@@ -1150,13 +1162,22 @@ var Snake = function () {
 			this.origX = this.x;
 			this.origY = this.y;
 			if(this.id != localPlayerID && !this.tutorial) {
-				// Predict one step ahead in the current direction so the head doesn't
-				// snap backward when packets arrive. Turn-snapping (below) handles the
-				// on-turn case. We intentionally do NOT scale by lag here — doing so
-				// pushes the head visually far ahead of the snake's actual position on
-				// other clients' screens, making it look like collisions should have
-				// occurred when they haven't.
 				var predDir = GetDirectionVector(this.direction);
+				// If this.x is behind (or perpendicular to) the first corner in the
+				// current direction, snap origX/Y to that corner.  This handles the
+				// packet-burst case: after a turn, subsequent non-turn packets arrive
+				// before a render frame runs and would re-set origX to the extrapolated
+				// old-direction position, causing a diagonal head-angle and wild movement.
+				// Snapping origX to the corner keeps the head pointing in the new direction.
+				// (For the actual turn frame the snap block below overrides origX anyway.)
+				if (this.points.length > 0) {
+					var cp = this.points[0];
+					var projAlongDir = (this.origX - cp.x) * predDir.x + (this.origY - cp.y) * predDir.y;
+					if (projAlongDir <= 0) {
+						this.origX = cp.x;
+						this.origY = cp.y;
+					}
+				}
 				this.dstX = curX + predDir.x * this.lastSpeed;
 				this.dstY = curY + predDir.y * this.lastSpeed;
 			} else {
