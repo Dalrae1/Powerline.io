@@ -1163,13 +1163,8 @@ var Snake = function () {
 			this.origY = this.y;
 			if(this.id != localPlayerID && !this.tutorial) {
 				var predDir = GetDirectionVector(this.direction);
-				// If this.x is behind (or perpendicular to) the first corner in the
-				// current direction, snap origX/Y to that corner.  This handles the
-				// packet-burst case: after a turn, subsequent non-turn packets arrive
-				// before a render frame runs and would re-set origX to the extrapolated
-				// old-direction position, causing a diagonal head-angle and wild movement.
-				// Snapping origX to the corner keeps the head pointing in the new direction.
-				// (For the actual turn frame the snap block below overrides origX anyway.)
+				var shiftLagMs = Math.max((myPing/2.0 + ping/2.0) - globalWebLag + lagAddRender, 0);
+				var predSteps  = Math.max(1.0, shiftLagMs / INTERP_TIME + 1.0);
 				if (this.points.length > 0) {
 					var cp = this.points[0];
 					var projAlongDir = (this.origX - cp.x) * predDir.x + (this.origY - cp.y) * predDir.y;
@@ -1178,8 +1173,8 @@ var Snake = function () {
 						this.origY = cp.y;
 					}
 				}
-				this.dstX = curX + predDir.x * this.lastSpeed;
-				this.dstY = curY + predDir.y * this.lastSpeed;
+				this.dstX = curX + predDir.x * this.lastSpeed * predSteps;
+				this.dstY = curY + predDir.y * this.lastSpeed * predSteps;
 			} else {
 				this.dstX = curX;
 				this.dstY = curY;
@@ -1446,8 +1441,8 @@ var Snake = function () {
 					if (this.id != localPlayerID && !this.tutorial) {
 						this.origX = curX;
 						this.origY = curY;
-						this.dstX = curX + predDir.x * this.lastSpeed;
-						this.dstY = curY + predDir.y * this.lastSpeed;
+						this.dstX = curX + predDir.x * this.lastSpeed * predSteps;
+						this.dstY = curY + predDir.y * this.lastSpeed * predSteps;
 					}
 				}else{
 					//console.log("pendingConfirmationPointCount: " + pendingConfirmationPointCount);
