@@ -1,984 +1,616 @@
-const Enums = require('./Enums.js');
-const Snake = require('./Snake.js');
-const Food = require('./Food.js');
-const { EntityFunctions, SnakeFunctions } = require("./EntityFunctions.js");
-const MapFunctions = require("./MapFunctions.js");
-const GlobalFunctions = require("./GlobalFunctions.js")
-const EventEmitter = require("events");
-const { time } = require('console');
+const Enums           = require('./Enums.js');
+const Snake           = require('./Snake.js');
+const Food            = require('./Food.js');
+const { SnakeFunctions } = require('./EntityFunctions.js');
+const BinaryWriter    = require('./BinaryWriter.js');
+const EventEmitter    = require('events');
 
+// ─────────────────────────────────────────────────────────────────────────────
 
 class Client extends EventEmitter {
     constructor(server, websocket, user) {
         super();
-        this.server = server
-        this.socket = websocket;
-        this.id = server.clientIDs.allocateID();
-        this.loadedEntities = {};
-        this.windowSizeX = 128;
-        this.windowSizeY = 64;
-        this.dead = true
-        this.pointsNearby = {};
-        this.ping = this.server.artificialPing;
-        this.user = user || null
+        this.server  = server;
+        this.socket  = websocket;
+        this.id      = server.clientIDs.allocateID();
+
+        this.loadedEntities    = {};
+        this.pointsNearby      = {};
+        this.windowSizeX       = 128;
+        this.windowSizeY       = 64;
+        this.dead              = true;
+        this.spectating        = false;
+        this.ping              = server.artificialPing;
+        this.user              = user || null;
         this.messagesPerSecond = [];
-        this.lastSecondCheck = 0;
-        this.spectating = false;
+        this.lastSecondCheck   = 0;
+
         server.clients[this.id] = this;
+
         this.sendConfig();
+        this.sendMapBarriers();
+        this.sendChatHistory();
 
-        this.sendMapBarriers()
-
-        this.sendChatHistory()
-        
-        if (this.user)
-            console.log(`Client connected to server ${server.name} from user (${this.user.userid})${this.user.username}`);
-        else
-            console.log(`Client connected to server ${server.name} from an unautheicated user`);
-
-
+        console.log(user
+            ? `Client connected to ${server.name} as user ${user.userid} (${user.username})`
+            : `Client connected to ${server.name} (unauthenticated)`);
     }
+
+    // ── ping / pong ───────────────────────────────────────────────────────────
+
     pingLoop() {
-        this.doPing();
-        setTimeout(() => {
-            this.pingLoop();
-        }, 500+this.ping);
+        this._doPing();
+        setTimeout(() => this.pingLoop(), 500 + this.ping);
     }
+
+    _doPing() {
+        this.pingStart = Date.now();
+        this._send(w => {
+            w.writeUint8(Enums.ServerToClient.OPCODE_SC_PING);
+            w.writeUint16(this.ping || 0);
+        }, 3);
+    }
+
+    _pong() {
+        this._send(w => w.writeUint8(Enums.ServerToClient.OPCODE_SC_PONG), 1);
+    }
+
+    // ── incoming messages ─────────────────────────────────────────────────────
+
     async RecieveMessage(messageType, view) {
-        await new Promise(r => setTimeout(r, this.server.artificialPing/2));
-        if ((!this.snake || !this.snake.id) &&
-        (
-            messageType != Enums.ClientToServer.OPCODE_ENTER_GAME &&
-            messageType != Enums.ClientToServer.OPCODE_HELLO_V4 &&
-            messageType != Enums.ClientToServer.OPCODE_HELLO_DEBUG &&
-            messageType != Enums.ClientToServer.OPCODE_CS_PING &&
-            messageType != Enums.ClientToServer.OPCODE_CS_PONG
-            )) {
-            return
+        // Simulate artificial latency if configured
+        if (this.server.artificialPing > 0) {
+            await new Promise(r => setTimeout(r, this.server.artificialPing / 2));
         }
-        if (Date.now() - this.lastSecondCheck > 1000) { // New second elapsed
-            this.lastSecondCheck = Date.now();
+
+        // Require a snake for most messages
+        const needsSnake =
+            messageType !== Enums.ClientToServer.OPCODE_ENTER_GAME    &&
+            messageType !== Enums.ClientToServer.OPCODE_HELLO_V4      &&
+            messageType !== Enums.ClientToServer.OPCODE_HELLO_DEBUG   &&
+            messageType !== Enums.ClientToServer.OPCODE_CS_PING       &&
+            messageType !== Enums.ClientToServer.OPCODE_CS_PONG;
+
+        if (needsSnake && (!this.snake || !this.snake.id)) return;
+
+        // Rate-limit per message type
+        const now = Date.now();
+        if (now - this.lastSecondCheck > 1000) {
+            this.lastSecondCheck   = now;
             this.messagesPerSecond = [];
         }
-        if (!this.messagesPerSecond[messageType]) {
-            this.messagesPerSecond[messageType] = 1
-        } else {
-            if (this.messagesPerSecond[messageType] > this.server.config.MaxMessagesPerSecond) {
-                return
-            }
-            this.messagesPerSecond[messageType] += 1
-        }
+        this.messagesPerSecond[messageType] = (this.messagesPerSecond[messageType] || 0) + 1;
+        if (this.messagesPerSecond[messageType] > this.server.config.MaxMessagesPerSecond) return;
+
         switch (messageType) {
-            case Enums.ClientToServer.OPCODE_CS_PING: // Should pong back
-                this.pong();
+            case Enums.ClientToServer.OPCODE_CS_PING:
+                this._pong();
                 break;
+
             case Enums.ClientToServer.OPCODE_CS_PONG:
                 this.ping = Date.now() - this.pingStart;
                 break;
-            case Enums.ClientToServer.OPCODE_ENTER_GAME:
-                var nick = global.getString(view, 1);
-                /*console.log("Spawning snake " + nick.string);
-                if (!this.snake.spawned)
-                    this.snake.spawn(nick.string);*/
-                if (nick.string.length > 25)
-                    return
-                if (!this.snake || !this.snake.spawned) {
-                    this.snake = new Snake(this, nick.string || "");
 
+            case Enums.ClientToServer.OPCODE_HELLO_V4:
+            case Enums.ClientToServer.OPCODE_HELLO_DEBUG:
+                this.pingLoop();
+                break;
+
+            case Enums.ClientToServer.OPCODE_ENTER_GAME: {
+                const nick = global.getString(view, 1);
+                if (nick.string.length > 25) return;
+                if (!this.snake || !this.snake.spawned) {
+                    this.snake = new Snake(this, nick.string || '');
                 }
                 break;
-            case Enums.ClientToServer.OPCODE_INPUT_POINT:
-                let offset = 1;
-                let direction = view.getUint8(offset, true);
-                offset += 1;
-                let vector = view.getFloat32(offset, true);
-                offset += 4;
-                let isFocused = view.getUint8(offset, true) & 1;
+            }
+
+            case Enums.ClientToServer.OPCODE_INPUT_POINT: {
+                const direction = view.getUint8(1);
+                const vector    = view.getFloat32(2, true);
                 this.snake.turn(direction, vector);
                 break;
+            }
+
             case Enums.ClientToServer.OPCODE_TALK:
                 if (this.snake.talkStamina >= 255) {
-                    this.snake.Talk(view.getUint8(1, true));
+                    this.snake.Talk(view.getUint8(1));
                     this.snake.talkStamina = 0;
                 }
                 break;
+
             case Enums.ClientToServer.OPCODE_AREA_UPDATE:
-                //this.windowSizeX = view.getUint16(1, true);
-                //this.windowSizeY = view.getUint16(3, true);
+                // this.windowSizeX = view.getUint16(1, true);
+                // this.windowSizeY = view.getUint16(3, true);
                 break;
-            case Enums.ClientToServer.OPCODE_HELLO_V4:
-                //this.windowSizeX = view.getUint16(1, true);
-                //this.windowSizeY = view.getUint16(3, true);
-                this.pingLoop();
-                break
-            case Enums.ClientToServer.OPCODE_HELLO_DEBUG:
-                //this.windowSizeX = view.getUint16(1, true);
-                //this.windowSizeY = view.getUint16(3, true);
-                this.pingLoop();
-                break
+
             case Enums.ClientToServer.OPCODE_BOOST:
-                if (this.user && (this.server.admins.includes(this.user.userid) || this.user.rank > 2)) {
-                    let boosting = view.getUint8(1) == 1
+                if (this._isPrivileged()) {
+                    const boosting = view.getUint8(1) === 1;
                     if (boosting) {
                         this.snake.extraSpeed += 2;
                         if (this.snake.extraSpeed > this.server.config.MaxBoostSpeed)
-                            this.snake.speedBypass = true
+                            this.snake.speedBypass = true;
                         this.snake.speed = 0.25 + this.snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
                     } else {
                         this.snake.speedBypass = false;
                         if (this.snake.extraSpeed > this.server.config.MaxBoostSpeed)
-                            this.snake.extraSpeed = this.server.config.MaxBoostSpeed
+                            this.snake.extraSpeed = this.server.config.MaxBoostSpeed;
                     }
                 }
                 break;
+
             case Enums.ClientToServer.OPCODE_DEBUG_GRAB:
-                if (this.user && (this.server.admins.includes(this.user.userid) || this.user.rank > 2))
+                if (this._isPrivileged())
                     this.snake.length += SnakeFunctions.ScoreToLength(this.server.debugGrabAmount);
                 break;
+
             case 0x0d: // Invincible
-            if (this.user && (this.server.admins.includes(this.user.userid) || this.user.rank > 2))
-                    this.snake.invincible = view.getUint8(1, true) == 1;
-            
+                if (this._isPrivileged())
+                    this.snake.invincible = view.getUint8(1) === 1;
                 break;
+
             case 0x0e: // Commands
-                let command = global.getString(view, 1).string;
-                if (!command)
-                    return
-                let commandArgs = command.split(" ");
-                if (!commandArgs[0])
-                    return
-                commandArgs[0] = commandArgs[0].toLowerCase();
-                if ((this.user && (this.server.admins.includes(this.user.userid) || this.user.rank > 2)) || commandArgs[0] == "say" || commandArgs[0] == "debug") {
-                    console.log(`Executing command "${command}" from ${this.snake.nick}`);
-                    switch (commandArgs[0]) {
-                        case "debuggrabammount":
-                            if (commandArgs[1]) {
-                                let amount = parseInt(commandArgs[1]);
-                                if (amount && amount >= 0 && amount <= 100000) {
-                                    this.server.debugGrabAmount = amount;
-                                }
-                            }
-                            break;
-                        case "arenasize":
-                            if (commandArgs[1]) {
-                                let size = parseInt(commandArgs[1]);
-                                if (size && size >= 0 && size <= 10000) {
-                                    this.server.config.ArenaSize = size;
-                                    Object.values(this.server.clients).forEach((client) => {
-                                        client.sendConfig()
-                                    })
-                                }
-                            }
-                            break;
-                        case "maxboostspeed":
-                            if (commandArgs[1]) {
-                                let speed = parseInt(commandArgs[1]);
-                                if (speed && speed >= 0 && speed <= 1000) {
-                                    this.server.config.MaxBoostSpeed = speed;
-                                }
-                            }
-                            break;
-                        case "maxrubspeed":
-                            if (commandArgs[1]) {
-                                let speed = parseInt(commandArgs[1]);
-                                if (speed && speed >= 0 && speed <= 1000) {
-                                    this.server.config.MaxRubSpeed = speed;
-                                }
-                            }
-                            break;
-                        case "updateinterval":
-                            if (commandArgs[1]) {
-                                let duration = parseInt(commandArgs[1]);
-                                if (duration && duration >= 20 && duration <= 10000) {
-                                    this.server.config.UpdateInterval = duration;
-                                }
-                            }
-                            break;
-                        case "maxfood":
-                            if (commandArgs[1]) {
-                                let max = parseInt(commandArgs[1]);
-                                if (max && max > 0 && max <= 60000) {
-                                    this.server.maxFood = max;
-                                }
-                            }
-                            break;
-                        case "maxnaturalfood":
-                            if (commandArgs[1]) {
-                                let max = parseInt(commandArgs[1]);
-                                if (max && max > 0 && max <= 10000) {
-                                    this.server.maxNaturalFood = max;
-                                }
-                            }
-                            break;
-                        case "foodspawnpercent":
-                            if (commandArgs[1]) {
-                                let rate = parseInt(commandArgs[1]);
-                                if (rate && rate > 0 && rate <= 100000) {
-                                    this.server.foodSpawnPercent = rate;
-                                }
-                            }
-                            break;
-                        case "defaultlength":
-                            if (commandArgs[1]) {
-                                let length = parseInt(commandArgs[1]);
-                                if (length && length > 0 && length <= 100000) {
-                                    this.server.config.DefaultLength = length;
-                                }
-                            }
-                            break;
-                        case "randomfood":
-                            if (commandArgs[1]) {
-                                let num = parseInt(commandArgs[1]);
-                                if (num && num > 0 && num <= 1000) {
-                                    for (let i = 0; i < num; i++) {
-                                        new Food(this.server);
-                                    }
-                                }
-                            }
-                            break;
-                        case "clearfood":
-                            Object.values(this.server.entities).forEach((entity) => {
-                                if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
-                                    entity.eat();
-                            })
-                            break;
-                        case "foodmultiplier":
-                            if (commandArgs[1]) {
-                                let multiplier = parseInt(commandArgs[1]);
-                                if (multiplier && multiplier > 0 && multiplier <= 10) {
-                                    this.server.foodMultiplier = multiplier;
-                                }
-                            }
-                            break;
-                        case "foodvalue":
-                            if (commandArgs[1]) {
-                                let value = parseInt(commandArgs[1]);
-                                if (value && value > 0 && value <= 10000) {
-                                    this.server.config.FoodValue = SnakeFunctions.ScoreToLength(value);
-                                    Object.values(this.server.entities).forEach((entity) => {
-                                        if (entity.type == Enums.EntityTypes.ENTITY_ITEM)
-                                            entity.value = this.server.config.FoodValue;
+                this._handleCommand(view);
+                break;
+        }
+    }
 
-                                    })
-                                }
-                            }
-                            break;
-                        case "say":
-                            if (commandArgs[1]) {
-                                if (!this.dead) {
-                                    if (this.snake.talkStamina < 255)
-                                        return
-                                    let message = commandArgs.slice(1).join(" ");
-                                    message = message.substring(0, 50);
-                                    this.snake.flags |= Enums.EntityFlags.SHOW_CUSTOM_TALKING
-                                    this.snake.flags &= ~Enums.EntityFlags.SHOW_TALKING;
-                                    this.snake.customTalk = message;
-                                    this.snake.talkStamina = 0;
-                                    setTimeout(() => {
-                                        if (!this.dead)
-                                            this.snake.flags &= ~Enums.EntityFlags.SHOW_CUSTOM_TALKING;
-                                    }, 5000)
+    // ── privilege check ───────────────────────────────────────────────────────
 
-                                    // Send 0XA8 to all clients with name and message    
-                                    this.server.chatHistory.push({ nick: this.snake.nick, message: message });
-                                    var Bit8 = new DataView(new ArrayBuffer(5 + (this.snake.nick.length*2) + (message.length * 2)));
-                                    let offset = 0;
-                                    Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_CUSTOM_TALK);
-                                    offset += 1;
-                                    Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, this.snake.nick);
-                                    Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, message);
-                                    this.server.clients.forEach((client) => {
-                                        client.socket.send(Bit8);
-                                    })
+    _isPrivileged() {
+        return this.user && (this.server.admins.includes(this.user.userid) || this.user.rank > 2);
+    }
 
-                                }
-                            }
-                            break;
-                        case "debug":
-                            let snake = this.snake;
-                            if (commandArgs[1]) {
-                                let commandSnake = this.server.entities[parseInt(commandArgs[1])];
-                                if (commandSnake) {
-                                    snake = commandSnake;
-                                }
-                            }
-                            snake.flags ^= Enums.EntityFlags.DEBUG;
-                            break
-                        case "debugall":
-                            Object.values(this.server.entities).forEach((entity) => {
-                                if (entity.type == Enums.EntityTypes.ENTITY_PLAYER) {
-                                    entity.flags ^= Enums.EntityFlags.DEBUG;
-                                }
-                            })
-                            break;
-                        case "length":
-                            if (commandArgs[1]) {
-                                Object.values(this.server.clients).forEach((client) => {
-                                    if (client.dead) {
-                                        return
-                                    }
-                                    if (client.snake.nick.toLowerCase() == commandArgs.concat().splice(1).join(" ").toLowerCase()) {
-                                        client.snake.length += SnakeFunctions.ScoreToLength(1000);
-                                    }
-                                })
-                            }
-                            break;
-                        case "speedlock":
-                            if (commandArgs[1]) {
-                                let speed = parseInt(commandArgs[1]);
-                                if (speed && speed >= 0) {
-                                    this.snake.extraSpeed = speed;
-                                    this.snake.speed = 0.25 + this.snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
-                                    this.snake.lockspeed = true
-                                }
-                            } else {
-                                this.snake.lockspeed = false
-                            }
-                            break;
-                        case "teleport":
-                            if (commandArgs[1] && commandArgs[2]) {
-                                let x = parseFloat(commandArgs[1]);
-                                let y = parseFloat(commandArgs[2]);
-                                if (!isNaN(x) && !isNaN(y)) {
-                                    this.snake.position.x = x;
-                                    this.snake.position.y = y;
-                                }
-                            }
-                            break;
-                        case "createfood":
-                            // Creates amount of food specified near player
-                            if (commandArgs[1]) {
-                                let amount = parseInt(commandArgs[1]);
-                                if (amount && amount > 0 && amount <= 1000) {
-                                    for (let i = 0; i < amount; i++) {
-                                        new Food(this.server, this.snake.position.x + Math.random() * 10, this.snake.position.y + Math.random() * 10 - 5);
-                                    }
-                                }
-                            }
-                            break;
+    // ── command handler ───────────────────────────────────────────────────────
 
-                        case "timeleft":
-                            if (this.server.isEphemeral) {
-                                const EPHEMERAL_TIMEOUT = 60 * 60 * 1000; // 1 hour in ms
-                                const elapsed = Date.now() - this.server.lastConnectionTime;
-                                const timeLeftMs = Math.max(0, EPHEMERAL_TIMEOUT - elapsed);
-                                const mins = Math.floor(timeLeftMs / 60000);
-                                const secs = Math.floor((timeLeftMs % 60000) / 1000);
-                                this.sendAdminMessage(`Server auto-deletes in: ${mins}m ${secs}s`);
-                            } else {
-                                this.sendAdminMessage("This is not an ephemeral server.");
-                            }
-                            break;
+    _handleCommand(view) {
+        const command = global.getString(view, 1).string;
+        if (!command) return;
 
-                        case "addadmin":
-                            if (this.server.isEphemeral && commandArgs[1] && this.user && this.user.userid == parseInt(this.server.owner)) {
-                                const addId = parseInt(commandArgs[1]);
-                                if (!isNaN(addId)) {
-                                    const added = this.server.addAdmin(addId);
-                                    this.sendAdminMessage(added ? `Added user ${addId} as admin.` : `User ${addId} is already an admin.`);
-                                } else {
-                                    this.sendAdminMessage("Usage: addadmin <userid>");
-                                }
-                            } else if (!this.server.isEphemeral) {
-                                this.sendAdminMessage("This command only works on custom servers.");
-                            } else {
-                                this.sendAdminMessage("Only the server owner can add admins.");
-                            }
-                            break;
+        const args = command.split(' ');
+        const cmd  = args[0].toLowerCase();
 
-                        case "removeadmin":
-                            if (this.server.isEphemeral && commandArgs[1] && this.user && this.user.userid == parseInt(this.server.owner)) {
-                                const removeId = parseInt(commandArgs[1]);
-                                if (!isNaN(removeId)) {
-                                    const removed = this.server.removeAdmin(removeId);
-                                    this.sendAdminMessage(removed ? `Removed user ${removeId} from admins.` : `Cannot remove user ${removeId} (not an admin or is owner).`);
-                                } else {
-                                    this.sendAdminMessage("Usage: removeadmin <userid>");
-                                }
-                            } else if (!this.server.isEphemeral) {
-                                this.sendAdminMessage("This command only works on custom servers.");
-                            } else {
-                                this.sendAdminMessage("Only the server owner can remove admins.");
-                            }
-                            break;
+        const isPrivileged = this._isPrivileged();
+        if (!isPrivileged && cmd !== 'say' && cmd !== 'debug') return;
 
-                        case "deleteserver":
-                            if (this.server.isEphemeral && this.user && this.user.userid == parseInt(this.server.owner)) {
-                                this.sendAdminMessage("Deleting server...");
-                                setTimeout(() => { this.server.destroy(); }, 500);
-                            } else if (!this.server.isEphemeral) {
-                                this.sendAdminMessage("This command only works on custom servers.");
-                            } else {
-                                this.sendAdminMessage("Only the server owner can delete this server.");
-                            }
-                            break;
+        console.log(`Command "${command}" from ${this.snake.nick}`);
 
+        const intArg   = n => { const v = parseInt(args[n]);    return isNaN(v) ? null : v; };
+        const floatArg = n => { const v = parseFloat(args[n]);  return isNaN(v) ? null : v; };
+
+        const clampedInt = (idx, lo, hi) => {
+            const v = intArg(idx);
+            return v !== null && v >= lo && v <= hi ? v : null;
+        };
+
+        switch (cmd) {
+            case 'debuggrabammount': {
+                const v = clampedInt(1, 0, 100000);
+                if (v !== null) this.server.debugGrabAmount = v;
+                break;
+            }
+            case 'arenasize': {
+                const v = clampedInt(1, 0, 10000);
+                if (v !== null) {
+                    this.server.config.ArenaSize = v;
+                    Object.values(this.server.clients).forEach(c => c.sendConfig());
+                }
+                break;
+            }
+            case 'maxboostspeed': {
+                const v = clampedInt(1, 0, 1000);
+                if (v !== null) this.server.config.MaxBoostSpeed = v;
+                break;
+            }
+            case 'maxrubspeed': {
+                const v = clampedInt(1, 0, 1000);
+                if (v !== null) this.server.config.MaxRubSpeed = v;
+                break;
+            }
+            case 'updateinterval': {
+                const v = clampedInt(1, 20, 10000);
+                if (v !== null) this.server.config.UpdateInterval = v;
+                break;
+            }
+            case 'maxfood': {
+                const v = clampedInt(1, 1, 60000);
+                if (v !== null) this.server.maxFood = v;
+                break;
+            }
+            case 'maxnaturalfood': {
+                const v = clampedInt(1, 1, 10000);
+                if (v !== null) this.server.maxNaturalFood = v;
+                break;
+            }
+            case 'foodspawnpercent': {
+                const v = clampedInt(1, 1, 100000);
+                if (v !== null) this.server.foodSpawnPercent = v;
+                break;
+            }
+            case 'defaultlength': {
+                const v = clampedInt(1, 1, 100000);
+                if (v !== null) this.server.config.DefaultLength = v;
+                break;
+            }
+            case 'randomfood': {
+                const v = clampedInt(1, 1, 1000);
+                if (v !== null) for (let i = 0; i < v; i++) new Food(this.server);
+                break;
+            }
+            case 'clearfood':
+                Object.values(this.server.entities).forEach(e => {
+                    if (e.type === Enums.EntityTypes.ENTITY_ITEM) e.eat();
+                });
+                break;
+            case 'foodmultiplier': {
+                const v = clampedInt(1, 1, 10);
+                if (v !== null) this.server.foodMultiplier = v;
+                break;
+            }
+            case 'foodvalue': {
+                const v = clampedInt(1, 1, 10000);
+                if (v !== null) {
+                    this.server.config.FoodValue = SnakeFunctions.ScoreToLength(v);
+                    Object.values(this.server.entities).forEach(e => {
+                        if (e.type === Enums.EntityTypes.ENTITY_ITEM) e.value = this.server.config.FoodValue;
+                    });
+                }
+                break;
+            }
+            case 'say': {
+                if (this.dead || this.snake.talkStamina < 255) return;
+                const msg = args.slice(1).join(' ').substring(0, 50);
+                this.snake.flags    |= Enums.EntityFlags.SHOW_CUSTOM_TALKING;
+                this.snake.flags    &= ~Enums.EntityFlags.SHOW_TALKING;
+                this.snake.customTalk = msg;
+                this.snake.talkStamina = 0;
+                setTimeout(() => {
+                    if (!this.dead) this.snake.flags &= ~Enums.EntityFlags.SHOW_CUSTOM_TALKING;
+                }, 5000);
+                this.server.chatHistory.push({ nick: this.snake.nick, message: msg });
+                const buf = this._buildChatPacket(this.snake.nick, msg);
+                this.server.clients.forEach(c => c.socket.send(buf));
+                break;
+            }
+            case 'debug': {
+                const target = (args[1] && this.server.entities[parseInt(args[1])]) || this.snake;
+                target.flags ^= Enums.EntityFlags.DEBUG;
+                break;
+            }
+            case 'debugall':
+                Object.values(this.server.entities).forEach(e => {
+                    if (e.type === Enums.EntityTypes.ENTITY_PLAYER) e.flags ^= Enums.EntityFlags.DEBUG;
+                });
+                break;
+            case 'length': {
+                const targetNick = args.slice(1).join(' ').toLowerCase();
+                Object.values(this.server.clients).forEach(c => {
+                    if (!c.dead && c.snake.nick.toLowerCase() === targetNick)
+                        c.snake.length += SnakeFunctions.ScoreToLength(1000);
+                });
+                break;
+            }
+            case 'speedlock': {
+                if (args[1]) {
+                    const v = intArg(1);
+                    if (v !== null && v >= 0) {
+                        this.snake.extraSpeed = v;
+                        this.snake.speed = 0.25 + v / (255 * UPDATE_EVERY_N_TICKS);
+                        this.snake.lockspeed = true;
+                    }
+                } else {
+                    this.snake.lockspeed = false;
+                }
+                break;
+            }
+            case 'teleport': {
+                const x = floatArg(1), y = floatArg(2);
+                if (x !== null && y !== null) {
+                    this.snake.position.x = x;
+                    this.snake.position.y = y;
+                }
+                break;
+            }
+            case 'createfood': {
+                const v = clampedInt(1, 1, 1000);
+                if (v !== null) {
+                    for (let i = 0; i < v; i++) {
+                        new Food(this.server,
+                            this.snake.position.x + Math.random() * 10,
+                            this.snake.position.y + Math.random() * 10 - 5);
                     }
                 }
                 break;
-
+            }
+            case 'timeleft':
+                if (this.server.isEphemeral) {
+                    const ms   = Math.max(0, 3600000 - (Date.now() - this.server.lastConnectionTime));
+                    const mins = Math.floor(ms / 60000);
+                    const secs = Math.floor((ms % 60000) / 1000);
+                    this.sendAdminMessage(`Server auto-deletes in: ${mins}m ${secs}s`);
+                } else {
+                    this.sendAdminMessage('This is not an ephemeral server.');
+                }
+                break;
+            case 'addadmin':
+                if (this.server.isEphemeral && this._isOwner()) {
+                    const id = intArg(1);
+                    if (id !== null) {
+                        this.sendAdminMessage(
+                            this.server.addAdmin(id)
+                                ? `Added user ${id} as admin.`
+                                : `User ${id} is already an admin.`);
+                    } else {
+                        this.sendAdminMessage('Usage: addadmin <userid>');
+                    }
+                } else {
+                    this.sendAdminMessage(this.server.isEphemeral
+                        ? 'Only the server owner can add admins.'
+                        : 'This command only works on custom servers.');
+                }
+                break;
+            case 'removeadmin':
+                if (this.server.isEphemeral && this._isOwner()) {
+                    const id = intArg(1);
+                    if (id !== null) {
+                        this.sendAdminMessage(
+                            this.server.removeAdmin(id)
+                                ? `Removed user ${id} from admins.`
+                                : `Cannot remove user ${id} (not an admin or is owner).`);
+                    } else {
+                        this.sendAdminMessage('Usage: removeadmin <userid>');
+                    }
+                } else {
+                    this.sendAdminMessage(this.server.isEphemeral
+                        ? 'Only the server owner can remove admins.'
+                        : 'This command only works on custom servers.');
+                }
+                break;
+            case 'deleteserver':
+                if (this.server.isEphemeral && this._isOwner()) {
+                    this.sendAdminMessage('Deleting server...');
+                    setTimeout(() => this.server.destroy(), 500);
+                } else {
+                    this.sendAdminMessage(this.server.isEphemeral
+                        ? 'Only the server owner can delete this server.'
+                        : 'This command only works on custom servers.');
+                }
+                break;
         }
     }
+
+    _isOwner() {
+        return this.user && this.user.userid === parseInt(this.server.owner);
+    }
+
+    // ── outgoing packet helpers ───────────────────────────────────────────────
+
+    /** Build a packet with a callback that writes into a BinaryWriter, then send it. */
+    _send(writeFn, hintSize = 64) {
+        const w = new BinaryWriter(hintSize);
+        writeFn(w);
+        this.socket.send(w.toBuffer());
+    }
+
     sendAdminMessage(message) {
-        const Bit8 = new DataView(new ArrayBuffer(1 + (message.length + 1) * 2));
-        let offset = 0;
-        Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_SERVER_MESSAGE);
-        offset += 1;
-        for (let i = 0; i < message.length; i++) {
-            Bit8.setUint16(offset, message.charCodeAt(i), true);
-            offset += 2;
-        }
-        Bit8.setUint16(offset, 0, true); // null terminator
-        this.socket.send(Bit8);
+        this._send(w => {
+            w.writeUint8(Enums.ServerToClient.OPCODE_SERVER_MESSAGE);
+            w.writeString(message);
+        }, 4 + message.length * 2);
     }
 
-    async doPing() { // Send a ping to the client, and wait for a pong
-        this.pingStart = Date.now();
-        var Bit8 = new DataView(new ArrayBuffer(3));
-        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PING);
-        Bit8.setUint16(1, this.ping || 0, true);
-        await new Promise(r => setTimeout(r, this.server.artificialPing/2));
-        this.socket.send(Bit8);
-    }
-    async pong() { // Pongs the client back
-        var Bit8 = new DataView(new ArrayBuffer(1));
-        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_SC_PONG);
-        await new Promise(r => setTimeout(r, this.server.artificialPing/2));
-        this.socket.send(Bit8);
-    }
     sendConfig() {
-        var Bit8 = new DataView(new ArrayBuffer(49));
-        let cfgType = Enums.ServerToClient.OPCODE_CONFIG;
-        let offset = 0;
-        Bit8.setUint8(offset, this.server.config.ConfigType); // 176 or 160
-        offset += 1;
-        Bit8.setFloat32(offset, this.server.config.ArenaSize, true); //Arena Size
-        offset += 4;
-        if (cfgType == Enums.ServerToClient.OPCODE_CONFIG_2) {
-            Bit8.setFloat32(offset, 0, true); //Minimap Entities X Offset
-            offset += 4;
-            Bit8.setFloat32(offset, 0, true); //Minimap Entities Y Offset
-            offset += 4;
-        }
-        Bit8.setFloat32(offset, this.server.config.DefaultZoom, true); //Default zoom
-        offset += 4;
-        Bit8.setFloat32(offset, this.server.config.MinimumZoom, true); //Minimum zoom
-        offset += 4;
-        Bit8.setFloat32(offset, this.server.config.MinimumZoomScore, true); //Minimum zoom score
-        offset += 4;
-        Bit8.setFloat32(offset, this.server.config.ZoomLevel2, true); //Zoom Level 2
-        offset += 4 + 4;
-        Bit8.setFloat32(offset, this.server.config.GlobalWebLag, true); //Input Delay, If 0 then no input delay calculations will take place
-        offset += 4;
-        Bit8.setFloat32(offset, this.server.config.GlobalMobileLag, true); //Not Used
-        offset += 4;
-        Bit8.setFloat32(offset, this.server.config.OtherSnakeDelay, true); //Other Snake Delay
-        offset += 4;
-        Bit8.setFloat32(offset, this.server.config.IsTalkEnabled, true); //isTalkEnabled
-        this.socket.send(Bit8);
+        this._send(w => {
+            w.writeUint8(this.server.config.ConfigType);
+            w.writeFloat32(this.server.config.ArenaSize);
+            w.writeFloat32(this.server.config.DefaultZoom);
+            w.writeFloat32(this.server.config.MinimumZoom);
+            w.writeFloat32(this.server.config.MinimumZoomScore);
+            w.writeFloat32(this.server.config.ZoomLevel2);
+            w.writeFloat32(0); // reserved
+            w.writeFloat32(this.server.config.GlobalWebLag);
+            w.writeFloat32(this.server.config.GlobalMobileLag);
+            w.writeFloat32(this.server.config.OtherSnakeDelay);
+            w.writeFloat32(this.server.config.IsTalkEnabled);
+        }, 49);
     }
 
     sendMapBarriers() {
-        
-        
-        var Bit8 = new DataView(new ArrayBuffer(1 + ((4*4) * this.server.barriers.length)));
-        let offset = 0;
-        Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_MAP_BARRIERS);
-        offset += 1;
-        for (let i = 0; i < this.server.barriers.length; i++) {
-            Bit8.setFloat32(offset, this.server.barriers[i].x, true);
-            offset += 4;
-            Bit8.setFloat32(offset, this.server.barriers[i].y, true);
-            offset += 4;
-            Bit8.setFloat32(offset, this.server.barriers[i].width, true);
-            offset += 4;
-            Bit8.setFloat32(offset, this.server.barriers[i].height, true);
-            offset += 4;
-        }
-        this.socket.send(Bit8);
+        this._send(w => {
+            w.writeUint8(Enums.ServerToClient.OPCODE_MAP_BARRIERS);
+            for (const b of this.server.barriers) {
+                w.writeFloat32(b.x);
+                w.writeFloat32(b.y);
+                w.writeFloat32(b.width);
+                w.writeFloat32(b.height);
+            }
+        }, 1 + this.server.barriers.length * 16);
     }
 
     sendChatHistory() {
-        // send last 50 messages
-        this.server.chatHistory.slice(-50).forEach((message) => {
-            
-            var Bit8 = new DataView(new ArrayBuffer(5 + (message.nick.length * 2) + (message.message.length * 2)));
-            let offset = 0;
-            Bit8.setUint8(offset, Enums.ServerToClient.OPCODE_CUSTOM_TALK);
-            offset += 1;
-            Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, message.nick);
-            Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, message.message);
-            this.socket.send(Bit8);
-        })
-
+        const last50 = this.server.chatHistory.slice(-50);
+        for (const { nick, message } of last50) {
+            this.socket.send(this._buildChatPacket(nick, message));
+        }
     }
 
+    _buildChatPacket(nick, message) {
+        const w = new BinaryWriter(8 + (nick.length + message.length) * 2);
+        w.writeUint8(Enums.ServerToClient.OPCODE_CUSTOM_TALK);
+        w.writeString(nick);
+        w.writeString(message);
+        return w.toBuffer();
+    }
 
+    // ── entity update packet ──────────────────────────────────────────────────
+
+    /**
+     * Serialise an entity's flag-dependent payload into the writer.
+     * Used for both FULL and PARTIAL player updates (they carry identical flag data).
+     */
+    _writePlayerFlags(w, entity) {
+        // Always include extended (16-bit) flags
+        const is16Bit = 0x80;
+        w.writeUint8(is16Bit);
+
+        const flags = entity.debugEnabled ? (entity.flags | Enums.EntityFlags.DEBUG) : entity.flags;
+        w.writeUint16(flags);
+
+        if (flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
+            // Bounding box (zeroed – placeholder)
+            for (let i = 0; i < 8; i++) w.writeFloat32(0);
+            // Nearby collision points
+            const pts = (this.pointsNearby && this.pointsNearby[entity.id]) || [];
+            w.writeUint16(pts.length);
+            for (const p of pts) {
+                w.writeFloat32(p.point ? p.point.x : p.x);
+                w.writeFloat32(p.point ? p.point.y : p.y);
+            }
+            if (flags & Enums.EntityFlags.DEBUG) entity.debugEnabled = true;
+            else entity.debugEnabled = false;
+        }
+
+        if (flags & Enums.EntityFlags.IS_RUBBING) {
+            w.writeFloat32(entity.rubX);
+            w.writeFloat32(entity.rubY);
+            w.writeUint16(entity.RubSnake.id);
+        }
+
+        if (flags & Enums.EntityFlags.PING) {
+            w.writeUint16(entity.ping || 0);
+        }
+
+        if (flags & Enums.EntityFlags.KILLSTREAK) {
+            w.writeUint16(entity.killstreak);
+        }
+
+        if (flags & Enums.EntityFlags.SHOW_TALKING) {
+            w.writeUint8(entity.talkId);
+        }
+
+        if (flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
+            w.writeString(entity.customTalk);
+        }
+
+        if (flags & Enums.EntityFlags.CUSTOM_COLOR) {
+            w.writeString(entity.customHead);
+            w.writeString(entity.customBody);
+            w.writeString(entity.customTail);
+        }
+    }
+
+    /**
+     * Main per-tick update method.
+     *
+     * @param {number}   updateType  - FULL | PARTIAL | DELETE
+     * @param {object[]} entities    - list of entities to include
+     */
     update(updateType, entities) {
-        /* CALCULATING TOTAL BITS */
-        var calculatedTotalBits = 1;
-        Object.values(entities).forEach((entity) => {
-            if (
-                entity.position && entity.spawned &&
-                (((updateType == Enums.UpdateTypes.UPDATE_TYPE_PARTIAL || updateType == Enums.UpdateTypes.UPDATE_TYPE_DELETE) && this.loadedEntities[entity.id]) || updateType == Enums.UpdateTypes.UPDATE_TYPE_FULL) // Make sure that entity is rendered before making updates
-            ) {
-                calculatedTotalBits += 2 + 1;
-                switch (updateType) {
-                    case Enums.UpdateTypes.UPDATE_TYPE_PARTIAL:
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
-                                calculatedTotalBits += 2 // For 16b flags
-                                if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
-                                    calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
-                                    //calculatedTotalBits += entity.points.length*8
-                                    let points = this.pointsNearby && this.pointsNearby[entity.id] || []
-                                    calculatedTotalBits += points && points.length * 8 || 0
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
-                                    calculatedTotalBits += 4 + 4 + 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
-                                if (entity.flags & Enums.EntityFlags.PING) {
-                                    calculatedTotalBits += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
-                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
-                                    calculatedTotalBits += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
-                                    calculatedTotalBits += 1;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
-                                    calculatedTotalBits += (entity.customTalk.length) * 2;
-                                    calculatedTotalBits += 2
-                                }
-                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    calculatedTotalBits += (1 + entity.customHead.length) * 2;
-                                    calculatedTotalBits += (1 + entity.customBody.length) * 2;
-                                    calculatedTotalBits += (1 + entity.customTail.length) * 2;
-                                }
-                                calculatedTotalBits += 1 + 1 + 1 + (4 + 4) * (entity.newPoints.length);
-                                break;
-                            case Enums.EntityTypes.ENTITY_ITEM:
-                                calculatedTotalBits += 4 + 4;
-                                break;
-                        }
-                        break
-                    case Enums.UpdateTypes.UPDATE_TYPE_FULL:
-                        calculatedTotalBits += 1 + 1
-                        if (entity.type == Enums.EntityTypes.ENTITY_PLAYER)
-                            calculatedTotalBits += (1 + entity.nick.length) * 2;
-                        else
-                            calculatedTotalBits += 2;
-                        
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                calculatedTotalBits += 4 + 4 + 4 + 4 + 1 + 2 + 1;
-                                calculatedTotalBits += 2 // For 16b flags
-                                if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
-                                    calculatedTotalBits += 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 2;
-                                    //calculatedTotalBits += entity.points.length*8
-                                    let points = this.pointsNearby && this.pointsNearby[entity.id] || []
-                                    calculatedTotalBits += points && points.length * 8 || 0
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
-                                    calculatedTotalBits += 4 + 4 + 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
-                                if (entity.flags & Enums.EntityFlags.PING) {
-                                    calculatedTotalBits += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
-                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
-                                    calculatedTotalBits += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
-                                    calculatedTotalBits += 1;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
-                                    calculatedTotalBits += entity.customTalk.length * 2;
-                                    calculatedTotalBits += 2
-                                }
-                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    calculatedTotalBits += (1 + entity.customHead.length) * 2;
-                                    calculatedTotalBits += (1 + entity.customBody.length) * 2;
-                                    calculatedTotalBits += (1 + entity.customTail.length) * 2;
-                                }
-                                
-                                calculatedTotalBits += 1 + 1
-                                calculatedTotalBits += (4 + 4) * entity.points.length;
-                                calculatedTotalBits += 2 + 1;
-                                break
-                            case Enums.EntityTypes.ENTITY_ITEM:
-                                calculatedTotalBits += 4 + 4 + 2;
-                                break
-                        }
-                        break
-                    case Enums.UpdateTypes.UPDATE_TYPE_DELETE:
-                        calculatedTotalBits += 2 + 1
-                        
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                calculatedTotalBits += 4 + 4;
-                                break
-                            case Enums.EntityTypes.ENTITY_ITEM:
+        const entityList = Object.values(entities);
+        if (entityList.length === 0 && updateType !== Enums.UpdateTypes.UPDATE_TYPE_PARTIAL) {
+            // Still need to send the packet for king info; fall through.
+        }
 
-                                break
+        const w = new BinaryWriter(512);
+        w.writeUint8(Enums.ServerToClient.OPCODE_ENTITY_INFO);
+
+        for (const entity of entityList) {
+            if (!entity.position || !entity.spawned) continue;
+
+            // PARTIAL/DELETE require entity to already be loaded on the client
+            const isLoaded = !!this.loadedEntities[entity.id];
+            if (updateType !== Enums.UpdateTypes.UPDATE_TYPE_FULL && !isLoaded) continue;
+
+            w.writeUint16(entity.id);
+            w.writeUint8(updateType);
+
+            switch (updateType) {
+                // ── full spawn ─────────────────────────────────────────────────
+                case Enums.UpdateTypes.UPDATE_TYPE_FULL: {
+                    w.writeUint8(entity.type);
+                    w.writeUint8(entity.subtype || 0);
+
+                    if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
+                        w.writeString(entity.nick);
+                    } else {
+                        w.writeUint16(0); // null name for non-player
+                    }
+
+                    if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
+                        w.writeFloat32(entity.position.x);
+                        w.writeFloat32(entity.position.y);
+                        w.writeFloat32(entity.speed);
+                        w.writeFloat32(entity.visualLength);
+                        w.writeUint8(0);                      // direction placeholder
+                        w.writeUint16(entity.points.length);
+                        this._writePlayerFlags(w, entity);
+                        w.writeUint8(entity.talkStamina);
+                        w.writeUint8(entity.extraSpeed);
+                        for (const pt of entity.points) {
+                            w.writeFloat32(pt.x);
+                            w.writeFloat32(pt.y);
                         }
-                        break
+                        w.writeUint16(entity.color);
+                        w.writeUint8(0); // mobile flag
+                    } else if (entity.type === Enums.EntityTypes.ENTITY_ITEM) {
+                        w.writeFloat32(entity.position.x);
+                        w.writeFloat32(entity.position.y);
+                        w.writeUint16(entity.color);
+                    }
+
+                    this.loadedEntities[entity.id] = entity;
+                    break;
+                }
+
+                // ── incremental update ─────────────────────────────────────────
+                case Enums.UpdateTypes.UPDATE_TYPE_PARTIAL: {
+                    if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
+                        w.writeFloat32(entity.position.x);
+                        w.writeFloat32(entity.position.y);
+                        w.writeFloat32(entity.speed);
+                        w.writeFloat32(entity.visualLength);
+                        w.writeUint8(entity.direction);
+                        w.writeUint16(entity.points.length);
+                        this._writePlayerFlags(w, entity);
+                        w.writeUint8(entity.talkStamina);
+                        w.writeUint8(entity.extraSpeed);
+                        // New turn points (sent in reverse: newest → oldest)
+                        const np = entity.newPoints;
+                        w.writeUint8(np.length);
+                        for (let i = np.length - 1; i >= 0; i--) {
+                            w.writeFloat32(np[i].x);
+                            w.writeFloat32(np[i].y);
+                        }
+                    } else if (entity.type === Enums.EntityTypes.ENTITY_ITEM) {
+                        w.writeFloat32(entity.position.x);
+                        w.writeFloat32(entity.position.y);
+                    }
+                    break;
+                }
+
+                // ── removal ────────────────────────────────────────────────────
+                case Enums.UpdateTypes.UPDATE_TYPE_DELETE: {
+                    w.writeUint16(0);                               // kill sound (0 = silent)
+                    w.writeUint8(Enums.KillReasons.LEFT_SCREEN);
+                    if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
+                        w.writeFloat32(entity.position.x);
+                        w.writeFloat32(entity.position.y);
+                    }
+                    delete this.loadedEntities[entity.id];
+                    break;
                 }
             }
-        })
-        calculatedTotalBits += 2 + 2 + 4 + 4; // King bits
-        var Bit8 = new DataView(new ArrayBuffer(calculatedTotalBits));
-        Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
-        var offset = 1;
-        
+        }
 
-        Object.values(entities).forEach((entity) => {
-            if (
-                entity.position && entity.spawned &&
-                (((updateType == Enums.UpdateTypes.UPDATE_TYPE_PARTIAL || updateType == Enums.UpdateTypes.UPDATE_TYPE_DELETE) && this.loadedEntities[entity.id]) || updateType == Enums.UpdateTypes.UPDATE_TYPE_FULL) // Make sure that entity is rendered before making updates
-            ) {
-                Bit8.setUint16(offset, entity.id, true);
-                offset += 2;
-                Bit8.setUint8(offset, updateType, true);
-                offset += 1;
-                switch (updateType) {
-                    case Enums.UpdateTypes.UPDATE_TYPE_PARTIAL:
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                Bit8.setFloat32(offset, entity.position.x, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.position.y, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.speed, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.visualLength, true);
-                                offset += 4;
-                                Bit8.setUint8(offset, entity.direction, true);
-                                offset += 1;
-                                Bit8.setUint16(offset, entity.points.length, true);
-                                offset += 2;
-                                let is16Bit = 0
-                                is16Bit |= 0x80;
-                                Bit8.setUint8(offset, is16Bit, true);
-                                offset += 1;
-                                if (entity.debugEnabled) {
-                                    let tempFlags = entity.flags;
-                                    tempFlags |= Enums.EntityFlags.DEBUG;
-                                    Bit8.setUint16(offset, tempFlags, true);
-                                } else {
-                                    Bit8.setUint16(offset, entity.flags, true);
-                                }
-                                offset += 2;
-                                if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
+        // King info (always appended)
+        const king = this.server.king;
+        w.writeUint16(0);                               // entity list terminator
+        w.writeUint16(king ? king.id : 0);
+        w.writeFloat32(king ? king.position.x : 0);
+        w.writeFloat32(king ? king.position.y : 0);
 
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-
-                                    /*if (entity.flags & Enums.EntityFlags.DEBUG) {
-                                        entity.debugEnabled = true
-                                        Bit8.setUint16(offset, entity.points.length, true);
-                                        offset += 2;
-                                        for (let i = 0; i < entity.points.length; i++) {
-                                            Bit8.setFloat32(offset, entity.points[i].x, true);
-                                            offset += 4;
-                                            Bit8.setFloat32(offset, entity.points[i].y, true);
-                                            offset += 4;
-                                        }
-                                    }*/
-                                    if (entity.flags & Enums.EntityFlags.DEBUG) {
-                                        entity.debugEnabled = true
-                                        let pointsss = this.pointsNearby && this.pointsNearby[entity.id] || []
-                                        Bit8.setUint16(offset, pointsss.length, true);
-                                        offset += 2;
-                                        for (let i = 0; i < pointsss.length; i++) {
-                                            Bit8.setFloat32(offset, pointsss[i].point.x, true);
-                                            offset += 4;
-                                            Bit8.setFloat32(offset, pointsss[i].point.y, true);
-                                            offset += 4;
-                                        }
-                                    }
-                                    else { // Debug is disabling
-                                        Bit8.setUint16(offset, 0, true);
-                                        offset += 2;
-                                        entity.debugEnabled = false
-                                    }
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
-                                    Bit8.setFloat32(offset, entity.rubX, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, entity.rubY, true);
-                                    offset += 4;
-                                    Bit8.setUint16(offset, entity.RubSnake.id, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
-                                if (entity.flags & Enums.EntityFlags.PING) {
-                                    Bit8.setUint16(offset, entity.ping || 0, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
-                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
-                                    Bit8.setUint16(offset, entity.killstreak, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
-                                    Bit8.setUint8(offset, entity.talkId, true);
-                                    offset += 1;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
-                                    for (let i = 0; i < entity.customTalk.length; i++) {
-                                        Bit8.setUint16(offset, entity.customTalk.charCodeAt(i), true);
-                                        offset += 2;
-                                    }
-                                    offset += 2 // Write 2 bits of null
-                                }
-                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    for (var characterIndex = 0; characterIndex < entity.customHead.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customHead.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customHead.length) * 2;
-
-                                    for (var characterIndex = 0; characterIndex < entity.customBody.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customBody.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customBody.length) * 2;
-
-                                    for (var characterIndex = 0; characterIndex < entity.customTail.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customTail.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customTail.length) * 2;
-                                }
-                                
-                                Bit8.setUint8(offset, entity.talkStamina, true);
-                                offset += 1;
-                                Bit8.setUint8(offset, entity.extraSpeed, true);
-                                offset += 1;
-                                let newPointsLength = entity.newPoints.length
-                                Bit8.setUint8(offset, newPointsLength, true);
-                                offset += 1;
-                                for (let i = newPointsLength - 1; i >= 0; i--) {
-                                    let point = entity.newPoints[i];
-                                    Bit8.setFloat32(offset, point.x, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, point.y, true);
-                                    offset += 4;
-                                }
-                                break;
-                            case Enums.EntityTypes.ENTITY_ITEM:
-                                Bit8.setFloat32(offset, entity.position.x, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.position.y, true);
-                                offset += 4;
-                                break;
-                        }
-                        break
-                    case Enums.UpdateTypes.UPDATE_TYPE_FULL:
-                        Bit8.setUint8(offset, entity.type, true);
-                        offset += 1;
-                        Bit8.setUint8(offset, entity.subtype || 0, true);
-                        offset += 1;
-                        if (entity.type == Enums.EntityTypes.ENTITY_PLAYER) {
-                            Bit8, offset = GlobalFunctions.SetNick(Bit8, offset, entity.nick)
-                        } else {
-                            Bit8.setUint16(offset, 0, true);
-                            offset += 2;
-                        }
-                        
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                Bit8.setFloat32(offset, entity.position.x, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.position.y, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.speed, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.visualLength, true);
-                                offset += 4;
-                                offset += 1;
-                                Bit8.setUint16(offset, entity.points.length, true);
-                                offset += 2;
-                                let is16Bit = 0
-                                is16Bit |= 0x80;
-                                Bit8.setUint8(offset, is16Bit, true);
-                                offset += 1;
-                                if (entity.debugEnabled && !(entity.flags & Enums.EntityFlags.DEBUG)) {
-                                    let tempFlags = entity.flags;
-                                    tempFlags |= Enums.EntityFlags.DEBUG;
-                                    Bit8.setUint16(offset, tempFlags, true);
-                                } else {
-                                    Bit8.setUint16(offset, entity.flags, true);
-                                }
-                                offset += 2;
-                                if (entity.flags & Enums.EntityFlags.DEBUG || entity.debugEnabled) {
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, 0, true);
-                                    offset += 4;
-
-                                    /*if (entity.flags & Enums.EntityFlags.DEBUG) {
-                                        entity.debugEnabled = true
-                                        Bit8.setUint16(offset, entity.points.length, true);
-                                        offset += 2;
-                                        for (let i = 0; i < entity.points.length; i++) {
-                                            Bit8.setFloat32(offset, entity.points[i].x, true);
-                                            offset += 4;
-                                            Bit8.setFloat32(offset, entity.points[i].y, true);
-                                            offset += 4;
-                                        }
-                                    }*/
-                                    if (entity.flags & Enums.EntityFlags.DEBUG) {
-                                        entity.debugEnabled = true
-                                        let pointsss = this.pointsNearby && this.pointsNearby[entity.id] || []
-                                        Bit8.setUint16(offset, pointsss.length, true);
-                                        offset += 2;
-                                        for (let i = 0; i < pointsss.length; i++) {
-                                            Bit8.setFloat32(offset, pointsss[i].x, true);
-                                            offset += 4;
-                                            Bit8.setFloat32(offset, pointsss[i].y, true);
-                                            offset += 4;
-                                        }
-                                    }
-                                    else { // Debug is disabling
-                                        Bit8.setUint16(offset, 0, true);
-                                        offset += 2;
-                                        entity.debugEnabled = false
-                                    }
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_RUBBING) {
-                                    Bit8.setFloat32(offset, entity.rubX, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, entity.rubY, true);
-                                    offset += 4;
-                                    Bit8.setUint16(offset, entity.RubSnake.id, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.IS_BOOSTING) { }
-                                if (entity.flags & Enums.EntityFlags.PING) {
-                                    Bit8.setUint16(offset, entity.ping || 0, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.KILLED_KING) { }
-                                if (entity.flags & Enums.EntityFlags.KILLSTREAK) {
-                                    Bit8.setUint16(offset, entity.killstreak, true);
-                                    offset += 2;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_TALKING) {
-                                    Bit8.setUint8(offset, entity.talkId, true);
-                                    offset += 1;
-                                }
-                                if (entity.flags & Enums.EntityFlags.SHOW_CUSTOM_TALKING) {
-                                    for (let i = 0; i < entity.customTalk.length; i++) {
-                                        Bit8.setUint16(offset, entity.customTalk.charCodeAt(i), true);
-                                        offset += 2;
-                                    }
-                                    offset += 2 // Write 2 bits of null
-                                }
-                                if (entity.flags & Enums.EntityFlags.CUSTOM_COLOR) {
-                                    for (var characterIndex = 0; characterIndex < entity.customHead.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customHead.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customHead.length) * 2;
-
-                                    for (var characterIndex = 0; characterIndex < entity.customBody.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customBody.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customBody.length) * 2;
-
-                                    for (var characterIndex = 0; characterIndex < entity.customTail.length; characterIndex++) {
-                                        Bit8.setUint16(offset + characterIndex * 2, entity.customTail.charCodeAt(characterIndex), true);
-                                    }
-                                    offset += (1 + entity.customTail.length) * 2;
-                                }
-                                Bit8.setUint8(offset, entity.talkStamina, true);
-                                offset += 1;
-                                Bit8.setUint8(offset, entity.extraSpeed, true);
-                                offset += 1;
-                                for (let i = 0; i < entity.points.length; i++) {
-                                    let point = entity.points[i];
-                                    Bit8.setFloat32(offset, point.x, true);
-                                    offset += 4;
-                                    Bit8.setFloat32(offset, point.y, true);
-                                    offset += 4;
-                                }
-                                Bit8.setUint16(offset, entity.color, true);
-                                offset += 2;
-                                Bit8.setUint8(offset, 0, true);
-                                offset += 1;
-                                break;
-                            case Enums.EntityTypes.ENTITY_ITEM:
-                                Bit8.setFloat32(offset, entity.position.x, true);
-                                offset += 4;
-                                
-                                Bit8.setFloat32(offset, entity.position.y, true);
-                                offset += 4;
-                                Bit8.setUint16(offset, entity.color, true);
-                                offset += 2;
-                                break;
-
-                        }
-                        this.loadedEntities[entity.id] = entity;
-
-                        break;
-                    case Enums.UpdateTypes.UPDATE_TYPE_DELETE:
-                        Bit8.setUint16(offset, 0, true); // Set to 0 to disable sounds
-                        offset += 2;
-                        Bit8.setUint8(offset, Enums.KillReasons.LEFT_SCREEN, true);
-                        offset += 1;
-                        delete this.loadedEntities[entity.id]
-                        switch (entity.type) {
-                            case Enums.EntityTypes.ENTITY_PLAYER:
-                                Bit8.setFloat32(offset, entity.position.x, true);
-                                offset += 4;
-                                Bit8.setFloat32(offset, entity.position.y, true);
-                                offset += 4;
-                                break
-                            case Enums.EntityTypes.ENTITY_ITEM:
-                                break
-                        }
-                        break;
-                }
-            }
-        })
-        Bit8.setUint16(offset, 0, true);
-        offset += 2;
-        Bit8.setUint16(offset, this.server.king && this.server.king.id || 0, true);
-        offset += 2;
-        Bit8.setFloat32(offset, this.server.king && this.server.king.position.x || 0, true);
-        offset += 4;
-        Bit8.setFloat32(offset, this.server.king && this.server.king.position.y || 0, true);
-        offset += 4;
-      this.socket.send(Bit8);
+        this.socket.send(w.toBuffer());
     }
 }
 
