@@ -1425,9 +1425,17 @@ var Snake = function () {
 					// the turn point, which looks like a "teleport backwards" effect.
 					// Starting origX/Y at curX/Y means interpolation moves forward in
 					// the new direction immediately instead of correcting backward first.
+					//
+					// Also reset dstX/Y to plain 1-step prediction (ignoring predSteps).
+					// The lag-scaled predSteps is intentional for straight segments but
+					// overshoots on turn frames: the head races ahead of the turn corner,
+					// making the corner appear "behind" the head. 1-step prediction keeps
+					// the head 1–2 steps past the corner — the correct visual for lag.
 					if (this.id != localPlayerID && !this.tutorial) {
 						this.origX = curX;
 						this.origY = curY;
+						this.dstX = curX + predDir.x * this.lastSpeed;
+						this.dstY = curY + predDir.y * this.lastSpeed;
 					}
 				}else{
 					//console.log("pendingConfirmationPointCount: " + pendingConfirmationPointCount);
