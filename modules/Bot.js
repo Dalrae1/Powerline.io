@@ -9,12 +9,21 @@ function getRandomArbitrary(min, max) {
 
 class Bot {
     constructor(server) {
-        this.server = server;
-        this.client = this.initializeClient(server);
+        this.server   = server;
+        this.client   = this.initializeClient(server);
         this.nickname = this.generateNickname();
+        this._interval        = null;
+        this._randomTurnTimer = null;
         this.enterGame();
-        setInterval(this.update.bind(this), 50);
+        this._interval = setInterval(this.update.bind(this), 50);
         this.randomTurner();
+    }
+
+    destroy() {
+        clearInterval(this._interval);
+        clearTimeout(this._randomTurnTimer);
+        this._interval        = null;
+        this._randomTurnTimer = null;
     }
 
     initializeClient(server) {
@@ -56,7 +65,8 @@ class Bot {
 
     randomTurner() {
         const time = getRandomArbitrary(50, 12000);
-        setTimeout(() => {
+        this._randomTurnTimer = setTimeout(() => {
+            if (this.server.stopped) return; // server was destroyed — stop rescheduling
             this.randomTurn();
             this.randomTurner();
         }, time);

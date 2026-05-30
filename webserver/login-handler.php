@@ -118,19 +118,13 @@ function verifyGoogleToken($idToken, $clientId) {
 
     list($header, $payload, $signature) = $tokenParts;
 
-    error_log("Header (base64): $header");
-    error_log("Payload (base64): $payload");
-    error_log("Signature (base64): $signature");
-
     $decodedHeader = base64UrlDecode($header);
-    error_log("Decoded Header: " . bin2hex($decodedHeader));
     $jsonHeader = json_decode($decodedHeader, true);
     if (!$jsonHeader) {
         throw new Exception("Invalid ID token header: " . $decodedHeader);
     }
 
     $decodedPayload = base64UrlDecode($payload);
-    error_log("Decoded Payload: " . bin2hex($decodedPayload));
     $jsonPayload = json_decode($decodedPayload, true);
     if (!$jsonPayload) {
         throw new Exception("Invalid ID token payload: " . $decodedPayload);
@@ -326,11 +320,14 @@ function GetUserFromEmail($email) {
     return $user;
 }
 
+// Absolute path one level above the webroot so the log is never web-accessible.
+define('LOG_FILE', dirname(__DIR__) . '/logs/errors.log');
+
 function LogError($message) {
-    $logFile = 'errors';
+    $logDir = dirname(LOG_FILE);
+    if (!is_dir($logDir)) mkdir($logDir, 0750, true);
     $date = date('Y-m-d H:i:s');
-    $fullMessage = "[$date] $message\n";
-    file_put_contents($logFile, $fullMessage, FILE_APPEND);
+    file_put_contents(LOG_FILE, "[$date] $message\n", FILE_APPEND);
     // Never send internal error details to the HTTP response — log only.
 }
 

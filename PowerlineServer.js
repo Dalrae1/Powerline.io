@@ -15,7 +15,10 @@ DBFunctions = new DatabaseFunctions();
 
 global.getString = function (data, bitOffset) {
     let nick = '';
-    while (true) {
+    // Guard against a packet with no null terminator — without the bounds check
+    // getUint16 throws RangeError, which becomes an unhandled promise rejection
+    // and crashes the Node.js process.
+    while (bitOffset + 2 <= data.byteLength) {
         const code = data.getUint16(bitOffset, true);
         bitOffset += 2;
         if (code === 0) break;

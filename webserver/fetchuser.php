@@ -11,11 +11,14 @@ $db_pass        = $_ENV['DB_PASSWORD'];
 $db_database    = $_ENV['DB_DATABASE'];
 $db_port        = $_ENV['DB_PORT'];
 
+// Absolute path one level above the webroot so the log is never web-accessible.
+define('LOG_FILE', dirname(__DIR__) . '/logs/errors.log');
+
 function LogError($message) {
-    $logFile = 'errors';
+    $logDir = dirname(LOG_FILE);
+    if (!is_dir($logDir)) mkdir($logDir, 0750, true);
     $date = date('Y-m-d H:i:s');
-    $fullMessage = "[$date] $message\n";
-    file_put_contents($logFile, $fullMessage, FILE_APPEND);
+    file_put_contents(LOG_FILE, "[$date] $message\n", FILE_APPEND);
     // Never send internal error details to the HTTP response — log only.
 }
 function DBConnect() {
@@ -53,8 +56,6 @@ function GetUserFromSession($session_id) {
 if (isset($_COOKIE['session_id'])) {
     $user = GetUserFromSession($_COOKIE['session_id']);
     echo(json_encode($user));
-} else {
-    LogError("No session_id cookie found");
 }
 
 

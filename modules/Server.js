@@ -49,6 +49,7 @@ class Server {
         this.stopped      = false;
         this.barriers     = [];
         this.chatHistory  = [];
+        this.bots         = [];
 
         this.leaderboardDataview       = null;  // writable DataView sent to clients
         this.leaderboardDataviewOffset = 0;     // offset where per-snake personal rank is appended
@@ -104,7 +105,7 @@ class Server {
 
     _initBots({ config }) {
         if (config && config.Bots) {
-            for (let i = 0; i < config.Bots; i++) new Bot(this);
+            for (let i = 0; i < config.Bots; i++) this.bots.push(new Bot(this));
         }
     }
 
@@ -439,13 +440,20 @@ class Server {
             // Replay queued messages
             for (const msg of queue) {
                 const view = new DataView(new Uint8Array(msg).buffer);
-                client.RecieveMessage(view.getUint8(0), view);
+                client.RecieveMessage(view.getUint8(0), view).catch(err => {
+                    console.error(`[WS] Error replaying queued message:`, err.message);
+                });
             }
             ws.off('message', enqueue);
 
             ws.on('message', msg => {
                 const view = new DataView(new Uint8Array(msg).buffer);
-                client.RecieveMessage(view.getUint8(0), view);
+                // RecieveMessage is async — without .catch() any thrown exception
+                // becomes an unhandled promise rejection that crashes Node.js 15+.
+                client.RecieveMessage(view.getUint8(0), view).catch(err => {
+                    console.error(`[WS] Unhandled error from client ${client.id}:`, err.message);
+                    try { ws.close(1011, 'Internal error'); } catch {}
+                });
             });
 
             ws.on('close', () => {
@@ -500,6 +508,10 @@ class Server {
 
     Stop() {
         this.stopped = true;
+        for (const bot of this.bots) {
+            try { bot.destroy(); } catch (e) { console.error('Error destroying bot:', e); }
+        }
+        this.bots = [];
         for (const client of Object.values(this.clients)) {
             try {
                 if (client.ws && client.ws.readyState === 1) {

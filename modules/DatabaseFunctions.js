@@ -31,7 +31,7 @@ class DatabaseFunctions {
             if (sessionData.length == 0)
                 return null;
             const userData = await new Promise((resolve, reject) => {
-                this.pool.query("SELECT * FROM users WHERE userid = ?", [sessionData[0].userid], function (err, result) {
+                this.pool.query("SELECT userid, username, rank FROM users WHERE userid = ?", [sessionData[0].userid], function (err, result) {
                     if (err) {
                         reject(err);
                     } else {

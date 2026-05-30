@@ -172,7 +172,7 @@ class Client extends EventEmitter {
         const cmd  = args[0].toLowerCase();
 
         const isPrivileged = this._isPrivileged();
-        if (!isPrivileged && cmd !== 'say' && cmd !== 'debug') return;
+        if (!isPrivileged && cmd !== 'say') return;
 
         console.log(`Command "${command}" from ${this.snake.nick}`);
 
