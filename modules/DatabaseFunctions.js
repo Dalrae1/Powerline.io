@@ -31,15 +31,16 @@ class DatabaseFunctions {
             if (sessionData.length == 0)
                 return null;
             const userData = await new Promise((resolve, reject) => {
-                this.pool.query("SELECT userid, username, `rank` FROM users WHERE userid = ?", [sessionData[0].userid], function (err, result) {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        resolve(result);
+                this.pool.query(
+                    "SELECT userid, username, `rank`, verified_name FROM users WHERE userid = ?",
+                    [sessionData[0].userid],
+                    function (err, result) {
+                        if (err) reject(err);
+                        else resolve(result);
                     }
-                });
-            })
-            return userData[0]
+                );
+            });
+            return userData[0];
         } catch (err) {
             console.error("Error fetching session data: ", err);
             //throw err; // Re-throw the error after logging it
@@ -71,13 +72,13 @@ class DatabaseFunctions {
             if (!Array.isArray(userIds) || userIds.length === 0) {
                 throw new Error("userIds must be a non-empty array");
             }
-    
+
             // Create a comma-separated list of placeholders
             const placeholders = userIds.map(() => '?').join(',');
-    
-            // Construct the query
-            const query = `SELECT userid, username FROM users WHERE userid IN (${placeholders})`;
-    
+
+            // Return verified_name for display — the Google/Discord username is never sent to clients
+            const query = `SELECT userid, verified_name FROM users WHERE userid IN (${placeholders})`;
+
             const users = await new Promise((resolve, reject) => {
                 this.pool.query(query, userIds, function (err, result) {
                     if (err) {
@@ -87,8 +88,8 @@ class DatabaseFunctions {
                     }
                 });
             });
-    
-            return JSON.stringify(users); // Assuming you want to return JSON serialized result
+
+            return JSON.stringify(users);
         } catch (err) {
             console.error("Error fetching users: ", err);
             //throw err; // Re-throw the error after logging it
@@ -118,8 +119,10 @@ class DatabaseFunctions {
     async SearchUsers(query) {
         try {
             const users = await new Promise((resolve, reject) => {
+                // Search and return only verified_name — the Google/Discord username
+                // is a protected field and must never be exposed to other players.
                 this.pool.query(
-                    "SELECT userid, username FROM users WHERE username LIKE ? LIMIT 10",
+                    "SELECT userid, verified_name FROM users WHERE verified_name LIKE ? LIMIT 10",
                     [`%${query}%`],
                     function (err, result) {
                         if (err) reject(err);
@@ -131,6 +134,44 @@ class DatabaseFunctions {
         } catch (err) {
             console.error("Error searching users: ", err);
             return [];
+        }
+    }
+
+    async SetVerifiedName(userid, name) {
+        try {
+            const result = await new Promise((resolve, reject) => {
+                this.pool.query(
+                    "UPDATE users SET verified_name = ? WHERE userid = ?",
+                    [name, userid],
+                    function (err, result) {
+                        if (err) reject(err);
+                        else resolve(result);
+                    }
+                );
+            });
+            return result;
+        } catch (err) {
+            console.error("Error setting verified name: ", err);
+            throw err;
+        }
+    }
+
+    async CheckVerifiedNameAvailable(name) {
+        try {
+            const rows = await new Promise((resolve, reject) => {
+                this.pool.query(
+                    "SELECT 1 FROM users WHERE verified_name = ? LIMIT 1",
+                    [name],
+                    function (err, result) {
+                        if (err) reject(err);
+                        else resolve(result);
+                    }
+                );
+            });
+            return rows.length === 0; // true = available
+        } catch (err) {
+            console.error("Error checking verified name availability: ", err);
+            throw err;
         }
     }
 

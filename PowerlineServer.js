@@ -325,7 +325,7 @@ function readBody(req) {
 async function getUserFromRequest(req) {
     // Dev bypass: no OAuth needed for local testing
     if (process.env.DEV_SKIP_AUTH === 'true') {
-        return { userid: 9999, username: 'DevUser', rank: 10 };
+        return { userid: 9999, username: 'DevUser', rank: 10, verified_name: 'DevUser' };
     }
     const cookies = req.headers.cookie || '';
     const match   = cookies.split(';').find(c => c.trim().startsWith('session_id='));
@@ -427,6 +427,36 @@ routes.searchuser = async (req, res) => {
     }
 };
 
+routes.setverifiedname = async (req, res) => {
+    if (req.method === 'OPTIONS') return handleOptions(req, res, 'POST, OPTIONS');
+    if (req.method !== 'POST')    return sendError(req, res, 405, 'Method not allowed');
+
+    try {
+        const user = await getUserFromRequest(req);
+        if (!user) return sendError(req, res, 401, 'You must be logged in.');
+
+        let json = {};
+        try { json = JSON.parse(await readBody(req)); } catch {}
+
+        const name = (json.name || '').trim();
+        // Validate: 1–25 characters, letters and digits only
+        if (!/^[A-Za-z0-9]{1,25}$/.test(name)) {
+            return sendError(req, res, 400, 'Name must be 1–25 characters (letters and numbers only).');
+        }
+
+        const available = await DBFunctions.CheckVerifiedNameAvailable(name);
+        if (!available) {
+            return sendError(req, res, 409, 'That name is already taken. Please choose another.');
+        }
+
+        await DBFunctions.SetVerifiedName(user.userid, name);
+        sendOK(req, res, { success: true });
+    } catch (err) {
+        console.error('setverifiedname error:', err);
+        sendError(req, res, 500, 'Internal server error.');
+    }
+};
+
 routes.createserver = async (req, res) => {
     if (req.method === 'OPTIONS') return handleOptions(req, res, 'POST, OPTIONS');
     if (req.method !== 'POST')    return sendError(req, res, 405, 'Method not allowed');
@@ -445,7 +475,7 @@ routes.createserver = async (req, res) => {
         let json = {};
         try { json = JSON.parse(await readBody(req)); } catch {}
 
-        const serverName    = (json.name          || `${user.username}'s Server`).substring(0, 30);
+        const serverName    = (json.name          || `${user.verified_name || 'Custom'}'s Server`).substring(0, 30);
         const maxPlayers    = Math.min(Math.max(parseInt(json.maxPlayers)    || 10,  1), 100);
         const foodValue     = Math.min(Math.max(parseFloat(json.foodValue)   || 10,  1), 100);
         const defaultLength = Math.min(Math.max(parseInt(json.defaultLength) || 10,  1), 200);

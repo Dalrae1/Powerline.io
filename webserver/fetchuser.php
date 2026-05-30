@@ -33,9 +33,9 @@ function DBConnect() {
 
 function GetUserFromSession($session_id) {
     $mysqli = DBConnect();
-    // email is intentionally excluded — the client never needs it, and returning
-    // it in every page-load response unnecessarily exposes PII.
-    $stmt = $mysqli->prepare("SELECT u.userid, u.username, u.rank, u.pfp
+    // Return verified_name for display — the Google/Discord username is a protected
+    // field and must never be sent to the browser or shown to other players.
+    $stmt = $mysqli->prepare("SELECT u.userid, u.verified_name, u.rank, u.pfp
                               FROM users u
                               JOIN sessions s ON u.userid = s.userid
                               WHERE s.session = ?");

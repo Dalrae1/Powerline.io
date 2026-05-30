@@ -29,7 +29,10 @@ class Snake {
             this.customBody = customPlayerColors[name].customBody;
             this.customTail = customPlayerColors[name].customTail;
             this.flags |= Enums.EntityFlags.CUSTOM_COLOR;
-
+        }
+        // Set verified badge if the chosen nick matches the user's registered verified name
+        if (this.user && this.user.verified_name && name === this.user.verified_name) {
+            this.flags |= Enums.EntityFlags.VERIFIED;
         }
 
         let thisId = this.server.entityIDs.allocateID();

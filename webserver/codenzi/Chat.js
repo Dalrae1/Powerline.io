@@ -19,17 +19,27 @@ var Chat = function () {
         const chatMessages = document.getElementById('chat-messages');
         if (!chatMessages) return;
 
+        // Check whether a live entity with this nick has the verified flag set.
+        // `entities` is a global populated by the network layer.
+        var isSenderVerified = typeof entities !== 'undefined' &&
+            Object.values(entities).some(function(e) {
+                return e.snake === true && e.nick === sender && e.verified;
+            });
+
         const message = document.createElement('div');
         message.style.cssText = `
-            display: flex; 
-            align-items: flex-start; 
-            margin-bottom: 5px; 
-            padding: 5px; 
-            background-color: rgba(0, 58, 58, 0.27); 
-            border-radius: 5px; 
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 5px;
+            padding: 5px;
+            background-color: rgba(0, 58, 58, 0.27);
+            border-radius: 5px;
             color: #05ffff;
         `;
-        message.innerHTML = `<strong>${escapeHtml(sender)}:</strong> ${escapeHtml(text)}`;
+        var verifiedBadge = isSenderVerified
+            ? '<span title="Verified" style="color:#00ff96; margin-left:2px;">✓</span>'
+            : '';
+        message.innerHTML = `<strong>${escapeHtml(sender)}${verifiedBadge}:</strong> ${escapeHtml(text)}`;
         chatMessages.appendChild(message);
 
         // Scroll to the latest message

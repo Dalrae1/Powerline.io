@@ -514,6 +514,10 @@ var Hud = function() {
 				entryText += getPlayerName(entry.nick);
 				var vShift = 0;
 
+				// Check if this player has the verified flag set on their entity
+				var entryEntity = entities[entry.id];
+				var entryVerified = entryEntity && entryEntity.verified;
+
 				// Color
 				if(localPlayerID == entry.id){
 					context.fillStyle = myStyle;
@@ -524,9 +528,18 @@ var Hud = function() {
 				context.font = playerFont;
 				var textWidth = context.measureText(entryText).width;
 				context.fillText(entryText, outerMargin + insideMargin, entryPositionY + vShift + entrySize/2.0);
+
+				// Draw verified badge in green immediately after the name
+				if(entryVerified) {
+					context.save();
+					context.fillStyle = 'rgba(0, 255, 150, 0.9)';
+					context.fillText(' ✓', outerMargin + insideMargin + textWidth, entryPositionY + vShift + entrySize/2.0);
+					context.restore();
+				}
+
 				var scoreWidth = context.measureText(entry.score).width;
 				context.fillText(entry.score, leaderboardWidthScaled - insideMargin - scoreWidth - outerMargin, entryPositionY + vShift + entrySize/2.0);
-				
+
 				if(isKing){
 					context.save();
 					context.translate(outerMargin + insideMargin + kingOffsetX + 10, entryPositionY + vShift + entrySize/2.0 - 1);
@@ -550,6 +563,14 @@ var Hud = function() {
 
 			var textWidth = context.measureText(entryText).width;
 			context.fillText(entryText, outerMargin + insideMargin, entryPositionY + vShift + entrySize/2.0);
+
+			if(localPlayer.verified) {
+				context.save();
+				context.fillStyle = 'rgba(0, 255, 150, 0.9)';
+				context.fillText(' ✓', outerMargin + insideMargin + textWidth, entryPositionY + vShift + entrySize/2.0);
+				context.restore();
+			}
+
 			var scoreWidth = context.measureText(myScore).width;
 			context.fillText(myScore, leaderboardWidthScaled - insideMargin - scoreWidth - outerMargin, entryPositionY + vShift + entrySize/2.0);
 		}

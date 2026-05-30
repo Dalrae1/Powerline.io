@@ -1112,9 +1112,20 @@ var Snake = function () {
 		var name = snake.nick.substring(0, 16);
 		if(drawSpeed)
 			name += ' ('+extraSpeed.toFixed(0)+') (' + ping + ')';
-		var width = context.measureText(name).width;
 		var offsetY = 30;
-		context.fillText(name, -width/2, offsetY);
+		if (snake.verified) {
+			// Draw name in white, then checkmark in green
+			var nameWidth = context.measureText(name).width;
+			var checkMark = ' ✓';
+			var checkWidth = context.measureText(checkMark).width;
+			var totalWidth = nameWidth + checkWidth;
+			context.fillText(name, -totalWidth/2, offsetY);
+			context.fillStyle = 'rgba(0, 255, 150, 0.9)';
+			context.fillText(checkMark, -totalWidth/2 + nameWidth, offsetY);
+		} else {
+			var width = context.measureText(name).width;
+			context.fillText(name, -width/2, offsetY);
+		}
 	};
 
 	this.updateNetwork = function(view, offset, isFull) {
@@ -1317,12 +1328,13 @@ var Snake = function () {
 			var customBodyColor = getString(view, customHeadColor.offset);
 			var customTailColor = getString(view, customBodyColor.offset);
 			offset = customTailColor.offset;
-			
+
 			specialHead = customHeadColor.nick;
 			specialBody = customBodyColor.nick;
 			specialTail = customTailColor.nick;
-			
 		}
+
+		this.verified = !!(flags & 0x200); // Verified name badge
 
 		this.talkStamina = view.getUint8(offset, true);
 		offset += 1;

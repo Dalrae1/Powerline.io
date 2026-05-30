@@ -1329,20 +1329,21 @@ function refreshServers() {
 				}
             });
 
-            // Fetch user information asynchronously
+            // Fetch verified names asynchronously for server owner display
             let userInfoUrl = nodeApi(`/fetchuser?id=${servers.map(server => server.owner).join("&id=")}`);
             fetch(userInfoUrl).then(response => response.json()).then(userInfos => {
                 let users = {};
                 Object.values(userInfos).forEach(user => {
                     users[user.userid] = user;
-                    loadedUsernames.set(user.userid, user.username); // Store the username in the map
+                    // Store the verified_name (display name) in the map
+                    loadedUsernames.set(user.userid, user.verified_name || '—');
                 });
 
-                // Update usernames in the table
+                // Update owner column in the table
                 servers.forEach(server => {
                     let row = document.getElementById(`server${server.id}`);
                     if (row) {
-                        row.cells[2].innerText = users[server.owner]?.username || "Unknown User"; // Update with fetched username
+                        row.cells[2].innerText = users[server.owner]?.verified_name || "Unknown";
                     }
                 });
             });
@@ -1373,20 +1374,39 @@ function delete_cookie( name, path, domain ) {
 fetch('/fetchuser.php')
 	.then(response => response.json())
 	.then(data => {
-		if (data.username) {
-			myUser = data
-			document.getElementById('loginButton').textContent = "Log out of "+data.username;
-			document.getElementById('loginButton').addEventListener('click', function() {
-				delete_cookie('session_id', '/');
-				location.reload();
-			});
-			// Show the user's own ID so they can share it for admin access
-			const idDisplay = document.getElementById('userIdDisplay');
-			if (idDisplay) {
-				idDisplay.textContent = "Your ID: " + data.userid;
-				idDisplay.style.display = '';
+		if (data && data.userid) {
+			myUser = data;
+			if (data.verified_name) {
+				// Logged-in user with a verified name
+				document.getElementById('loginButton').textContent = "Log out of " + data.verified_name;
+				document.getElementById('loginButton').addEventListener('click', function() {
+					delete_cookie('session_id', '/');
+					location.reload();
+				});
+				// Pre-fill the nick input with the verified name
+				var nickInput = document.getElementById('nick');
+				if (nickInput && !nickInput.value) {
+					nickInput.value = data.verified_name;
+				}
+				// Show the user's own ID so they can share it for admin access
+				const idDisplay = document.getElementById('userIdDisplay');
+				if (idDisplay) {
+					idDisplay.textContent = "Your ID: " + data.userid;
+					idDisplay.style.display = '';
+				}
+			} else {
+				// Logged in but no verified name yet — prompt them to create one
+				document.getElementById('loginButton').textContent = "Log out";
+				document.getElementById('loginButton').addEventListener('click', function() {
+					delete_cookie('session_id', '/');
+					location.reload();
+				});
+				var modal = document.getElementById('setVerifiedNameModal');
+				if (modal) modal.style.display = 'block';
 			}
 		}
+	}).catch(function() {
+		// fetchuser failed (not logged in or network error) — no action needed
 	});
 
 
@@ -1397,7 +1417,7 @@ refreshAd();
 
 function showCreateServerModal() {
     document.getElementById('createServerModal').style.display = 'block';
-    document.querySelector('#serverName').value = myUser ? myUser.username + "'s Server" : "";
+    document.querySelector('#serverName').value = myUser ? (myUser.verified_name || 'Custom') + "'s Server" : "";
     document.querySelector('#maxPlayers').value = 10;
     document.querySelector("#maxPlayersValue").textContent = 10;
     document.querySelector('#foodValue').value = 10;
@@ -1434,12 +1454,12 @@ function initCustomAdminSearch() {
                     resultsDiv.innerHTML = '';
                     users.forEach(user => {
                         const div = document.createElement('div');
-                        div.textContent = `${user.username} (ID: ${user.userid})`;
+                        div.textContent = `${user.verified_name} (ID: ${user.userid})`;
                         div.style.cssText = 'padding:4px 8px; cursor:pointer; font-size:0.75vw; color:#e0e0e0;';
                         div.addEventListener('mouseenter', () => div.style.background = '#005a5a');
                         div.addEventListener('mouseleave', () => div.style.background = '');
                         div.addEventListener('click', () => {
-                            searchInput.value = user.username;
+                            searchInput.value = user.verified_name;
                             if (idInput) idInput.value = user.userid;
                             resultsDiv.innerHTML = '';
                         });
@@ -1607,14 +1627,64 @@ document.addEventListener('DOMContentLoaded', () => {
     showTab('modded'); // Change to the default tab you want to show initially
 });
 
+// ─── Verified Name ────────────────────────────────────────────────────────────
+
+function submitVerifiedName() {
+	var nameInput = document.getElementById('verifiedNameInput');
+	var errorDiv  = document.getElementById('verifiedNameError');
+	if (!nameInput) return;
+
+	var name = nameInput.value.trim();
+	errorDiv.textContent = '';
+
+	if (!/^[A-Za-z0-9]{1,25}$/.test(name)) {
+		errorDiv.textContent = 'Name must be 1–25 characters: letters (A–Z, a–z) and numbers only.';
+		return;
+	}
+
+	fetch(nodeApi('/setverifiedname'), {
+		method: 'POST',
+		credentials: 'include',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ name: name })
+	}).then(function(r) { return r.json(); }).then(function(data) {
+		if (data.success) {
+			if (myUser) myUser.verified_name = name;
+			document.getElementById('setVerifiedNameModal').style.display = 'none';
+			// Update login button
+			document.getElementById('loginButton').textContent = 'Log out of ' + name;
+			// Pre-fill nick if empty
+			var nickInput = document.getElementById('nick');
+			if (nickInput && !nickInput.value) {
+				nickInput.value = name;
+			}
+			// Show user ID display
+			var idDisplay = document.getElementById('userIdDisplay');
+			if (idDisplay && myUser) {
+				idDisplay.textContent = 'Your ID: ' + myUser.userid;
+				idDisplay.style.display = '';
+			}
+		} else {
+			errorDiv.textContent = data.message || 'Failed to set name. Please try again.';
+		}
+	}).catch(function() {
+		errorDiv.textContent = 'Network error. Please try again.';
+	});
+}
+
+function skipVerifiedName() {
+	var modal = document.getElementById('setVerifiedNameModal');
+	if (modal) modal.style.display = 'none';
+}
+
 function loadScript(url){var head = document.getElementsByTagName('head')[0];var script = document.createElement('script');script.type = 'text/javascript';script.src = url;head.appendChild(script);}
 loadScript("codenzi/Grid.js?v=1");
 loadScript("codenzi/Utils.js?v=1");
 loadScript("codenzi/Resources.js?v=1");
 loadScript("codenzi/Input.js?v=3");
 loadScript("codenzi/Effects.js?v=1");
-loadScript("codenzi/Hud.js?v=2");
-loadScript("codenzi/Snake.js?v=17");
+loadScript("codenzi/Hud.js?v=3");
+loadScript("codenzi/Snake.js?v=18");
 loadScript("codenzi/Food.js?v=1");
 loadScript("codenzi/Map.js?v=3");
 loadScript("codenzi/Minimap.js?v=4");
@@ -1630,6 +1700,6 @@ loadScript("codenzi/Explosion.js?v=1");
 loadScript("codenzi/SpeedupTutorial.js?v=1");
 loadScript("codenzi/SoundManager.js?v=1");
 loadScript("codenzi/TalkLayer.js?v=1");
-loadScript("codenzi/Chat.js?v=1");
+loadScript("codenzi/Chat.js?v=2");
 
 window.onload = init;
