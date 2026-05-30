@@ -237,18 +237,23 @@ class Server {
                     }
 
                     // Collision
-                    const pos = snake.position;
+                    // Snapshot snake.position NOW — it is a live mutable object.
+                    // Using the reference directly in the deferred check would test
+                    // a different segment (the snake has moved by then), causing
+                    // the same phantom-kill / miss-kill bugs as in Snake.turn().
+                    const pos     = snake.position;
+                    const snapPos = { x: pos.x, y: pos.y };
                     if (pos !== ptN && secondPoint !== pt && pos !== secondPoint && pos !== pt) {
-                        if (MapFunctions.DoIntersect(pos, secondPoint, pt, ptN)) {
+                        if (MapFunctions.DoIntersect(snapPos, secondPoint, pt, ptN)) {
                             const delay = (snake.client.ping || 0) + 30;
                             setTimeout(() => {
-                                if (pos !== ptN && secondPoint !== pt && pos !== secondPoint && pos !== pt) {
-                                    if (MapFunctions.DoIntersect(pos, secondPoint, pt, ptN)) {
-                                        snake.kill(
-                                            snake.id === other.id ? Enums.KillReasons.SELF : Enums.KillReasons.KILLED,
-                                            other
-                                        );
-                                    }
+                                // Guard: both snakes must still be alive
+                                if (!snake.spawned || !other.spawned) return;
+                                if (MapFunctions.DoIntersect(snapPos, secondPoint, pt, ptN)) {
+                                    snake.kill(
+                                        snake.id === other.id ? Enums.KillReasons.SELF : Enums.KillReasons.KILLED,
+                                        other
+                                    );
                                 }
                             }, delay);
                         }

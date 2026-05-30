@@ -11,7 +11,7 @@ class Snake {
     network = null;
     nick = "";
     type = Enums.EntityTypes.ENTITY_PLAYER;
-    
+
     constructor(network, name) {
         this.client = network;
         this.server = network.server;
@@ -21,7 +21,7 @@ class Snake {
         this.client.spectating = false;
         this.leaderboardPosition = 0;
         this.SnakesRubbingAgainst = [];
-        
+
         //this.flags |= Enums.EntityFlags.DEBUG
         this.flags = 0;
         if (customPlayerColors[name]) {
@@ -66,7 +66,7 @@ class Snake {
         this.server.snakes[this.id] = this;
         this.server.entities[this.id] = this;
 
-        
+
         this.network.send(Bit8);
     }
     get length() {
@@ -78,7 +78,7 @@ class Snake {
         this.server.leaderboard.insert(this.actualLength, this.id);
 
     }
-    
+
     updateLeaderboard() {
         /*const BitView = new DataView(new ArrayBuffer(1000));
         let offset = 0;
@@ -149,66 +149,88 @@ class Snake {
         if (Math.abs(secondPoint[whatVector] - vector) < 0.1) { // Attempting to turn in place
             this.position[oppositeVector] += goingUp ? 0.22 : -0.22;
         }
-        
+
+        // ── teleport prevention ───────────────────────────────────────────────
+        // The snake was travelling on oppositeVector, so whatVector should not
+        // have changed since the last turn.  Allow a generous delta (8 ticks of
+        // movement) to absorb any client/server prediction drift, but reject
+        // coordinates that are clearly exploit-range values.
+        const maxTurnDelta = Math.max(3, this.speed * UPDATE_EVERY_N_TICKS * 8);
+        vector = Math.max(this.position[whatVector] - maxTurnDelta,
+                 Math.min(this.position[whatVector] + maxTurnDelta, vector));
+
         this.position[whatVector] = vector;
 
-        
+        if (secondPoint) {
+            // Snapshot the attacker's segment endpoints NOW, before this.position
+            // advances further.  The deferred re-check MUST use these fixed values —
+            // using the live this.position reference would check a completely
+            // different segment by the time the timeout fires, producing phantom
+            // kills on innocent players (bug: high-ping false kill) and letting
+            // exploiters phase through walls (bug: teleport-through kill).
+            const snapHead   = { x: this.position.x, y: this.position.y };
+            const snapSecond = { x: secondPoint.x,   y: secondPoint.y   };
 
-        
-        
-
-        if (secondPoint)
             Object.values(this.server.clients).forEach((client) => {
-                if (!client.snake)
-                    return
-                let snake = client.snake;
-                if (this.client.loadedEntities[snake.id]) {
-                    for (let i = -1; i < snake.points.length - 1; i++) {
-                        let point;
-                        if (i == -1)
-                            point = snake.position;
-                        else
-                            point = snake.points[i];
-                        let nextPoint = snake.points[i + 1];
-                        
-                        // Make sure that the last point did not intersect with another snake
-                        if (this.position != nextPoint && secondPoint != point && secondPoint != nextPoint &&
-                            this.position != secondPoint && this.position != point) {
-                            if (MapFunctions.DoIntersect(this.position, secondPoint, point, nextPoint)) {
-                                /*this.DrawDebugCircle(this.position.x, this.position.y, 50, 4); // Yellow
-                                this.DrawDebugCircle(secondPoint.x, secondPoint.y, 50, 4); // Yellow
-                                this.DrawDebugCircle(point.x, point.y, 100, 3); // Green
-                                this.DrawDebugCircle(nextPoint.x, nextPoint.y, 100, 3); // Green*/
-                                setTimeout(() => { // Make sure they didn't move out of the way
-                                    if (MapFunctions.DoIntersect(this.position, secondPoint, point, nextPoint)) {
-                                        if (this == snake) {
-                                            this.kill(Enums.KillReasons.SELF, this);
-                                        } else {
-                                            this.kill(Enums.KillReasons.KILLED, snake);
-                                        }
+                if (!client.snake) return;
+                const snake = client.snake;
+                if (!this.client.loadedEntities[snake.id]) return;
+
+                for (let i = -1; i < snake.points.length - 1; i++) {
+                    const point     = i === -1 ? snake.position : snake.points[i];
+                    const nextPoint = snake.points[i + 1];
+
+                    // Skip degenerate / shared-endpoint segments (same identity
+                    // checks as the original, using the live references)
+                    if (this.position === nextPoint || secondPoint === point ||
+                        secondPoint === nextPoint  || this.position === secondPoint ||
+                        this.position === point) continue;
+
+                    if (MapFunctions.DoIntersect(snapHead, snapSecond, point, nextPoint)) {
+                        const delay = (client.ping || 0) + 30;
+                        setTimeout(() => {
+                            // Guard: both snakes must still be alive when the
+                            // timeout fires; either could have died in the meantime.
+                            if (!this.spawned || !snake.spawned) return;
+
+                            // Re-iterate the victim's CURRENT segments so that a
+                            // legitimate dodge (the victim turned away before the
+                            // timeout) is properly honoured.  The attacker's segment
+                            // stays fixed at the original turn position.
+                            for (let j = -1; j < snake.points.length - 1; j++) {
+                                const p  = j === -1 ? snake.position : snake.points[j];
+                                const np = snake.points[j + 1];
+                                if (!np) break;
+                                if (MapFunctions.DoIntersect(snapHead, snapSecond, p, np)) {
+                                    if (this === snake) {
+                                        this.kill(Enums.KillReasons.SELF, this);
+                                    } else {
+                                        this.kill(Enums.KillReasons.KILLED, snake);
                                     }
-                                }, client.ping + 30 || 50) // Add a little bit of time to account for ping flucuations
+                                    return; // one kill per timeout is enough
+                                }
                             }
-                        }
+                        }, delay);
                     }
                 }
-        })
-        //console.log(`Ping is ${this.client.ping}, GlobalWebLag is ${this.server.config.GlobalWebLag}`)
-        
-            
+            });
+        }
 
-
-        
         this.direction = direction;
         this.addPoint(this.position.x, this.position.y);
-        // Move the snake forward for however long it takes to send
-        let totalSpeed = this.speed * UPDATE_EVERY_N_TICKS;
+
         // Compensate for the full round-trip latency (not just ping/2).
         // The client predicts GlobalWebLag ms ahead. By the time the client RECEIVES
-        // the server confirmation, a full RTT has elapsed. So advance by (ping - GlobalWebLag),
-        // not (ping/2 - GlobalWebLag), to match what the client's ELSE branch predicted.
-        let extraLatency = Math.max(0, this.client.ping - this.server.config.GlobalWebLag);
-        let totalDistanceTraveledDuringPing = totalSpeed * (extraLatency / this.server.config.UpdateInterval);
+        // the server confirmation, a full RTT has elapsed. So advance by
+        // (ping - GlobalWebLag), not (ping/2 - GlobalWebLag).
+        // Cap extraLatency: a client with artificially delayed PONG responses can
+        // inflate this.client.ping and jump their snake forward by an unbounded
+        // distance on every turn event.
+        const totalSpeed   = this.speed * UPDATE_EVERY_N_TICKS;
+        const extraLatency = Math.min(500,
+            Math.max(0, this.client.ping - this.server.config.GlobalWebLag));
+        const totalDistanceTraveledDuringPing =
+            totalSpeed * (extraLatency / this.server.config.UpdateInterval);
         if (goingUp)
             this.position[oppositeVector] += totalDistanceTraveledDuringPing;
         else
@@ -224,13 +246,13 @@ class Snake {
         let percentOfMax = (4 - dist + 1) / 4;
 
 
-        
+
         let rubSpeed = max_speed * percentOfMax;
         if (this.extraSpeed + rubSpeed <= this.server.config.MaxRubSpeed || this.speedBypass) {
             this.extraSpeed += rubSpeed
             this.speed += rubSpeed / 1000;
         }
-        
+
     }
     stopRubbing() {
         if (!this.RubSnake)
@@ -241,6 +263,11 @@ class Snake {
     }
     kill(reason, killedBy) {
         if (this.invincible && reason != Enums.KillReasons.LEFT_SCREEN)
+            return;
+        // Guard: multiple deferred collision checks can resolve simultaneously.
+        // Without this, killstreak, kill packets, and spectator state are
+        // all applied twice.
+        if (!this.spawned)
             return;
         if (killedBy != this) {
             if (!killedBy)
@@ -296,7 +323,7 @@ class Snake {
             snake.stopRubbing();
         }
         this.stopRubbing();
-        
+
         if (!this.spawned) {
             return
         }
@@ -305,7 +332,7 @@ class Snake {
                 var Bit8 = new DataView(new ArrayBuffer(16 + 2 * 1000));
                 Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTITY_INFO);
                 var offset = 1;
-            
+
                 Bit8.setUint16(offset, this.id, true);
                 offset += 2;
                 //console.log("0Killed snake " + this.nick + " with ID " + this.id)
@@ -340,8 +367,7 @@ class Snake {
 
 
         // Convert snake to food
-        
-        
+
 
         let actualLength = 0
         for (let i = -1; i < this.points.length - 1; i++) {
@@ -423,9 +449,9 @@ class Snake {
             else
                 nextPoint = SnakeFunctions.GetPointAtDistance(this, i + 1);
             let food = new Food(this.server, point.x, point.y, this.color - 25 + Math.random() * 50, this, 20000 + (Math.random() * 60 * 1000 * 5));
-            
+
             // Move food forward the direction that the line was going
-            
+
             let direction = MapFunctions.GetNormalizedDirection(nextPoint, point);
 
             if (direction) {
@@ -438,7 +464,7 @@ class Snake {
                 easeOut(food, { x: point.x + easingRandomX, y: point.y + easingRandomY }, 5000);
             }
         }
-        
+
         let entitiesToAdd = []
         let entitiesToRemove = []
         if (killedBy != this) {
@@ -446,7 +472,7 @@ class Snake {
             killedBy.killedSnakes.push(this)
             this.client.spectating = killedBy;
             // Sync up the loaded entities
-            
+
             Object.values(killedBy.client.loadedEntities).forEach((entity) => {
                 if (entity.id == this.id) {
                     return
@@ -483,7 +509,11 @@ class Snake {
                 snake.client.update(Enums.UpdateTypes.UPDATE_TYPE_FULL, [entitiesToAdd]);
             }
         })
-        killedBy.killedSnakes = killedBy.killedSnakes.concat(this.killedSnakes) // Add the snakes that this snake killed to the killer's list
+        // Transfer spectating snakes to the killer. Guard against self-kill:
+        // killedBy === this would double the array.
+        if (killedBy !== this) {
+            killedBy.killedSnakes = killedBy.killedSnakes.concat(this.killedSnakes);
+        }
 
         // Anti-bot: notify client so it can apply progressive re-entry cooldown
         if (this.client && typeof this.client._onSnakeDied === 'function') {
@@ -502,7 +532,7 @@ class Snake {
         delete this.server.entities[this.id]
 
     }
-    
+
     debugCircleIds = new IDManager();
     DrawDebugCircle(x, y, color = 100, size = 4) {
         let id = this.debugCircleIds.allocateID();
