@@ -427,6 +427,15 @@ class Server {
     // ── WebSocket attachment ──────────────────────────────────────────────────
 
     attachWebSocket(ws, req) {
+        // Enforce player cap before doing any further work.
+        // Bots set client.isBot = true and bypass this path entirely, so they
+        // don't count against the limit.
+        const humanCount = Object.values(this.clients).filter(c => !c.isBot).length;
+        if (this.MaxPlayers && humanCount >= this.MaxPlayers) {
+            ws.close(1008, 'Server is full');
+            return;
+        }
+
         this.lastConnectionTime = Date.now();
 
         // Queue messages received before session lookup completes

@@ -382,7 +382,7 @@ routes.getservers = (req, res) => {
             maxplayers:  server.MaxPlayers,
             pinned:      server.pinned,
             type:        server.isEphemeral ? 'custom' : undefined,
-            playerCount: Object.keys(server.snakes).length,
+            playerCount: Object.values(server.snakes).filter(s => !s.client.isBot).length,
             config:      JSON.stringify(cfg, null, 4),
         };
     });
@@ -515,7 +515,7 @@ routes.myserver = async (req, res) => {
                 id:          server.id,
                 name:        server.name,
                 maxplayers:  server.MaxPlayers,
-                playerCount: Object.keys(server.snakes).length,
+                playerCount: Object.values(server.snakes).filter(s => !s.client.isBot).length,
                 admins:      server.admins,
                 timeLeftMs:  timeLeft,
                 config:      JSON.stringify(cfg, null, 4),

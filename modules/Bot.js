@@ -28,7 +28,9 @@ class Bot {
 
     initializeClient(server) {
         const simulatedWs = { send: (data) => {} };
-        return new Client(server, simulatedWs, null);
+        const client = new Client(server, simulatedWs, null);
+        client.isBot = true;   // flag so bots don't count against MaxPlayers
+        return client;
     }
 
     generateNickname() {
