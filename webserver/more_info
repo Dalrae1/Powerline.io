@@ -24,6 +24,16 @@
 <b>Changelog</b>
 <br>
 <br>
+-- v1.10: May 30th, 2026 --
+&bull; Added "Verified Name" feature for identifying players who have verified their identity with the game. This feature helps to enhance player trust and safety by allowing users to confirm their identity, reducing the chances of impersonation and fostering a more secure gaming environment.
+<br>
+&bull; Security patches to address vulnerabilities and enhance the overall security of the game, ensuring a safer gaming experience for all players.
+<br>
+&bull; Added ephemeral custom servers that allow players to create temporary private servers for a limited time. This feature enables players to enjoy exclusive gaming sessions with friends or specific groups, enhancing the social aspect of the game and providing a more personalized gaming experience.
+<br>
+&bull; Improved server efficiency to enhance the performance and stability of the game servers, resulting in smoother gameplay and reduced latency for players. This improvement ensures a more enjoyable gaming experience, especially during peak hours when server load is high.
+
+<br>
 -- v1.09: August 9th, 2021 --
 <br>
 &bull; Added server selector
