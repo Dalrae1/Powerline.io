@@ -272,18 +272,28 @@ setInterval(() => {
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
+// The single origin permitted to make cross-origin credentialed requests.
+// Set CORS_ORIGIN in your .env to the game's public URL (e.g. https://powerline.io).
+// If left unset no cross-origin access is granted at all, which is safe by default.
+const ALLOWED_ORIGIN = process.env.CORS_ORIGIN || null;
+
 /**
  * Build CORS response headers.
- * @param {IncomingMessage} req
- * @param {string}          methods  - comma-separated allowed methods
+ * Only the exact origin declared in CORS_ORIGIN is reflected back.
+ * Reflecting the request's Origin header verbatim (old behaviour) allows any
+ * site to make credentialed cross-origin requests and read the responses.
+ * @param {string} methods  - comma-separated allowed methods
  */
 function corsHeaders(req, methods = 'GET') {
-    return {
-        'Access-Control-Allow-Origin':      req.headers.origin || req.headers.host || 'null',
-        'Access-Control-Allow-Methods':     methods,
-        'Access-Control-Allow-Headers':     'Content-Type',
-        'Access-Control-Allow-Credentials': 'true',
+    const headers = {
+        'Access-Control-Allow-Methods': methods,
+        'Access-Control-Allow-Headers': 'Content-Type',
     };
+    if (ALLOWED_ORIGIN) {
+        headers['Access-Control-Allow-Origin']      = ALLOWED_ORIGIN;
+        headers['Access-Control-Allow-Credentials'] = 'true';
+    }
+    return headers;
 }
 
 /**

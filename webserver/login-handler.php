@@ -331,7 +331,7 @@ function LogError($message) {
     $date = date('Y-m-d H:i:s');
     $fullMessage = "[$date] $message\n";
     file_put_contents($logFile, $fullMessage, FILE_APPEND);
-    echo $message;
+    // Never send internal error details to the HTTP response — log only.
 }
 
 function HandleGoogle($input) {
@@ -368,7 +368,7 @@ function HandleGoogle($input) {
         $session_id = $_COOKIE['session_id'];
         $existing_user = GetUserFromSession($session_id);
         if ($existing_user && $existing_user['userid'] == $user['userid']) {
-            setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, false);
+            setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
             header("Location: $protocol://$host");
             exit();
         }
@@ -376,7 +376,7 @@ function HandleGoogle($input) {
 
     $session_id = CreateSessionForUser($user['userid']);
     if (strlen($session_id) == 30) {
-        setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, false);
+        setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
     } else {
         LogError($session_id);
         exit();
@@ -505,7 +505,7 @@ function HandleDiscord($input) {
             $session_id = $_COOKIE['session_id'];
             $existing_user = GetUserFromSession($session_id);
             if ($existing_user && $existing_user['userid'] == $discordUser['userid']) {
-                setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, false);
+                setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
                 echo "<script>window.close();</script>";
                 //header("Location: $protocol://$host");
                 exit();
@@ -514,7 +514,7 @@ function HandleDiscord($input) {
 
         $session_id = CreateSessionForUser($discordUser['userid']);
         if (strlen($session_id) == 30) {
-            setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, false);
+            setcookie('session_id', $session_id, time() + 60 * 60 * 24 * 60, '/', '', true, true);
         } else {
             LogError($session_id);
             exit();

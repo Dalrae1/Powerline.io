@@ -16,7 +16,7 @@ function LogError($message) {
     $date = date('Y-m-d H:i:s');
     $fullMessage = "[$date] $message\n";
     file_put_contents($logFile, $fullMessage, FILE_APPEND);
-    echo $message;
+    // Never send internal error details to the HTTP response — log only.
 }
 function DBConnect() {
     global $db_host, $db_user, $db_pass, $db_database, $db_port;
@@ -30,9 +30,11 @@ function DBConnect() {
 
 function GetUserFromSession($session_id) {
     $mysqli = DBConnect();
-    $stmt = $mysqli->prepare("SELECT u.userid, u.username, u.email, u.rank, u.pfp
-                              FROM users u 
-                              JOIN sessions s ON u.userid = s.userid 
+    // email is intentionally excluded — the client never needs it, and returning
+    // it in every page-load response unnecessarily exposes PII.
+    $stmt = $mysqli->prepare("SELECT u.userid, u.username, u.rank, u.pfp
+                              FROM users u
+                              JOIN sessions s ON u.userid = s.userid
                               WHERE s.session = ?");
     if (!$stmt) {
         $mysqli->close();
