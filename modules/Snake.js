@@ -38,6 +38,7 @@ class Snake {
         let thisId = this.server.entityIDs.allocateID();
         //console.log("Spawning snake " + name + " with ID " + thisId)
         this.spawned = true;
+        this._spawnTime = Date.now();
         var Bit8 = new DataView(new ArrayBuffer(1000));
         Bit8.setUint8(0, Enums.ServerToClient.OPCODE_ENTERED_GAME);
         Bit8.setUint32(1, thisId, true);
@@ -400,8 +401,21 @@ class Snake {
 
         let scoreToDrop = SnakeFunctions.GetScoreToDrop(actualLength);
         let foodToDrop = SnakeFunctions.ScoreToFood(scoreToDrop) * this.server.foodMultiplier;
-        let dropAtInterval = actualLength / (foodToDrop);
-        for (let i = 0; i < actualLength; i += dropAtInterval) {
+
+        // Anti-bot: snakes that die very quickly drop little or no food,
+        // directly defeating food-farm bots that suicide immediately after spawning.
+        //   < 3 s alive  → 0 % food (pure bot behaviour)
+        //   3–10 s alive → 25 % food (likely still botting)
+        //   ≥ 10 s alive → 100 % (normal player)
+        const aliveMs = Date.now() - (this._spawnTime || 0);
+        if (aliveMs < 3_000) {
+            foodToDrop = 0;
+        } else if (aliveMs < 10_000) {
+            foodToDrop = Math.floor(foodToDrop * 0.25);
+        }
+
+        let dropAtInterval = foodToDrop > 0 ? actualLength / foodToDrop : Infinity;
+        for (let i = 0; i < actualLength && foodToDrop > 0; i += dropAtInterval) {
             let point = SnakeFunctions.GetPointAtDistance(this, i);
             let nextPoint
             if (i == actualLength-1)
@@ -470,6 +484,12 @@ class Snake {
             }
         })
         killedBy.killedSnakes = killedBy.killedSnakes.concat(this.killedSnakes) // Add the snakes that this snake killed to the killer's list
+
+        // Anti-bot: notify client so it can apply progressive re-entry cooldown
+        if (this.client && typeof this.client._onSnakeDied === 'function') {
+            this.client._onSnakeDied();
+        }
+
         this.spawned = false;
         this.client.deadPosition = this.position;
         this.client.dead = true;

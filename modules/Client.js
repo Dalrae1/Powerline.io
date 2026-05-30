@@ -4,6 +4,7 @@ const Food            = require('./Food.js');
 const { SnakeFunctions } = require('./EntityFunctions.js');
 const BinaryWriter    = require('./BinaryWriter.js');
 const EventEmitter    = require('events');
+const AntiBotTracker  = require('./AntiBotTracker.js');
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,12 @@ class Client extends EventEmitter {
         this.user              = user || null;
         this.messagesPerSecond = [];
         this.lastSecondCheck   = 0;
+
+        // Anti-bot state
+        this._clientIP             = websocket._clientIP || null;
+        this._lastEnterTime        = 0;
+        this._fastDeathStreak      = 0;
+        this._reEntryCooldownUntil = 0;
 
         server.clients[this.id] = this;
 
@@ -100,6 +107,13 @@ class Client extends EventEmitter {
                 const nick = global.getString(view, 1);
                 if (nick.string.length > 25) return;
                 if (!this.snake || !this.snake.spawned) {
+                    // Anti-bot: enforce per-connection re-entry cooldown
+                    const enterNow = Date.now();
+                    if (enterNow < this._reEntryCooldownUntil) return;
+                    // Anti-bot: enforce per-IP enter-rate limit
+                    if (!AntiBotTracker.tryRecordEnter(this._clientIP)) return;
+
+                    this._lastEnterTime = enterNow;
                     this.snake = new Snake(this, nick.string || '');
                 }
                 break;
@@ -382,6 +396,42 @@ class Client extends EventEmitter {
 
     _isOwner() {
         return this.user && this.user.userid === parseInt(this.server.owner);
+    }
+
+    // ── anti-bot: progressive re-entry cooldown ───────────────────────────────
+
+    /**
+     * Called by Snake.kill() whenever this client's snake dies.
+     *
+     * Tracks rapid-respawn behaviour and imposes exponentially increasing
+     * cooldowns on OPCODE_ENTER_GAME for connections that keep dying fast:
+     *
+     *   streak 1 →   3 s
+     *   streak 2 →  10 s
+     *   streak 3 →  30 s
+     *   streak 4 →  90 s
+     *   streak 5+ → 300 s  (5 min)
+     *
+     * A snake that survives ≥ 10 s counts as a "good death" and decrements
+     * the streak by 1, so a normal player is never penalised.
+     */
+    _onSnakeDied() {
+        // ms alive is measured from when OPCODE_ENTER_GAME was accepted
+        const aliveMs = Date.now() - this._lastEnterTime;
+        const COOLDOWNS = [0, 3_000, 10_000, 30_000, 90_000, 300_000];
+
+        if (aliveMs < 10_000) {
+            // Fast death — ratchet streak up (capped at max index)
+            this._fastDeathStreak = Math.min(this._fastDeathStreak + 1, COOLDOWNS.length - 1);
+        } else {
+            // Good death — ease streak back down
+            this._fastDeathStreak = Math.max(0, this._fastDeathStreak - 1);
+        }
+
+        const cooldown = COOLDOWNS[this._fastDeathStreak];
+        if (cooldown > 0) {
+            this._reEntryCooldownUntil = Date.now() + cooldown;
+        }
     }
 
     // ── outgoing packet helpers ───────────────────────────────────────────────

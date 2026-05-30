@@ -8,6 +8,7 @@ const { SnakeFunctions } = require('./modules/EntityFunctions.js');
 const Server             = require('./modules/Server.js');
 const DatabaseFunctions  = require('./modules/DatabaseFunctions.js');
 const Bot                = require('./modules/Bot.js');
+const AntiBotTracker     = require('./modules/AntiBotTracker.js');
 
 DBFunctions = new DatabaseFunctions();
 
@@ -632,6 +633,27 @@ const wss = new WebSocket.Server({ server: httpServer });
 
 wss.on('connection', (ws, req) => {
     try {
+        // ── per-IP connection gate ────────────────────────────────────────────
+        // Use the real remote address — don't trust X-Forwarded-For because bots
+        // can spoof headers, whereas the TCP remote address is harder to fake when
+        // connecting directly.  For NAT'd networks (schools, offices) all students
+        // share one IP, so the limit of 30 is intentionally generous.
+        const clientIP = req.socket.remoteAddress || '::1';
+
+        if (!AntiBotTracker.isConnectionAllowed(clientIP)) {
+            ws.close(1008, 'Too many connections from your network');
+            return;
+        }
+
+        AntiBotTracker.onConnected(clientIP);
+        // Store on the socket so Client.js can access it without importing
+        // PowerlineServer.js (avoiding a circular dependency).
+        ws._clientIP = clientIP;
+
+        // Release the slot when the socket closes (fires whether finalize ran or not)
+        ws.on('close', () => AntiBotTracker.onDisconnected(clientIP));
+
+        // ── server routing ────────────────────────────────────────────────────
         const parsed = url.parse(req.url, true);
         if (parsed.pathname !== '/ws') { ws.close(1008, 'Invalid websocket path'); return; }
 
