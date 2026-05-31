@@ -221,7 +221,7 @@ var Network = function () {
 
 	this.onSocketClose = function(e) {
 		//console.log('Socket closed!', e);
-		network.connectionClosed();
+		network.connectionClosed(e);
 	};
 
 	this.onSocketMessage = function(e) {
@@ -697,18 +697,50 @@ var Network = function () {
 		}
 	};
 
-	this.connectionClosed = function() {
+	this.connectionClosed = function(e) {
 		app.gameCleanup();
 		network.sentHello = false;
 		network.hasConnection = false;
 
 		fadeinUI(-1);
-		$('#topGui').hide();
-		$('#topGuiConnecting').show();
 		$('#copyLink').fadeOut(300);
 
 		var buttons = $('.btn-needs-server');
-		buttons.attr('disabled','disabled');
+		buttons.attr('disabled', 'disabled');
+
+		// Code 1008 = Policy Violation — the server deliberately rejected or
+		// ejected this client (server full, IP cap, etc.).  In these cases
+		// infinite reconnect would just keep hammering the same full server;
+		// instead restore the normal lobby UI and show the server's reason.
+		if (e && e.code === 1008) {
+			$('#topGuiConnecting').hide();
+			$('#topGui').show();
+
+			const reason = 'Connection failed: ' + ((e.reason && e.reason.trim()) || 'Connection rejected by server.');
+
+			// Inject a dismissible notice directly into the lobby panel.
+			// hud.showTip() is canvas-based and unavailable before the first
+			// successful connection, so a plain DOM element is used instead.
+			$('#server-rejection-notice').remove();
+			const $notice = $('<p id="server-rejection-notice">')
+				.css({
+					color:      '#ff6666',
+					textAlign:  'center',
+					fontWeight: 'bold',
+					margin:     '6px 0 2px',
+				})
+				.text(reason)
+				.prependTo('#topGui');
+			setTimeout(function() {
+				$notice.fadeOut(400, function() { $(this).remove(); });
+			}, 5000);
+
+			network.connectRetry = 0;
+			return;
+		}
+
+		$('#topGui').hide();
+		$('#topGuiConnecting').show();
 
 		var retryIn = this.connectRetry;
 		if(retryIn > 5)
