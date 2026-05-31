@@ -403,28 +403,33 @@ class Client extends EventEmitter {
     /**
      * Called by Snake.kill() whenever this client's snake dies.
      *
-     * Tracks rapid-respawn behaviour and imposes exponentially increasing
-     * cooldowns on OPCODE_ENTER_GAME for connections that keep dying fast:
+     * Only deaths under 3 s count as "fast" — anything longer is normal
+     * gameplay and never accumulates a streak.  The first two fast deaths in
+     * a row are free (bots regularly die instantly due to lag or despawns, so
+     * one or two quick deaths can happen legitimately).  Meaningful friction
+     * only starts from the third consecutive < 3 s death onwards:
      *
-     *   streak 1 →   3 s
-     *   streak 2 →  10 s
-     *   streak 3 →  30 s
-     *   streak 4 →  90 s
-     *   streak 5+ → 300 s  (5 min)
+     *   streak 0–1 →   0 s  (instant respawn)
+     *   streak 2   →   0 s  (still instant)
+     *   streak 3   → 1.5 s
+     *   streak 4   →   8 s
+     *   streak 5+  → 180 s  (3 min)
      *
-     * A snake that survives ≥ 10 s counts as a "good death" and decrements
-     * the streak by 1, so a normal player is never penalised.
+     * A death where the snake survived ≥ 3 s decrements the streak by 1, so
+     * a normal player who occasionally gets killed early is never penalised.
      */
     _onSnakeDied() {
         // ms alive is measured from when OPCODE_ENTER_GAME was accepted
         const aliveMs = Date.now() - this._lastEnterTime;
-        const COOLDOWNS = [0, 3_000, 10_000, 30_000, 90_000, 300_000];
+        const COOLDOWNS = [0, 0, 0, 1_500, 8_000, 180_000];
 
-        if (aliveMs < 10_000) {
-            // Fast death — ratchet streak up (capped at max index)
+        if (aliveMs < 3_000) {
+            // Fast death (< 3 s) — matches the food-reduction threshold;
+            // ratchet the streak up toward meaningful cooldowns.
             this._fastDeathStreak = Math.min(this._fastDeathStreak + 1, COOLDOWNS.length - 1);
         } else {
-            // Good death — ease streak back down
+            // Normal death — ease the streak back down so a legitimate player
+            // who occasionally dies quickly won't accumulate a lasting penalty.
             this._fastDeathStreak = Math.max(0, this._fastDeathStreak - 1);
         }
 
