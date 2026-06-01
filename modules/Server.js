@@ -10,6 +10,7 @@ const Client          = require('./Client.js');
 const DatabaseFunctions = require('./DatabaseFunctions.js');
 const AVLTree         = require('./AVLTree.js');
 const Bot             = require('./Bot.js');
+const SegmentIndex    = require('./SegmentIndex.js');
 
 const DBFunctions = new DatabaseFunctions();
 
@@ -50,6 +51,8 @@ class Server {
         this.barriers     = [];
         this.chatHistory  = [];
         this.bots         = [];
+        // Axis-aligned segment index — O(1) collision and rubbing queries.
+        this.segmentIndex = new SegmentIndex();
 
         this.leaderboardDataview       = null;  // writable DataView sent to clients
         this.leaderboardDataviewOffset = 0;     // offset where per-snake personal rank is appended
@@ -210,121 +213,77 @@ class Server {
                 }
             }
 
-            // ── snake-vs-snake collision + rubbing ────────────────────────────
-            const secondPoint    = snake.points[0];
-            // Capture the current turn-generation so the deferred check can
-            // detect a turn without relying on object identity of points[0].
-            // Tail-trimming replaces points[0] on single-point (freshly spawned)
-            // snakes every tick, which would falsely abort kills via the old
-            // `snake.points[0] !== secondPoint` guard.
+            // ── snake-vs-snake collision ──────────────────────────────────────
+            const secondPoint     = snake.points[0];
             const capturedTurnGen = snake.turnGeneration;
-            let   closestRub     = null;
 
-            // Compute the head position one tick ago.  We use this short
-            // "one-tick movement" segment for the INITIAL collision check
-            // instead of the full [head → last-turn] segment.
-            //
-            // Why: the full head segment spans every tick since the snake's
-            // last turn.  When snake A crosses snake B's body in the current
-            // tick, B's equally-long head segment often overlaps A's body
-            // because B passed through A's area in a PAST tick.  This causes
-            // a spurious deferred kill for B, and whichever kill fires first
-            // (based on ping) wins — letting the wrong snake die.
-            //
-            // Using only the one-tick movement ensures we only detect crossings
-            // that actually happened in this tick, eliminating false positives
-            // caused by stale segment history.
-            //
-            // The DEFERRED re-check still uses `secondPoint` (full segment) to
-            // confirm the snake hasn't turned away and is still past the body.
-            const tickDist = dist; // dist was computed above for movement
+            // Reconstruct the head position one tick ago so the initial check
+            // is limited to the movement that actually happened this tick.
+            // This prevents false positives from stale head-segment history.
             let prevHeadX = snake.position.x;
             let prevHeadY = snake.position.y;
             switch (snake.direction) {
-                case Enums.Directions.UP:    prevHeadY -= tickDist; break;
-                case Enums.Directions.DOWN:  prevHeadY += tickDist; break;
-                case Enums.Directions.LEFT:  prevHeadX += tickDist; break;
-                case Enums.Directions.RIGHT: prevHeadX -= tickDist; break;
+                case Enums.Directions.UP:    prevHeadY -= dist; break;
+                case Enums.Directions.DOWN:  prevHeadY += dist; break;
+                case Enums.Directions.LEFT:  prevHeadX += dist; break;
+                case Enums.Directions.RIGHT: prevHeadX -= dist; break;
             }
             const prevHead = { x: prevHeadX, y: prevHeadY };
+            const snapPos  = { x: snake.position.x, y: snake.position.y };
 
-            for (const other of Object.values(snake.client.loadedEntities)) {
-                if (other.type !== Enums.EntityTypes.ENTITY_PLAYER) continue;
+            // Query the segment index for the one-tick movement.
+            // O(1) average — checks 1-2 perpendicular buckets + 1 collinear
+            // bucket regardless of arena size or segment length.
+            const collisionHits = this.segmentIndex.queryMove(
+                snake.direction, prevHead, snapPos, Enums.Directions
+            );
 
-                const nearby = SnakeFunctions.GetPointsNearSnake(snake, other, 30);
-                snake.client.pointsNearby[other.id] = nearby;
+            for (const hit of collisionHits) {
+                const other = hit.snake;
 
-                for (let i = 0; i < nearby.length - 1; i++) {
-                    if (nearby[i + 1].index !== nearby[i].index + 1) continue;
+                // Skip own head segment and own first body segment (T-touch guard).
+                if (other === snake) {
+                    if (hit.id === snake._headSegHandle?.id)     continue;
+                    if (hit.id === snake._bodySegHandles[0]?.id) continue;
+                }
 
-                    const pt   = nearby[i].point;
-                    const ptN  = nearby[i + 1].point;
+                // Snapshot hit segment endpoints at detection time.
+                const snapPt  = hit.isH ? { x: hit.xMin, y: hit.y    } : { x: hit.x, y: hit.yMin };
+                const snapPtN = hit.isH ? { x: hit.xMax, y: hit.y    } : { x: hit.x, y: hit.yMax };
 
-                    // Rubbing
-                    if (other.id !== snake.id) {
-                        const nearest = MapFunctions.NearestPointOnLine(snake.position, pt, ptN);
-                        if (nearest.distance < 4) {
-                            if (!closestRub || nearest.distance < closestRub.distance) {
-                                closestRub = { point: nearest.point, distance: nearest.distance, other };
-                            }
+                const delay = (snake.client.ping || 0) + 30;
+                setTimeout(() => {
+                    if (!snake.spawned || !other.spawned) return;
+                    // Walk every segment travelled since detection.
+                    // points[extraTurns] = secondPoint (turn point at detection time).
+                    const extraTurns = snake.turnGeneration - capturedTurnGen;
+                    for (let j = 0; j <= extraTurns; j++) {
+                        const segStart = j === 0 ? snake.position : snake.points[j - 1];
+                        const segEnd   = snake.points[j] ?? (j === extraTurns ? secondPoint : null);
+                        if (!segEnd) break;
+                        if (MapFunctions.DoIntersect(segStart, segEnd, snapPt, snapPtN, true)) {
+                            snake.kill(
+                                snake.id === other.id ? Enums.KillReasons.SELF : Enums.KillReasons.KILLED,
+                                other
+                            );
+                            break;
                         }
                     }
+                }, delay);
+            }
 
-                    // Collision
-                    // Snapshot snake.position and the victim's segment endpoints
-                    // so both checks use fixed geometry from this exact tick.
-                    const pos     = snake.position;
-                    const snapPos = { x: pos.x,  y: pos.y  };
-                    const snapPt  = { x: pt.x,   y: pt.y   };
-                    const snapPtN = { x: ptN.x,  y: ptN.y  };
-
-                    // Initial check: did the snake's head cross other's body
-                    // segment IN THIS TICK?  Use the one-tick movement segment
-                    // [prevHead → snapPos] so we never fire on stale overlap
-                    // from past ticks.
-                    //
-                    // includeCollinear=true: axis-aligned same-direction chases
-                    // and head-on collisions produce collinear (det=0) segment
-                    // pairs that DoIntersect normally skips.  The one-tick window
-                    // keeps this safe — the one-tick segment can only overlap a
-                    // collinear body if the head is literally inside it right now,
-                    // not because of historical overlap from a past tick.
-                    //
-                    // Object-reference guards: prevent degenerate shared-endpoint
-                    // cases (e.g. after a turn, prevHead lands exactly on
-                    // snake.points[0] which is also the start of the first body
-                    // segment — DoIntersect returns true for that T-touch).
-                    if (pos !== ptN && secondPoint !== pt && pos !== secondPoint && pos !== pt &&
-                        MapFunctions.DoIntersect(snapPos, prevHead, snapPt, snapPtN, true)) {
-                        const delay = (snake.client.ping || 0) + 30;
-                        setTimeout(() => {
-                            if (!snake.spawned || !other.spawned) return;
-                            // Walk every segment the snake has travelled since
-                            // the tick when the collision was first detected.
-                            // A quick multi-turn manoeuvre within the ping window
-                            // must not let the snake pass through the body;
-                            // a genuine dodge (all segments stay on one side)
-                            // must not fire a kill.
-                            //
-                            // snake.points[j] for j in [0, extraTurns] are the
-                            // turn points added after capturedTurnGen, newest
-                            // first.  snake.points[extraTurns] is `secondPoint`
-                            // (the turn point that existed at detection time).
-                            const extraTurns = snake.turnGeneration - capturedTurnGen;
-                            for (let j = 0; j <= extraTurns; j++) {
-                                const segStart = j === 0 ? snake.position : snake.points[j - 1];
-                                const segEnd   = snake.points[j] ?? (j === extraTurns ? secondPoint : null);
-                                if (!segEnd) break; // safety: point was tail-trimmed
-                                if (MapFunctions.DoIntersect(segStart, segEnd, snapPt, snapPtN, true)) {
-                                    snake.kill(
-                                        snake.id === other.id ? Enums.KillReasons.SELF : Enums.KillReasons.KILLED,
-                                        other
-                                    );
-                                    break;
-                                }
-                            }
-                        }, delay);
-                    }
+            // ── rubbing detection ─────────────────────────────────────────────
+            // Use the same index with a radius query so we don't need the old
+            // O(N × L) GetPointsNearSnake loop.
+            let closestRub = null;
+            const rubbingHits = this.segmentIndex.queryRadius(snake.position, 4);
+            for (const hit of rubbingHits) {
+                if (hit.snake === snake) continue; // no self-rubbing
+                const p1 = hit.isH ? { x: hit.xMin, y: hit.y    } : { x: hit.x, y: hit.yMin };
+                const p2 = hit.isH ? { x: hit.xMax, y: hit.y    } : { x: hit.x, y: hit.yMax };
+                const nearest = MapFunctions.NearestPointOnLine(snake.position, p1, p2);
+                if (nearest.distance < 4 && (!closestRub || nearest.distance < closestRub.distance)) {
+                    closestRub = { point: nearest.point, distance: nearest.distance, other: hit.snake };
                 }
             }
 
@@ -337,6 +296,11 @@ class Server {
                 snake.stopRubbing();
                 snake.rubbing = false;
             }
+
+            // ── update head segment in index ──────────────────────────────────
+            // Done after collision/rubbing so this tick's queries see the
+            // previous-tick extent; subsequent snakes see the updated extent.
+            snake._refreshHeadSeg();
 
             // ── eat combo decay ───────────────────────────────────────────────
             if (Date.now() - snake.lastAte > 500) snake.eatCombo = 0;
@@ -472,21 +436,30 @@ class Server {
                 const dir        = MapFunctions.GetNormalizedDirection(secondLast, last);
                 const lastLen    = segmentLength(secondLast, last);
                 const over       = totalLen - snake.visualLength;
+                const tailIdx    = snake._bodySegHandles.length - 1;
 
                 if (lastLen > over) {
-                    // Mutate the existing tail point in-place rather than
-                    // replacing it with a new object.  Replacing would change
-                    // the object reference stored in snake.points[last], which
-                    // for a single-point (freshly spawned) snake is also
-                    // snake.points[0].  Any pending deferred-kill setTimeout
-                    // that captured `secondPoint = snake.points[0]` would then
-                    // see a different object and incorrectly abort the kill.
+                    // Mutate the tail point in-place (preserves object identity
+                    // so deferred-kill closures that captured secondPoint still
+                    // reference the correct object).
                     last.x = last.x - dir.x * over;
                     last.y = last.y - dir.y * over;
                     totalLen = snake.visualLength;
+                    // Update the tail segment in the index with its new extent.
+                    if (tailIdx >= 0) {
+                        this.segmentIndex.remove(snake._bodySegHandles[tailIdx]);
+                        snake._bodySegHandles[tailIdx] = this.segmentIndex.insert(
+                            snake, secondLast.x, secondLast.y, last.x, last.y
+                        );
+                    }
                 } else {
                     totalLen -= lastLen;
                     snake.points.pop();
+                    // Remove the consumed tail segment from the index.
+                    if (tailIdx >= 0) {
+                        this.segmentIndex.remove(snake._bodySegHandles[tailIdx]);
+                        snake._bodySegHandles.pop();
+                    }
                 }
             }
 

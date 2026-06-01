@@ -58,6 +58,14 @@ class Snake {
         // whether the snake has turned (dodged) without relying on points[0]
         // object identity, which tail-trimming can invalidate.
         this.turnGeneration = 0;
+        // Axis-aligned segment index handles.
+        // _headSegHandle  — the live head segment [position → points[0]].
+        //                   Refreshed every tick and after every turn.
+        // _bodySegHandles — completed body segments [points[i] → points[i+1]],
+        //                   newest first (index 0 = adjacent to head, last = tail).
+        //                   Registered on turn, removed when the tail consumes them.
+        this._headSegHandle  = null;
+        this._bodySegHandles = [];
         this.talkStamina = 255;
         this.color = Math.random() * 360;
         this.eatCombo = 0;
@@ -137,8 +145,35 @@ class Snake {
         // Increment before the unshift so any code that reads
         // turnGeneration immediately after addPoint() sees the new value.
         this.turnGeneration = (this.turnGeneration || 0) + 1;
+
+        // ── segment index maintenance ─────────────────────────────────────
+        // The old head segment [position → points[0]] is now a completed body
+        // segment.  Remove it from the head slot and register it as a body
+        // segment [new-turn-point → old-points[0]] so it becomes static.
+        // The new head segment starts zero-length at the turn point and will
+        // be inserted on the next _refreshHeadSeg() call (at the end of turn()
+        // and on every subsequent UpdateArena tick).
+        if (this.server?.segmentIndex && this.points.length > 0) {
+            const oldP0 = this.points[0];
+            this.server.segmentIndex.remove(this._headSegHandle);
+            this._headSegHandle = null;
+            const handle = this.server.segmentIndex.insert(this, x, y, oldP0.x, oldP0.y);
+            if (handle) this._bodySegHandles.unshift(handle); // newest at front
+        }
+
         this.points.unshift({ x: x, y: y });
         this.newPoints.push({ x: x, y: y });
+    }
+
+    /** Re-register the head segment [position → points[0]] in the index. */
+    _refreshHeadSeg() {
+        if (!this.server?.segmentIndex || !this.points.length) return;
+        this.server.segmentIndex.remove(this._headSegHandle);
+        this._headSegHandle = this.server.segmentIndex.insert(
+            this,
+            this.position.x, this.position.y,
+            this.points[0].x, this.points[0].y
+        );
     }
     turn(direction, vector) {
         let whatVector, oppositeVector;
@@ -197,48 +232,41 @@ class Snake {
             const snapHead   = { x: this.position.x, y: this.position.y };
             const snapSecond = { x: secondPoint.x,   y: secondPoint.y   };
 
-            outer:
-            for (const client of Object.values(this.server.clients)) {
-                if (!client.snake) continue;
-                const snake = client.snake;
-                if (!this.client.loadedEntities[snake.id]) continue;
+            // Query the segment index for everything the full head segment
+            // [snapHead → snapSecond] crosses.  This replaces the O(N × L)
+            // brute-force scan with an O(1) index lookup.
+            const hits = this.server.segmentIndex.queryLine(
+                snapHead.x, snapHead.y, snapSecond.x, snapSecond.y
+            );
 
-                for (let i = -1; i < snake.points.length - 1; i++) {
-                    const point     = i === -1 ? snake.position : snake.points[i];
-                    const nextPoint = snake.points[i + 1];
+            for (const hit of hits) {
+                const other = hit.snake;
 
-                    // Skip degenerate / shared-endpoint segments
-                    if (this.position === nextPoint || secondPoint === point ||
-                        secondPoint === nextPoint  || this.position === secondPoint ||
-                        this.position === point) continue;
-
-                    // Snapshot the victim's segment endpoints so the deferred
-                    // re-check uses the same geometry as the initial scan.
-                    const snapP  = { x: point.x,     y: point.y     };
-                    const snapNP = { x: nextPoint.x, y: nextPoint.y };
-
-                    // LineSegmentsIntersect: strict parametric (0 < λ < 1).
-                    // DoIntersect(..., true): also catches collinear overlaps
-                    // (same-axis chases / head-on collisions where det = 0).
-                    if (MapFunctions.LineSegmentsIntersect(snapHead, snapSecond, snapP, snapNP) ||
-                        MapFunctions.DoIntersect(snapHead, snapSecond, snapP, snapNP, true)) {
-                        pendingKill = {
-                            reason: this === snake ? Enums.KillReasons.SELF : Enums.KillReasons.KILLED,
-                            victim: snake,
-                            snapP,
-                            snapNP,
-                            // snapSecond is the previous turn point (secondPoint snapshot).
-                            // After addPoint() shifts points[], secondPoint ends up at
-                            // points[extraTurns + 1].  The deferred check must include the
-                            // segment from the trigger-turn point BACK to secondPoint —
-                            // that is the segment the initial scan actually detected a
-                            // crossing on.  We snapshot it here so the deferred check has
-                            // the coordinates even if the live point was tail-trimmed.
-                            snapSecond,
-                        };
-                        break outer;
-                    }
+                // Skip our own head segment (the index still holds the old
+                // head segment from before this turn) and the first body
+                // segment (which shares secondPoint as an endpoint and would
+                // produce a false T-intersection hit).
+                if (other === this) {
+                    if (hit.id === this._headSegHandle?.id)       continue;
+                    if (hit.id === this._bodySegHandles[0]?.id)   continue;
                 }
+
+                // Snapshot the hit segment's endpoints for the deferred check.
+                const snapP  = hit.isH ? { x: hit.xMin, y: hit.y    } : { x: hit.x, y: hit.yMin };
+                const snapNP = hit.isH ? { x: hit.xMax, y: hit.y    } : { x: hit.x, y: hit.yMax };
+
+                pendingKill = {
+                    reason: other === this ? Enums.KillReasons.SELF : Enums.KillReasons.KILLED,
+                    victim: other,
+                    snapP,
+                    snapNP,
+                    // snapSecond: after addPoint() shifts points[], secondPoint ends up at
+                    // points[extraTurns + 1].  The deferred check extends to j = extraTurns+1
+                    // to include the segment [trigger-turn-point → secondPoint], which is the
+                    // segment the initial detection actually fired on.
+                    snapSecond,
+                };
+                break;
             }
         }
 
@@ -302,6 +330,11 @@ class Snake {
             this.position[oppositeVector] += totalDistanceTraveledDuringPing;
         else
             this.position[oppositeVector] -= totalDistanceTraveledDuringPing;
+
+        // Register the new head segment now that position has its final value
+        // (snap coordinate + latency advance).  UpdateArena refreshes it every
+        // tick from here on.
+        this._refreshHeadSeg();
     }
     rubAgainst(snake, distance) {
         this.flags |= Enums.EntityFlags.IS_RUBBING;
@@ -336,6 +369,16 @@ class Snake {
         // all applied twice.
         if (!this.spawned)
             return;
+
+        // Remove all segments from the spatial index immediately so that no
+        // other snake can collide with this snake's body after it dies.
+        if (this.server?.segmentIndex) {
+            this.server.segmentIndex.remove(this._headSegHandle);
+            for (const handle of this._bodySegHandles)
+                this.server.segmentIndex.remove(handle);
+            this._headSegHandle  = null;
+            this._bodySegHandles = [];
+        }
         if (killedBy != this) {
             if (!killedBy)
                 return
