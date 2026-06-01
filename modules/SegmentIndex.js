@@ -123,6 +123,37 @@ class SegmentIndex {
     }
 
     /**
+     * Return the Set of unique snake objects that have at least one segment
+     * overlapping the rectangle [left, right] × [yMin, yMax].
+     * Used by entity streaming to replace the O(N × L) brute-force scan.
+     */
+    queryRect(left, right, yMin, yMax) {
+        const snakes = new Set();
+
+        // Horizontal segments: y in band AND x-range overlaps [left, right]
+        const hb0 = SegmentIndex._key(yMin), hb1 = SegmentIndex._key(yMax);
+        for (let b = hb0; b <= hb1; b++) {
+            const bkt = this._h.get(b);
+            if (!bkt) continue;
+            for (const seg of bkt.values())
+                if (seg.y >= yMin && seg.y <= yMax && seg.xMax >= left && seg.xMin <= right)
+                    snakes.add(seg.snake);
+        }
+
+        // Vertical segments: x in band AND y-range overlaps [yMin, yMax]
+        const vb0 = SegmentIndex._key(left), vb1 = SegmentIndex._key(right);
+        for (let b = vb0; b <= vb1; b++) {
+            const bkt = this._v.get(b);
+            if (!bkt) continue;
+            for (const seg of bkt.values())
+                if (seg.x >= left && seg.x <= right && seg.yMax >= yMin && seg.yMin <= yMax)
+                    snakes.add(seg.snake);
+        }
+
+        return snakes;
+    }
+
+    /**
      * Find all segments within `radius` world-units of `position`.
      * Used for rubbing detection.
      */

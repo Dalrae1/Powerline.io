@@ -19,6 +19,9 @@ class Client extends EventEmitter {
         this.pointsNearby      = {};
         this.windowSizeX       = 128;
         this.windowSizeY       = 64;
+        // Reusable writer — reset at the start of each update() call so we
+        // don't allocate a new BinaryWriter (+ backing Uint8Array) every tick.
+        this._writer           = new BinaryWriter(4096);
         this.dead              = true;
         this.spectating        = false;
         this.ping              = server.artificialPing;
@@ -563,11 +566,12 @@ class Client extends EventEmitter {
      */
     update(updateType, entities) {
         const entityList = Object.values(entities);
-        if (entityList.length === 0 && updateType !== Enums.UpdateTypes.UPDATE_TYPE_PARTIAL) {
-            // Still need to send the packet for king info; fall through.
-        }
 
-        const w = new BinaryWriter(512);
+        // Reuse the per-client BinaryWriter instead of allocating a new one
+        // (+ backing Uint8Array) every tick.  toBuffer() slices a copy so the
+        // WebSocket send gets a stable buffer even though we reuse _writer.
+        const w = this._writer;
+        w.reset();
         w.writeUint8(Enums.ServerToClient.OPCODE_ENTITY_INFO);
 
         for (const entity of entityList) {
@@ -646,7 +650,7 @@ class Client extends EventEmitter {
 
                 // ── removal ────────────────────────────────────────────────────
                 case Enums.UpdateTypes.UPDATE_TYPE_DELETE: {
-                    w.writeUint16(0);                               // kill sound (0 = silent)
+                    w.writeUint16(0);                           // kill sound (0 = silent)
                     w.writeUint8(Enums.KillReasons.LEFT_SCREEN);
                     if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
                         w.writeFloat32(entity.position.x);

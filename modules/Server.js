@@ -67,6 +67,9 @@ class Server {
         this.king              = null;
         this.lastUpdate        = 0;
         this.lastConnectionTime = Date.now();
+        // Leaderboard is expensive to rebuild (full AVL traversal) so we only
+        // refresh it every N ticks rather than every single tick.
+        this._ticksSinceLeaderboard = 0;
         this.admins            = [parseInt(this.owner)];
         this.debugGrabAmount   = 1000;
         this.entities          = [];
@@ -365,13 +368,23 @@ class Server {
         if (this.stopped) return;
 
         this.UpdateArena();
-        this.RefreshLeaderboard();
+
+        // RefreshLeaderboard does a full AVL tree traversal every call.
+        // Refreshing every 3 ticks (≈ 300 ms) is imperceptible to players
+        // and saves ~67 % of the traversal cost at 200+ players.
+        this._ticksSinceLeaderboard++;
+        if (this._ticksSinceLeaderboard >= 3) {
+            this.RefreshLeaderboard();
+            this._ticksSinceLeaderboard = 0;
+        }
 
         // Natural food spawning
         if (Object.keys(this.entities).length < this.maxNaturalFood) {
             if (Math.random() * 100 < this.foodSpawnPercent) new Food(this);
         }
 
+        // Compute once and reuse — avoids repeated Object.values() allocation
+        // in the per-client loop below.
         const clientList = Object.values(this.clients);
 
         for (const client of clientList) {

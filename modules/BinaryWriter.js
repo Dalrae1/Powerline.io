@@ -48,6 +48,9 @@ class BinaryWriter {
 
     // ── output ────────────────────────────────────────────────────────────────
 
+    /** Reset the write cursor to zero so the buffer can be reused. */
+    reset() { this.offset = 0; }
+
     /** Return an ArrayBuffer containing exactly the bytes written so far. */
     toBuffer() {
         return this._buf.buffer.slice(0, this.offset);

@@ -491,10 +491,7 @@ class Snake {
         }
 
         function customEasing(t) {
-            // Adjust the value of a for the desired effect
-            const a = 8; // Controls the rate of slowing down
-
-            // Apply easing equation
+            const a = 8;
             return 1 - Math.exp(-a * t);
         }
 
@@ -503,33 +500,22 @@ class Snake {
             const startY = entity.position.y;
             const deltaX = targetPosition.x - startX;
             const deltaY = targetPosition.y - startY;
-
-            const fps = 60; // frames per second
+            const fps = 60;
             const frameDuration = 1000 / fps;
-
             let startTime = null;
-
             const animate = (timestamp) => {
                 if (!entity || !entity.position) return;
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime;
-                const progress = Math.min(elapsed / duration, 1); // Ensure progress doesn't exceed 1
-
-                // Apply custom easing function to progress
+                const progress = Math.min(elapsed / duration, 1);
                 const easedProgress = customEasing(progress);
-
-                // Calculate eased position
                 entity.position.x = startX + deltaX * easedProgress;
                 entity.position.y = startY + deltaY * easedProgress;
                 entity.lastUpdate = Date.now();
-
                 if (progress < 1) {
-                    // Continue animation until duration is reached
                     setTimeout(() => animate(performance.now()), frameDuration);
                 }
             };
-
-            // Start animation
             animate(performance.now());
         }
 

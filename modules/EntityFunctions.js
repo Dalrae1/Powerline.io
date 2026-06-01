@@ -3,32 +3,29 @@ const Enums = require("./Enums.js");
 
 class EntityFunctions {
     static GetEntitiesInRadius(center, client) {
-        const windowSizeX = client.windowSizeX;
-        const windowSizeY = client.windowSizeY;
-        const foundEntities = [];
+        const wx = client.windowSizeX;
+        const wy = client.windowSizeY;
 
-        Object.values(client.server.snakes).forEach(snake => {
-            for (let i = -1; i < snake.points.length - 1; i++) {
-                const point = (i === -1) ? snake.position : snake.points[i];
-                const nextPoint = snake.points[i + 1];
-                if (MapFunctions.LineInsideOrIntersectsRectangle(point, nextPoint, center, windowSizeX, windowSizeY)) {
-                    foundEntities.push(snake);
-                    break;
-                }
-            }
-        })
-        const queryArea = { x: center.x-(windowSizeX/2), y: center.y-(windowSizeY/2), width: windowSizeX, height: windowSizeY};
-        const foundEntities2 = client.server.entityQuadtree.query(queryArea); // Finds entities within queryArea
+        // ── snakes: O(1) via segment index ────────────────────────────────────
+        // The old approach iterated every snake × every body segment with a
+        // LineInsideOrIntersectsRectangle check — O(N × L) per client per tick.
+        // The segment index answers the same question in O(1) average by bucketing
+        // segments by their fixed coordinate.
+        const left  = center.x - wx / 2;
+        const right = center.x + wx / 2;
+        const yMin  = center.y - wy / 2;
+        const yMax  = center.y + wy / 2;
+        const snakeSet = client.server.segmentIndex.queryRect(left, right, yMin, yMax);
+        const foundEntities = Array.from(snakeSet);
 
-        foundEntities2.forEach(entity => {
-            //if (entity.position.x >= xMin && entity.position.x <= xMax && entity.position.y >= yMin && entity.position.y <= yMax) {
-                foundEntities.push(entity);
-            //}
-        })
+        // ── food: quadtree (unchanged) ─────────────────────────────────────────
+        const queryArea = { x: left, y: yMin, width: wx, height: wy };
+        for (const entity of client.server.entityQuadtree.query(queryArea))
+            foundEntities.push(entity);
 
         return foundEntities;
     }
-    
+
 }
 
 class SnakeFunctions {
