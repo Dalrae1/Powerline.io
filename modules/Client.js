@@ -464,7 +464,17 @@ class Client extends EventEmitter {
         const lag      = this.server.config.GlobalWebLag   || 80;
         const interval = this.server.config.UpdateInterval || 100;
         const ticks    = (typeof UPDATE_EVERY_N_TICKS !== 'undefined' ? UPDATE_EVERY_N_TICKS : 3);
-        const rollback = entity.speed * ticks * (lag / interval);
+
+        // Mirror Snake.turn()'s advance formula exactly so the rollback cancels
+        // out the advance for any ping value:
+        //   advance = speed × ticks × clamp(ping − GlobalWebLag, 0, 500) / interval
+        //
+        // A player at GlobalWebLag ping gets 0 advance → 0 rollback (no change).
+        // A 300 ms player gets ~1.65 units advance → 1.65 units rollback.
+        // A 500 ms player gets ~3.15 units advance → 3.15 units rollback.
+        const ping         = entity.client?.ping || 0;
+        const extraLatency = Math.min(500, Math.max(0, ping - lag));
+        const rollback     = entity.speed * ticks * (extraLatency / interval);
 
         let { x, y } = entity.position;
         switch (entity.direction) {
