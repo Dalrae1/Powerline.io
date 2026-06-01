@@ -444,6 +444,38 @@ class Client extends EventEmitter {
 
     // ── outgoing packet helpers ───────────────────────────────────────────────
 
+    /**
+     * Return the position to broadcast for `entity` to THIS client.
+     *
+     * Background: when a snake calls turn(), the server advances its position by
+     * (ping − GlobalWebLag) × speed in the new direction so the snake's own client
+     * sees smooth, latency-compensated movement.  Other clients receive this
+     * already-advanced position — so those snakes appear "ahead" of where they
+     * should visually be, causing jarring jumps on turns.
+     *
+     * Fix: for every snake that is NOT this client's own snake, roll the reported
+     * position back by GlobalWebLag worth of movement in the snake's current
+     * direction.  The own snake is never adjusted because it already relies on
+     * the advance for its own prediction.
+     */
+    _broadcastPos(entity) {
+        if (entity === this.snake) return entity.position; // own snake: send exact
+
+        const lag      = this.server.config.GlobalWebLag   || 80;
+        const interval = this.server.config.UpdateInterval || 100;
+        const ticks    = (typeof UPDATE_EVERY_N_TICKS !== 'undefined' ? UPDATE_EVERY_N_TICKS : 3);
+        const rollback = entity.speed * ticks * (lag / interval);
+
+        let { x, y } = entity.position;
+        switch (entity.direction) {
+            case Enums.Directions.UP:    y -= rollback; break;
+            case Enums.Directions.DOWN:  y += rollback; break;
+            case Enums.Directions.RIGHT: x -= rollback; break;
+            case Enums.Directions.LEFT:  x += rollback; break;
+        }
+        return { x, y };
+    }
+
     /** Build a packet with a callback that writes into a BinaryWriter, then send it. */
     _send(writeFn, hintSize = 64) {
         const w = new BinaryWriter(hintSize);
@@ -597,8 +629,12 @@ class Client extends EventEmitter {
                     }
 
                     if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
-                        w.writeFloat32(entity.position.x);
-                        w.writeFloat32(entity.position.y);
+                        // Use adjusted position for other snakes so they render
+                        // at the correct visual location, not the server-side
+                        // latency-compensated position (which is too far ahead).
+                        const bp = this._broadcastPos(entity);
+                        w.writeFloat32(bp.x);
+                        w.writeFloat32(bp.y);
                         w.writeFloat32(entity.speed);
                         w.writeFloat32(entity.visualLength);
                         w.writeUint8(0);                      // direction placeholder
@@ -625,8 +661,9 @@ class Client extends EventEmitter {
                 // ── incremental update ─────────────────────────────────────────
                 case Enums.UpdateTypes.UPDATE_TYPE_PARTIAL: {
                     if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
-                        w.writeFloat32(entity.position.x);
-                        w.writeFloat32(entity.position.y);
+                        const bp = this._broadcastPos(entity);
+                        w.writeFloat32(bp.x);
+                        w.writeFloat32(bp.y);
                         w.writeFloat32(entity.speed);
                         w.writeFloat32(entity.visualLength);
                         w.writeUint8(entity.direction);
