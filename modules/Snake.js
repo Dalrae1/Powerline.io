@@ -53,6 +53,11 @@ class Snake {
         this.killstreak = 0;
         this.points = [{x: this.position.x, y: this.position.y}];
         this.newPoints = [];
+        // Incremented by addPoint() on every turn.  Deferred collision checks
+        // compare this against the value captured at schedule time to detect
+        // whether the snake has turned (dodged) without relying on points[0]
+        // object identity, which tail-trimming can invalidate.
+        this.turnGeneration = 0;
         this.talkStamina = 255;
         this.color = Math.random() * 360;
         this.eatCombo = 0;
@@ -129,6 +134,9 @@ class Snake {
 
     }
     addPoint(x, y) {
+        // Increment before the unshift so any code that reads
+        // turnGeneration immediately after addPoint() sees the new value.
+        this.turnGeneration = (this.turnGeneration || 0) + 1;
         this.points.unshift({ x: x, y: y });
         this.newPoints.push({ x: x, y: y });
     }
@@ -161,63 +169,122 @@ class Snake {
 
         this.position[whatVector] = vector;
 
+        // Scan the body at turn time — but DON'T kill synchronously.
+        //
+        // Why deferred?  By the time a turn input reaches the server the snake's
+        // server-side position has already advanced ~ping ms worth of movement
+        // past where the client believes they are.  The full head segment
+        // [turn_point → last_turn_point] therefore spans across bodies that the
+        // player was legitimately turning away from on their screen.  Killing
+        // immediately would kill them "before they even touched" from the client's
+        // perspective.
+        //
+        // Instead we apply the same latency-compensation logic used by
+        // UpdateArena(): schedule the kill for (ping + 30 ms) in the future and
+        // re-check with the snake's LIVE position at that time.  By then the
+        // snake is moving in the NEW direction.  If it turned away from the body,
+        // that live segment will no longer cross it → kill aborted.  If it moved
+        // into a body (e.g. turned directly into it), the live segment will still
+        // cross → kill fires.
+        //
+        // The dodge guard uses turnGeneration (captured AFTER addPoint so it
+        // reflects this turn) rather than points[0] object identity: tail-trimming
+        // can replace points[0] for single-point snakes without incrementing
+        // turnGeneration, which would otherwise falsely abort the kill.
+        let pendingKill = null;
+
         if (secondPoint) {
-            // Snapshot the attacker's segment endpoints NOW, before this.position
-            // advances further.  The deferred re-check MUST use these fixed values —
-            // using the live this.position reference would check a completely
-            // different segment by the time the timeout fires, producing phantom
-            // kills on innocent players (bug: high-ping false kill) and letting
-            // exploiters phase through walls (bug: teleport-through kill).
             const snapHead   = { x: this.position.x, y: this.position.y };
             const snapSecond = { x: secondPoint.x,   y: secondPoint.y   };
 
-            Object.values(this.server.clients).forEach((client) => {
-                if (!client.snake) return;
+            outer:
+            for (const client of Object.values(this.server.clients)) {
+                if (!client.snake) continue;
                 const snake = client.snake;
-                if (!this.client.loadedEntities[snake.id]) return;
+                if (!this.client.loadedEntities[snake.id]) continue;
 
                 for (let i = -1; i < snake.points.length - 1; i++) {
                     const point     = i === -1 ? snake.position : snake.points[i];
                     const nextPoint = snake.points[i + 1];
 
-                    // Skip degenerate / shared-endpoint segments (same identity
-                    // checks as the original, using the live references)
+                    // Skip degenerate / shared-endpoint segments
                     if (this.position === nextPoint || secondPoint === point ||
                         secondPoint === nextPoint  || this.position === secondPoint ||
                         this.position === point) continue;
 
-                    if (MapFunctions.DoIntersect(snapHead, snapSecond, point, nextPoint)) {
-                        const delay = (client.ping || 0) + 30;
-                        setTimeout(() => {
-                            // Guard: both snakes must still be alive when the
-                            // timeout fires; either could have died in the meantime.
-                            if (!this.spawned || !snake.spawned) return;
+                    // Snapshot the victim's segment endpoints so the deferred
+                    // re-check uses the same geometry as the initial scan.
+                    const snapP  = { x: point.x,     y: point.y     };
+                    const snapNP = { x: nextPoint.x, y: nextPoint.y };
 
-                            // Re-iterate the victim's CURRENT segments so that a
-                            // legitimate dodge (the victim turned away before the
-                            // timeout) is properly honoured.  The attacker's segment
-                            // stays fixed at the original turn position.
-                            for (let j = -1; j < snake.points.length - 1; j++) {
-                                const p  = j === -1 ? snake.position : snake.points[j];
-                                const np = snake.points[j + 1];
-                                if (!np) break;
-                                if (MapFunctions.DoIntersect(snapHead, snapSecond, p, np)) {
-                                    if (this === snake) {
-                                        this.kill(Enums.KillReasons.SELF, this);
-                                    } else {
-                                        this.kill(Enums.KillReasons.KILLED, snake);
-                                    }
-                                    return; // one kill per timeout is enough
-                                }
-                            }
-                        }, delay);
+                    // LineSegmentsIntersect: strict parametric (0 < λ < 1).
+                    // DoIntersect(..., true): also catches collinear overlaps
+                    // (same-axis chases / head-on collisions where det = 0).
+                    if (MapFunctions.LineSegmentsIntersect(snapHead, snapSecond, snapP, snapNP) ||
+                        MapFunctions.DoIntersect(snapHead, snapSecond, snapP, snapNP, true)) {
+                        pendingKill = {
+                            reason: this === snake ? Enums.KillReasons.SELF : Enums.KillReasons.KILLED,
+                            victim: snake,
+                            snapP,
+                            snapNP,
+                            // snapSecond is the previous turn point (secondPoint snapshot).
+                            // After addPoint() shifts points[], secondPoint ends up at
+                            // points[extraTurns + 1].  The deferred check must include the
+                            // segment from the trigger-turn point BACK to secondPoint —
+                            // that is the segment the initial scan actually detected a
+                            // crossing on.  We snapshot it here so the deferred check has
+                            // the coordinates even if the live point was tail-trimmed.
+                            snapSecond,
+                        };
+                        break outer;
                     }
                 }
-            });
+            }
         }
 
         this.direction = direction;
         this.addPoint(this.position.x, this.position.y);
+        // addPoint() just incremented turnGeneration, so capture it now.
+        // The deferred check will abort if another turn fires before the delay.
+        if (pendingKill) {
+            const capturedGen = this.turnGeneration;
+            const self        = this;
+            const { reason, victim, snapP, snapNP, snapSecond } = pendingKill;
+            const delay = (this.client.ping || 0) + 30;
+            setTimeout(() => {
+                if (!self.spawned || !victim.spawned) return;
+                // Walk every segment the snake has travelled since the turn
+                // that triggered this check.
+                //
+                // CRITICAL: the initial scan detected a crossing on the segment
+                // [snapHead → secondPoint] (the full head segment at turn time).
+                // addPoint() stored snapHead as points[0], pushing secondPoint to
+                // points[1].  After k further turns:
+                //   points[k]   = trigger-turn point  (capturedGen)
+                //   points[k+1] = secondPoint          (capturedGen - 1)
+                //
+                // So the loop must go to j = extraTurns + 1 to include the
+                // segment [trigger-turn-point → secondPoint] — the one where the
+                // original crossing actually occurred.  Without the +1, a snake
+                // that crossed the body and then turned would skip that segment
+                // entirely and pass through.
+                //
+                // A genuine dodge (snapHead was BEFORE the body → DoIntersect
+                // returned false → pendingKill was never set) never reaches here.
+                const extraTurns = self.turnGeneration - capturedGen;
+                for (let j = 0; j <= extraTurns + 1; j++) {
+                    const segStart = j === 0 ? self.position : self.points[j - 1];
+                    // For the final step, fall back to the snapshot of secondPoint
+                    // in case points[extraTurns + 1] was tail-trimmed.
+                    const segEnd = self.points[j] ?? (j === extraTurns + 1 ? snapSecond : null);
+                    if (!segEnd) break;
+                    if (MapFunctions.DoIntersect(segStart, segEnd, snapP, snapNP, true)) {
+                        self.kill(reason, reason === Enums.KillReasons.SELF ? self : victim);
+                        return;
+                    }
+                }
+            }, delay);
+        }
 
         // Compensate for the full round-trip latency (not just ping/2).
         // The client predicts GlobalWebLag ms ahead. By the time the client RECEIVES

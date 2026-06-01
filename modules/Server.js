@@ -212,7 +212,41 @@ class Server {
 
             // ── snake-vs-snake collision + rubbing ────────────────────────────
             const secondPoint    = snake.points[0];
+            // Capture the current turn-generation so the deferred check can
+            // detect a turn without relying on object identity of points[0].
+            // Tail-trimming replaces points[0] on single-point (freshly spawned)
+            // snakes every tick, which would falsely abort kills via the old
+            // `snake.points[0] !== secondPoint` guard.
+            const capturedTurnGen = snake.turnGeneration;
             let   closestRub     = null;
+
+            // Compute the head position one tick ago.  We use this short
+            // "one-tick movement" segment for the INITIAL collision check
+            // instead of the full [head → last-turn] segment.
+            //
+            // Why: the full head segment spans every tick since the snake's
+            // last turn.  When snake A crosses snake B's body in the current
+            // tick, B's equally-long head segment often overlaps A's body
+            // because B passed through A's area in a PAST tick.  This causes
+            // a spurious deferred kill for B, and whichever kill fires first
+            // (based on ping) wins — letting the wrong snake die.
+            //
+            // Using only the one-tick movement ensures we only detect crossings
+            // that actually happened in this tick, eliminating false positives
+            // caused by stale segment history.
+            //
+            // The DEFERRED re-check still uses `secondPoint` (full segment) to
+            // confirm the snake hasn't turned away and is still past the body.
+            const tickDist = dist; // dist was computed above for movement
+            let prevHeadX = snake.position.x;
+            let prevHeadY = snake.position.y;
+            switch (snake.direction) {
+                case Enums.Directions.UP:    prevHeadY -= tickDist; break;
+                case Enums.Directions.DOWN:  prevHeadY += tickDist; break;
+                case Enums.Directions.LEFT:  prevHeadX += tickDist; break;
+                case Enums.Directions.RIGHT: prevHeadX -= tickDist; break;
+            }
+            const prevHead = { x: prevHeadX, y: prevHeadY };
 
             for (const other of Object.values(snake.client.loadedEntities)) {
                 if (other.type !== Enums.EntityTypes.ENTITY_PLAYER) continue;
@@ -237,26 +271,59 @@ class Server {
                     }
 
                     // Collision
-                    // Snapshot snake.position NOW — it is a live mutable object.
-                    // Using the reference directly in the deferred check would test
-                    // a different segment (the snake has moved by then), causing
-                    // the same phantom-kill / miss-kill bugs as in Snake.turn().
+                    // Snapshot snake.position and the victim's segment endpoints
+                    // so both checks use fixed geometry from this exact tick.
                     const pos     = snake.position;
-                    const snapPos = { x: pos.x, y: pos.y };
-                    if (pos !== ptN && secondPoint !== pt && pos !== secondPoint && pos !== pt) {
-                        if (MapFunctions.DoIntersect(snapPos, secondPoint, pt, ptN)) {
-                            const delay = (snake.client.ping || 0) + 30;
-                            setTimeout(() => {
-                                // Guard: both snakes must still be alive
-                                if (!snake.spawned || !other.spawned) return;
-                                if (MapFunctions.DoIntersect(snapPos, secondPoint, pt, ptN)) {
+                    const snapPos = { x: pos.x,  y: pos.y  };
+                    const snapPt  = { x: pt.x,   y: pt.y   };
+                    const snapPtN = { x: ptN.x,  y: ptN.y  };
+
+                    // Initial check: did the snake's head cross other's body
+                    // segment IN THIS TICK?  Use the one-tick movement segment
+                    // [prevHead → snapPos] so we never fire on stale overlap
+                    // from past ticks.
+                    //
+                    // includeCollinear=true: axis-aligned same-direction chases
+                    // and head-on collisions produce collinear (det=0) segment
+                    // pairs that DoIntersect normally skips.  The one-tick window
+                    // keeps this safe — the one-tick segment can only overlap a
+                    // collinear body if the head is literally inside it right now,
+                    // not because of historical overlap from a past tick.
+                    //
+                    // Object-reference guards: prevent degenerate shared-endpoint
+                    // cases (e.g. after a turn, prevHead lands exactly on
+                    // snake.points[0] which is also the start of the first body
+                    // segment — DoIntersect returns true for that T-touch).
+                    if (pos !== ptN && secondPoint !== pt && pos !== secondPoint && pos !== pt &&
+                        MapFunctions.DoIntersect(snapPos, prevHead, snapPt, snapPtN, true)) {
+                        const delay = (snake.client.ping || 0) + 30;
+                        setTimeout(() => {
+                            if (!snake.spawned || !other.spawned) return;
+                            // Walk every segment the snake has travelled since
+                            // the tick when the collision was first detected.
+                            // A quick multi-turn manoeuvre within the ping window
+                            // must not let the snake pass through the body;
+                            // a genuine dodge (all segments stay on one side)
+                            // must not fire a kill.
+                            //
+                            // snake.points[j] for j in [0, extraTurns] are the
+                            // turn points added after capturedTurnGen, newest
+                            // first.  snake.points[extraTurns] is `secondPoint`
+                            // (the turn point that existed at detection time).
+                            const extraTurns = snake.turnGeneration - capturedTurnGen;
+                            for (let j = 0; j <= extraTurns; j++) {
+                                const segStart = j === 0 ? snake.position : snake.points[j - 1];
+                                const segEnd   = snake.points[j] ?? (j === extraTurns ? secondPoint : null);
+                                if (!segEnd) break; // safety: point was tail-trimmed
+                                if (MapFunctions.DoIntersect(segStart, segEnd, snapPt, snapPtN, true)) {
                                     snake.kill(
                                         snake.id === other.id ? Enums.KillReasons.SELF : Enums.KillReasons.KILLED,
                                         other
                                     );
+                                    break;
                                 }
-                            }, delay);
-                        }
+                            }
+                        }, delay);
                     }
                 }
             }
@@ -407,10 +474,15 @@ class Server {
                 const over       = totalLen - snake.visualLength;
 
                 if (lastLen > over) {
-                    snake.points[snake.points.length - 1] = {
-                        x: last.x - dir.x * over,
-                        y: last.y - dir.y * over,
-                    };
+                    // Mutate the existing tail point in-place rather than
+                    // replacing it with a new object.  Replacing would change
+                    // the object reference stored in snake.points[last], which
+                    // for a single-point (freshly spawned) snake is also
+                    // snake.points[0].  Any pending deferred-kill setTimeout
+                    // that captured `secondPoint = snake.points[0]` would then
+                    // see a different object and incorrectly abort the kill.
+                    last.x = last.x - dir.x * over;
+                    last.y = last.y - dir.y * over;
                     totalLen = snake.visualLength;
                 } else {
                     totalLen -= lastLen;

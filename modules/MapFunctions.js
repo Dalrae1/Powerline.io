@@ -177,6 +177,10 @@ module.exports = {
     GetRandomPosition: MapFunctions.GetRandomPosition,
     GetFreePosition: MapFunctions.GetFreePosition,
     DoIntersect: MapFunctions.DoIntersect,
+    // Strict-parameter intersection: returns false when an endpoint merely
+    // touches (lies on) the other segment.  Use this for game collision checks
+    // so that "grazing" a body segment does not count as a kill.
+    LineSegmentsIntersect: MapFunctions.LineSegmentsIntersect,
     GetNormalizedDirection: MapFunctions.GetNormalizedDirection,
     NearestPointOnLine: MapFunctions.NearestPointOnLine,
     GetDistance: MapFunctions.GetDistance,
