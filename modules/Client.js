@@ -447,34 +447,47 @@ class Client extends EventEmitter {
     /**
      * Return the position to broadcast for `entity` to THIS client.
      *
-     * Background: when a snake calls turn(), the server advances its position by
-     * (ping − GlobalWebLag) × speed in the new direction so the snake's own client
-     * sees smooth, latency-compensated movement.  Other clients receive this
-     * already-advanced position — so those snakes appear "ahead" of where they
-     * should visually be, causing jarring jumps on turns.
+     * WHY other snakes appear "ahead"
+     * ────────────────────────────────
+     * Snake.turn() advances the turning snake's position forward in the new
+     * direction by (ping − GlobalWebLag) × speed.  This is correct for the
+     * snake's own client, but makes the snake appear too far ahead to everyone
+     * else.
      *
-     * Fix: for every snake that is NOT this client's own snake, roll the reported
-     * position back by GlobalWebLag worth of movement in the snake's current
-     * direction.  The own snake is never adjusted because it already relies on
-     * the advance for its own prediction.
+     * WHY we roll BEHIND
+     * ───────────────────
+     * We subtract from the reported position along the snake's direction of
+     * travel so other clients see it at the correct visual location.
+     *
+     * Rollback duration = max(GlobalWebLag, entityPing)
+     *
+     *   - Bots (ping = 0): rolls back GlobalWebLag ms worth of movement.
+     *     This was the amount that made bots look correct and is the
+     *     minimum baseline for any entity.
+     *   - Low-ping players (ping ≤ GlobalWebLag): same GlobalWebLag rollback.
+     *   - High-ping players (ping > GlobalWebLag): rolls back their actual ping
+     *     worth of movement, which is larger and cancels more of the advance.
+     *
+     * Version 2 was wrong because:
+     *   (a) it used (ping − GlobalWebLag) → 0 for bots, losing their rollback.
+     *   (b) it added OtherSnakeDelay on top, overcorrecting players.
+     *
+     * Own snake is never adjusted — it already relies on the advance.
      */
     _broadcastPos(entity) {
-        if (entity === this.snake) return entity.position; // own snake: send exact
+        if (entity === this.snake) return entity.position;
 
         const lag      = this.server.config.GlobalWebLag   || 80;
         const interval = this.server.config.UpdateInterval || 100;
         const ticks    = (typeof UPDATE_EVERY_N_TICKS !== 'undefined' ? UPDATE_EVERY_N_TICKS : 3);
+        const speed    = entity.speed || 0.25;
+        const ping     = entity.client?.ping || 0;
 
-        // Mirror Snake.turn()'s advance formula exactly so the rollback cancels
-        // out the advance for any ping value:
-        //   advance = speed × ticks × clamp(ping − GlobalWebLag, 0, 500) / interval
-        //
-        // A player at GlobalWebLag ping gets 0 advance → 0 rollback (no change).
-        // A 300 ms player gets ~1.65 units advance → 1.65 units rollback.
-        // A 500 ms player gets ~3.15 units advance → 3.15 units rollback.
-        const ping         = entity.client?.ping || 0;
-        const extraLatency = Math.min(500, Math.max(0, ping - lag));
-        const rollback     = entity.speed * ticks * (extraLatency / interval);
+        // Use at least GlobalWebLag ms as rollback so bots and low-ping players
+        // match the visually-correct amount.  High-ping players use their actual
+        // ping, which cancels more of the larger advance turn() applied for them.
+        const rollbackMs = Math.max(lag, Math.min(ping, 500));
+        const rollback   = speed * ticks * (rollbackMs / interval);
 
         let { x, y } = entity.position;
         switch (entity.direction) {
