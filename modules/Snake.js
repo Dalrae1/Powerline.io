@@ -616,6 +616,11 @@ class Snake {
             this.client._onSnakeDied();
         }
 
+        // Record death position so bots can detect fresh kill food
+        if (!this.server.recentDeaths) this.server.recentDeaths = [];
+        this.server.recentDeaths.push({ x: this.position.x, y: this.position.y, time: Date.now() });
+        if (this.server.recentDeaths.length > 30) this.server.recentDeaths.shift();
+
         this.spawned = false;
         this.client.deadPosition = this.position;
         this.client.dead = true;

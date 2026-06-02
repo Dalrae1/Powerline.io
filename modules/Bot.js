@@ -41,6 +41,20 @@ const CCW = { [D.RIGHT]: D.UP,    [D.UP]:   D.LEFT,   [D.LEFT]: D.DOWN, [D.DOWN]
 
 const CLEARANCE     = 2.2;
 const GAP_CLEARANCE = 0.9;
+// Half-window the bot streams entities within. Must EXCEED the largest AI sensory
+// range (kill targeting scans to 220) or the bot cannot see what it decides on.
+// Set above 220 so congregation can perceive snake clusters BEYOND hunt range and
+// drift toward the action (otherwise hunting always preempts and congregation is
+// dead code). Bots send no network packets, so the only cost is a larger spatial
+// query + more loaded entities per bot tick.
+const BOT_SENSE_RANGE = 340;
+
+// Lateral distance the bot aims to travel from a target's body while rubbing.
+// Speed accrual is rubSpeed = (MaxRubAcceleration-1) × (5 - dist)/4, so a SMALLER
+// offset accrues boost faster: offset 2 → 2.25/tick, offset 1.4 → 2.7/tick (the
+// server rubbing radius is 4, so anything < 4 rubs; < ~1 risks crossing the body).
+// Bots intentionally hug close to maximise speed gain, matching skilled players.
+const RUB_OFFSET_C = 1.4;
 // Minimum distance traveled since last turn before another turn is allowed.
 // Critical: prevents hairpin self-kills from rapid sequential turns.
 const MIN_TURN_DIST  = 4.5;
@@ -84,12 +98,14 @@ function hashStr(s) {
     return h;
 }
 
-function makeBotName(seed) {
+// Build the BASE name (adjective + noun, no number) from a seed.  The trailing
+// number is added later and encodes skill, so the base must NOT include it —
+// otherwise the number would feed back into skillsFromName (circular).
+function makeBaseName(seed) {
     const r   = new Rng(seed);
     const adj = ADJ[Math.floor(r.next() * ADJ.length)];
     const n   = NOUN[Math.floor(r.next() * NOUN.length)];
-    const num = Math.floor(r.next() * 99) + 1;
-    return `BOT_${adj}${n}${num}`;
+    return `${adj}${n}`;
 }
 
 // ── Skill system ──────────────────────────────────────────────────────────────
@@ -146,6 +162,55 @@ function skillsFromName(name) {
     return sk;
 }
 
+// ── Overall skill rating ────────────────────────────────────────────────────
+//
+//  A weighted average of the skills that genuinely make a snake a STRONGER
+//  player (reaction speed, awareness, intercept timing, body control, escape).
+//  Pure style/preference traits (target-size preference, coil style, ambush
+//  tendency, centre affinity, food/aggression appetite) are excluded — they
+//  shape HOW a bot plays, not how well.  Returns 0..1.
+//
+//  Personality is derived from the same skill vector, so the rating correlates
+//  with personality: a precise, aware, self-preserving build (e.g. TACTICIAN /
+//  PREDATOR) scores high, while a reckless or erratic build scores lower.
+const SKILL_COMPETENCE = {
+    reactionSpeed:      1.0,  // reacting fast is the single biggest skill factor
+    interceptPrecision: 1.0,  // landing the kill cut
+    bodyAwareness:      1.0,  // not crashing into your own tail
+    lookaheadSkill:     0.8,  // seeing obstacles early
+    killInstinct:       0.8,  // converting position into kills
+    selfPreservation:   0.8,  // staying alive
+    dangerSensitivity:  0.7,  // reading threats
+    rubAttrition:       0.7,  // building speed off bodies
+    comboAwareness:     0.7,  // sustaining eat-combo speed
+    escapeInstinct:     0.7,  // bailing out of traps in time
+    setupMobility:      0.5,  // repositioning for a better angle
+    wallWarning:        0.4,  // edge awareness
+    foodLookAhead:      0.4,  // routing through food
+    postKillCollection: 0.4,  // capitalising on kills
+    openSpaceValue:     0.3,  // favouring room to manoeuvre
+    huntPersistence:    0.3,  // seeing a hunt through
+};
+
+function overallSkill(sk) {
+    let sum = 0, wsum = 0;
+    for (const key in SKILL_COMPETENCE) {
+        const w = SKILL_COMPETENCE[key];
+        sum  += (sk[key] ?? 0) * w;
+        wsum += w;
+    }
+    return wsum > 0 ? sum / wsum : 0.5;
+}
+
+// Map overall skill (0..1) to a 1..99 rating shown as the trailing name number.
+// Higher skill → higher number.  A mild contrast curve around the midpoint
+// widens the spread so tiers are legible (uniform skills cluster near 0.5).
+function skillRating(sk) {
+    const s = overallSkill(sk);
+    const contrasted = 0.5 + (s - 0.5) * 1.6;           // stretch around the centre
+    return clamp(Math.round(contrasted * 98) + 1, 1, 99);
+}
+
 // Derive a personality string that affects how skill weights are applied.
 function personalityFromSkills(sk) {
     if (sk.aggressionLevel > 0.78 && sk.selfPreservation < 0.28) return 'BERSERKER';
@@ -167,28 +232,35 @@ class Bot {
     constructor(server) {
         this.server = server;
 
-        // ── Unique seeded name ────────────────────────────────────────────────
-        // Each bot gets a FULLY RANDOM seed so names are diverse across the
-        // whole name space (50 adj × 50 noun × 99 numbers = 247 500 combos).
-        // Sequential seeds from an incrementing counter produced near-identical
-        // xorshift outputs whose first call always landed on ADJ[0] = 'Dark'.
+        // ── Unique seeded name + skill rating ─────────────────────────────────
+        // Each bot gets a FULLY RANDOM seed so base names are diverse across the
+        // whole name space (50 adj × 50 noun = 2 500 combos; bot counts are ~20).
+        // Skills are derived deterministically from the BASE name (adj+noun); the
+        // trailing number is then a 1-99 skill rating, so a stronger build shows a
+        // higher number (e.g. BOT_ShadowViper83 is more skilled than BOT_IronCoil29).
+        // Uniqueness is checked on the base name because the rating is a function
+        // of it (same base → same skills → same rating → same full name).
         if (!server._usedBotNames) server._usedBotNames = new Set();
 
-        let name;
+        let base;
         let attempts = 0;
         do {
             // Mix multiple entropy sources so even rapid-fire construction
             // produces well-spread seeds.
             const seed = ((Math.random() * 0xFFFFFFFF) ^ (Date.now() << 5) ^ (attempts * 0x9E3779B9)) >>> 0;
-            name = makeBotName(seed);
+            base = makeBaseName(seed);
             attempts++;
-        } while (server._usedBotNames.has(name) && attempts < 500);
-        server._usedBotNames.add(name);
-        this.nickname = name;
+        } while (server._usedBotNames.has(base) && attempts < 500);
+        server._usedBotNames.add(base);
+        this._baseName = base; // tracked in _usedBotNames; released in destroy()
 
         // ── Skills & personality ──────────────────────────────────────────────
-        this.sk          = skillsFromName(this.nickname);
+        this.sk          = skillsFromName(base);
         this.personality = personalityFromSkills(this.sk);
+
+        // Name = BOT_ + base + skill rating.  Capped at the 25-char nick limit.
+        const rating = skillRating(this.sk);
+        this.nickname = `BOT_${base}${rating}`.slice(0, 25);
         const p = this.personality;
 
         // ── Derived operational attributes ───────────────────────────────────
@@ -225,6 +297,13 @@ class Bot {
         this._coilMinLen     = lerp(420, 160, this.sk.coilTrigger);
         this._postCoilUntil  = 0;
 
+        // ── Post-kill food rush ───────────────────────────────────────────────
+        this._freshFoodBoostUntil = 0; // timestamp: elevated food priority expires
+
+        // ── Debug ──────────────────────────────────────────────────────────────
+        this._debugMode  = process.env.BOT_DEBUG === '1';
+        this._debugLogAt = 0;
+
         // ── Lifecycle ─────────────────────────────────────────────────────────
         this.client   = this._initClient(server);
         this._interval  = null;
@@ -239,12 +318,25 @@ class Bot {
         clearInterval(this._interval);
         clearTimeout(this._idleTimer);
         this._interval = this._idleTimer = null;
-        this.server._usedBotNames?.delete(this.nickname);
+        this.server._usedBotNames?.delete(this._baseName);
     }
 
     _initClient(server) {
         const c = new Client(server, { send: () => {} }, null);
         c.isBot = true;
+        // ── CRITICAL: sensory window ──────────────────────────────────────────
+        // Human clients default to a 128×64 streaming window (half-width 64), set
+        // to match a browser viewport. The bot AI, however, reasons about targets
+        // up to ~220 units away (kill targeting), rub targets to 160, congregation
+        // to 110, fresh-death food to 200. With the default window the bot only
+        // ever loads entities within ±64 x / ±32 y of its head — far smaller than
+        // its decision range — so it was effectively BLIND to almost every snake
+        // it was supposed to hunt, and to kill-food dropped just out of view.
+        // Bots don't send network packets (their socket is a no-op), so a large
+        // window only costs a slightly bigger spatial query per bot tick.
+        // BOT_SENSE_RANGE is the half-window; full window is 2× that on each axis.
+        c.windowSizeX = BOT_SENSE_RANGE * 2;
+        c.windowSizeY = BOT_SENSE_RANGE * 2;
         return c;
     }
 
@@ -268,6 +360,7 @@ class Bot {
 
         // ── Compute world state once per tick ─────────────────────────────────
         const W = this._buildWorld(snake);
+        if (this._debugMode) this._debugLog(snake, W);
 
         // ── Priority 0: Escape (always overrides) ────────────────────────────
         if (W.clearFwd < this.dangerDist) {
@@ -326,8 +419,17 @@ class Bot {
         const rubTarget  = this._findBestRubTarget(snake);
         const rubInfo    = rubTarget ? this._computeRubApproach(snake, rubTarget) : null;
 
+        // Fresh death tracking: check server's death event log
+        const freshDeathInfo = this._checkFreshDeaths(snake);
+        const hasFreshBoost  = Date.now() < this._freshFoodBoostUntil || (freshDeathInfo?.dist ?? Infinity) < 150;
+
+        // Per-direction danger score: nearby enemy heads, head-ons score highest
+        const riskFwd = this._pathRisk(snake, snake.direction);
+        const riskA   = this._pathRisk(snake, pA);
+        const riskB   = this._pathRisk(snake, pB);
+
         // Food trail: narrow corridor with 5+ items in any direction (from kills)
-        const foodTrailDir = this._detectFoodTrail(snake);
+        const foodTrailDir = this._detectFoodTrail(snake, hasFreshBoost);
 
         return {
             pA, pB, clearFwd, clearA, clearB, maxClear,
@@ -335,84 +437,134 @@ class Bot {
             fdFwd, fdA, fdB,
             killTarget, rubTarget, rubInfo,
             foodTrailDir,
+            freshDeathInfo, hasFreshBoost,
+            riskFwd, riskA, riskB,
         };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     //  MISSION SELECTION
     //
-    //  Priority ladder (highest to lowest):
-    //    1. EXECUTE_KILL   — currently rubbing + have speed + in position
-    //    2. MAINTAIN_RUB   — currently rubbing, building speed
-    //    3. SPEED_KILL     — have speed, not rubbing, find cut-off
-    //    4. HUNT_KILL      — committed to one target: approach → rub → kill
-    //    5. FOOD_TRAIL     — dense food trail detected (recent kill nearby)
-    //    6. FOOD_CHAIN     — moderate food density, maintain combo speed
-    //    7. COIL           — large snake, defensive
-    //    8. ROAM           — default
+    //  Priority ladder (highest to lowest), reflecting the directive that FOOD
+    //  comes first ("get food whenever possible — if it sees a lot of food or a
+    //  new death, get it") while the bot is ALSO always hunting when no food is
+    //  on offer ("must always be trying to kill, even hunting snakes down"):
     //
-    //  HUNT_KILL is the primary offensive state.  When the bot sees a snake it
-    //  probabilistically decides to commit to killing it, then follows that
-    //  target: approach their body, get alongside, build rub speed, and cut off
-    //  when past the head.
+    //    1. EXECUTE_KILL — already in position + have speed: land the cut now.
+    //                      (A kill DROPS a food pile, so finishing one IS food.)
+    //    2. FOOD_TRAIL   — a fresh death / dense fresh food line: PRIMARY food.
+    //                      Grabs guaranteed dropped food before anything else.
+    //    3. MAINTAIN_RUB — already rubbing: keep building speed toward a kill.
+    //    4. SPEED_KILL   — banked speed, not rubbing: strike before it decays.
+    //    5. FOOD_CHAIN   — lots of scattered food nearby & safe: PRIMARY food,
+    //                      ranked above STARTING a new hunt.
+    //    6. HUNT_KILL    — committed target: relentless pursuit / hunt-down.
+    //    7. HUNT commit  — no food on offer → commit to a kill (always hunting).
+    //    8. COIL         — large snake, defensive.
+    //    9. ROAM         — seek food, clusters and deaths.
+    //
+    //  Food is the top non-finishing priority; hunting fills every gap where no
+    //  food opportunity exists, so bots are never idle and never ignore a kill.
     // ─────────────────────────────────────────────────────────────────────────
 
     _selectMission(snake, W) {
-        const { isRubbing, extraSpeed, killTarget, rubInfo,
+        const { isRubbing, extraSpeed, killTarget,
                 fdFwd, fdA, fdB, clearFwd, clearA, clearB, pA, pB,
-                foodTrailDir } = W;
+                foodTrailDir, freshDeathInfo,
+                riskFwd, riskA, riskB } = W;
 
         const speedThreshold = lerp(14, 4, this.sk.rubSpeedThreshold);
+        const dirClear = d => d === pA ? clearA : d === pB ? clearB : clearFwd;
+        const dirRisk  = d => d === pA ? riskA  : d === pB ? riskB  : riskFwd;
 
-        // ── 1. Currently rubbing ───────────────────────────────────────────────
-        if (isRubbing) {
-            // If we have enough speed AND a kill target is available, execute.
-            if (extraSpeed >= speedThreshold && killTarget) return 'EXECUTE_KILL';
-            return 'MAINTAIN_RUB';
+        // Refresh the post-kill food boost timer whenever a death is in range.
+        if (freshDeathInfo && freshDeathInfo.dist < 220) {
+            this._freshFoodBoostUntil = Math.max(
+                this._freshFoodBoostUntil,
+                Date.now() + Math.round(lerp(5000, 11000, this.sk.postKillCollection))
+            );
         }
 
-        // ── 2. Have speed — execute a kill now ────────────────────────────────
+        // ── 1. EXECUTE_KILL — in position with speed: finish it (makes food) ───
+        if (isRubbing && extraSpeed >= speedThreshold && killTarget) return 'EXECUTE_KILL';
+
+        // ── 2. FOOD RUSH — fresh death / dense fresh trail: PRIMARY directive ──
+        //   A new death is a guaranteed pile of food available NOW, so it preempts
+        //   speed-building and hunt commitment.  If the dense corridor is already
+        //   visible we follow it; otherwise we navigate toward the death point and
+        //   the corridor takes over once we are close (_tickFoodTrail handles both).
+        if (freshDeathInfo) {
+            if (foodTrailDir) {
+                const clearReq = this.dangerDist * 0.70;
+                if (dirClear(foodTrailDir) >= clearReq || foodTrailDir === snake.direction)
+                    return 'FOOD_TRAIL';
+            }
+            // No corridor yet, but a reachable death pile is in sensory range.
+            if (freshDeathInfo.dist < 300) return 'FOOD_TRAIL';
+        }
+        // Even with no logged death, a very dense visible trail is fresh-kill food.
+        if (foodTrailDir) {
+            const clearReq = this.dangerDist * 0.85;
+            if (dirClear(foodTrailDir) >= clearReq || foodTrailDir === snake.direction)
+                return 'FOOD_TRAIL';
+        }
+
+        // ── 3. Currently rubbing — keep building speed toward a kill ───────────
+        if (isRubbing) return 'MAINTAIN_RUB';
+
+        // ── 4. Banked speed — strike before it decays ──────────────────────────
         if (extraSpeed >= speedThreshold && killTarget) return 'SPEED_KILL';
 
-        // ── 3. HUNT_KILL — committed kill pursuit ─────────────────────────────
-        // If we already have a committed target, stay on it (persistence).
-        // Otherwise, probabilistically decide to start a hunt when we see a snake.
-        if (this._killTarget?.spawned && this.client.loadedEntities[this._killTarget.id]) {
-            return 'HUNT_KILL';
+        // ── 5. FOOD CHAIN — lots of food nearby & safe: PRIMARY over hunting ───
+        {
+            const comboBoost = W.eatCombo >= 3 ? lerp(1.5, 3.0, this.sk.comboAwareness) : 1.0;
+            const fdFwdC = fdFwd * comboBoost, fdAC = fdA * comboBoost, fdBC = fdB * comboBoost;
+            const maxFd  = Math.max(fdFwdC, fdAC, fdBC);
+            // Greedy bots grab even small piles; the primary directive is food.
+            const foodThresh = lerp(1.6, 0.6, this.sk.foodGreed);
+            if (maxFd >= foodThresh) {
+                const bestDir = fdFwdC >= fdAC && fdFwdC >= fdBC ? snake.direction
+                              : fdAC   >= fdBC                   ? pA : pB;
+                const riskTol = lerp(0.85, 0.30, this.sk.selfPreservation);
+                if (dirRisk(bestDir) < riskTol) return 'FOOD_CHAIN';
+                if (dirRisk(bestDir) < 0.60 && this.sk.foodGreed > 0.70) return 'FOOD_CHAIN';
+            }
         }
 
-        // Consider starting a new hunt: probability based on aggression, kill
-        // instinct, and how close the nearest snake is.
+        // ── 6. HUNT (committed) — relentless pursuit, hunt the target down ─────
+        if (this._killTarget?.spawned && this.client.loadedEntities[this._killTarget.id])
+            return 'HUNT_KILL';
+
+        // ── 7. HUNT (commit to a new target) — always be trying to kill ────────
+        //   No food opportunity exists, so the bot actively commits to a kill.
+        //   Eagerness is high for every personality (bots are never passive) and
+        //   fades only gently with distance so distant snakes still get hunted down.
         if (killTarget) {
-            const dist       = MapFunctions.GetDistance(snake.position, killTarget.position);
-            const nearFactor = Math.max(0, 1 - dist / 150);
-            const huntProb   = this.sk.aggressionLevel
-                             * lerp(0.25, 0.95, this.sk.killInstinct)
-                             * (1 + nearFactor * 0.6);
-            if (Math.random() < huntProb) {
+            const dist = MapFunctions.GetDistance(snake.position, killTarget.position);
+            const EAGERNESS = {
+                BERSERKER:   0.97,
+                PREDATOR:    0.95,
+                TACTICIAN:   0.88,
+                SPEEDSTER:   0.82,
+                OPPORTUNIST: 0.80,
+                WILDCARD:    0.75,
+                SPEEDFARMER: 0.66,
+                SURVIVOR:    0.58,
+                DEFENDER:    0.55,
+                FARMER:      0.50,
+            };
+            let eagerness = EAGERNESS[this.personality] ?? 0.72;
+            if (dist < 80) eagerness = Math.max(eagerness, 0.92);
+            else           eagerness *= Math.max(0.55, 1 - (dist - 80) / 300);
+
+            if (Math.random() < eagerness) {
                 this._killTarget = killTarget;
                 this._lastTargetSwap = Date.now();
                 return 'HUNT_KILL';
             }
         }
 
-        // ── 4. Food trail — recent kill created a dense food line ────────────
-        // Check ALL 4 directions (not just perpendicular) so the bot can turn
-        // back toward food behind it if necessary, as long as it's safe.
-        if (foodTrailDir) {
-            const trailClear = foodTrailDir === pA ? clearA
-                             : foodTrailDir === pB ? clearB
-                             : clearFwd; // forward
-            if (trailClear >= this.dangerDist * 0.90 || foodTrailDir === snake.direction)
-                return 'FOOD_TRAIL';
-        }
-
-        // ── 5. Food chain — moderate food density ────────────────────────────
-        const comboBoost = W.eatCombo >= 3 ? lerp(1.5, 3.0, this.sk.comboAwareness) : 1.0;
-        const maxFd = Math.max(fdFwd, fdA, fdB) * comboBoost;
-        if (maxFd >= lerp(1.8, 0.8, this.sk.foodGreed)) return 'FOOD_CHAIN';
-
-        // ── 6. Coil ───────────────────────────────────────────────────────────
+        // ── 8. Coil ───────────────────────────────────────────────────────────
         if (snake.visualLength >= this._coilMinLen &&
             Math.random() < 0.014 * this.sk.coilTrigger &&
             clearFwd > 55 && this._nearestThreatDist(snake) > this.lookAhead * 1.5)
@@ -424,15 +576,23 @@ class Bot {
     // ─────────────────────────────────────────────────────────────────────────
     //  KILL TARGETING
     //
-    //  Scores every loaded player by kill potential and selects the best.
+    //  Scores every loaded player by kill potential and returns the BEST candidate.
     //  Considers: proximity, direction geometry, speed differential, wall
     //  proximity, body length (rub potential), and skill-based preferences.
-    //  Persistence: won't switch target for `huntPersistence` seconds.
+    //
+    //  This function is PURE: it does not mutate this._killTarget.  Commitment is
+    //  owned by _selectMission (which applies the personality eagerness roll) and
+    //  by persistence below.  Keeping it pure means the EAGERNESS weights actually
+    //  govern whether the bot commits, instead of being bypassed by a side effect.
+    //  Persistence: while a committed target stays valid and within the hold
+    //  window, it is returned as the best candidate so the bot does not flip-flop.
     // ─────────────────────────────────────────────────────────────────────────
 
     _selectKillTarget(snake) {
         const now  = Date.now();
-        const hold = lerp(800, 2800, this.sk.huntPersistence);
+        // Longer hold = the bot stays locked on one victim and hunts it down
+        // instead of flip-flopping between targets every second.
+        const hold = lerp(1600, 4500, this.sk.huntPersistence);
 
         // Keep existing target if it's still valid and within persistence window
         if (this._killTarget?.spawned &&
@@ -492,8 +652,8 @@ class Bot {
             if (score > bestScore) { bestScore = score; best = e; }
         }
 
-        if (best !== this._killTarget) this._lastTargetSwap = now;
-        this._killTarget = best;
+        // Pure: do NOT commit here. _selectMission owns commitment via the
+        // personality eagerness roll, then sets this._killTarget + _lastTargetSwap.
         return best;
     }
 
@@ -566,7 +726,7 @@ class Bot {
         const sp = snake.position;
         const tp = target.position;
         const td = target.direction;
-        const RUB_OFFSET  = 2;   // lateral distance from target's path (matches _tickApproachRub)
+        const RUB_OFFSET  = RUB_OFFSET_C;
         const BEHIND_DIST = 6;   // how far behind target's head to aim for
 
         // Position behind the target's head in their movement direction
@@ -746,7 +906,7 @@ class Bot {
         const sd = snake.direction;
 
         // ── Lane geometry ──────────────────────────────────────────────────────
-        const RUB_OFFSET  = 2;
+        const RUB_OFFSET  = RUB_OFFSET_C;
         const laneIsY     = isH(td);
         const side        = laneIsY
             ? (sp.y >= tp.y ? 1 : -1)
@@ -803,29 +963,34 @@ class Bot {
         }
 
         // ── PHASE 2 RUB: in lane, keep going straight to build speed ──────────
-        // Never turn while in the lane — turning ends rubbing.
-        // The server detects rubbing automatically when our head is ≤4 units from
-        // the body segment, which it will be since we're in the rub lane.
+        // Never turn while in the lane — any turn ends rubbing.
+        // The server detects rubbing when our head is within 4 units of a body
+        // segment, which is guaranteed since our lane offset is ≤ 3 units.
         if (inLane) {
-            // Overshoot guard: if we've gone 50+ units past head with no kill,
-            // the target changed course. Reset.
-            if (headAdv > 50) { this._killTarget = null; }
-            return; // stay in lane
+            // Overshoot guard: reset if far past head with no kill (target turned away)
+            if (headAdv > 80) { this._killTarget = null; }
+            return; // keep going straight
         }
 
         // ── PHASE 1 APPROACH: navigate into the rub lane ──────────────────────
-        // Identical lane-navigation logic to _tickApproachRub.
+        // We use target-excluding path clears (apA / apB / apLD / apTd) so that
+        // the target's own body segments don't make the approach look impassable.
+        // The clearance threshold is also lower: we only need room for OUR body.
         const LANE_THRESH = 2;
+        const AP_THRESH   = this.dangerDist * 0.50; // approach-specific lower threshold
+        const apA  = this._pathClear(snake, pA,      CLEARANCE, target);
+        const apB  = this._pathClear(snake, pB,      CLEARANCE, target);
+
         if (laneOffset <= LANE_THRESH) {
-            // Laterally aligned — turn to match td
+            // Laterally aligned — turn to match target's direction
             if (sd !== td) {
                 if (arePerp(sd, td)) {
-                    const c = td === pA ? clearA : clearB;
-                    if (c >= this.dangerDist * 0.80) { this._turn(snake, td); return; }
+                    const c = td === pA ? apA : apB;
+                    if (c >= AP_THRESH) { this._turn(snake, td); return; }
                 } else {
-                    const sA = clearA, sB = clearB;
-                    if (Math.max(sA, sB) >= this.dangerDist * 0.80)
-                        this._turn(snake, sA >= sB ? pA : pB);
+                    // Opposite direction — pick the most open perpendicular first
+                    if (Math.max(apA, apB) >= AP_THRESH)
+                        this._turn(snake, apA >= apB ? pA : pB);
                 }
             }
             return;
@@ -835,26 +1000,27 @@ class Bot {
             ? (sp.y < laneCoord ? D.UP   : D.DOWN)
             : (sp.x < laneCoord ? D.RIGHT : D.LEFT);
 
-        if (sd === laneDir) { return; } // already heading toward lane
+        if (sd === laneDir) { return; } // already heading toward the lane
+
+        const apLD = this._pathClear(snake, laneDir, CLEARANCE, target);
+        const apTd = this._pathClear(snake, td,      CLEARANCE, target);
 
         if (arePerp(sd, laneDir)) {
-            const c = laneDir === pA ? clearA : clearB;
-            if (c >= this.dangerDist * 0.85) { this._turn(snake, laneDir); }
-            else {
-                if (arePerp(sd, td)) {
-                    const tc = td === pA ? clearA : clearB;
-                    if (tc >= this.dangerDist) this._turn(snake, td);
-                }
+            // Can turn directly toward the lane
+            if (apLD >= AP_THRESH) {
+                this._turn(snake, laneDir);
+            } else if (arePerp(sd, td) && apTd >= AP_THRESH) {
+                // Lane blocked — at least align with target direction
+                this._turn(snake, td);
             }
         } else {
-            // Moving away from lane — turn 90° first
-            if (arePerp(sd, td)) {
-                const tc = td === pA ? clearA : clearB;
-                if (tc >= this.dangerDist * 0.85) { this._turn(snake, td); return; }
+            // Moving away from lane — must rotate 90° first
+            if (arePerp(sd, td) && apTd >= AP_THRESH) {
+                this._turn(snake, td); return;
             }
-            const sA = clearA, sB = clearB;
-            if (Math.max(sA, sB) >= this.dangerDist * 0.80)
-                this._turn(snake, sA >= sB ? pA : pB);
+            // Otherwise take whichever perpendicular is most open
+            if (Math.max(apA, apB) >= AP_THRESH)
+                this._turn(snake, apA >= apB ? pA : pB);
         }
     }
 
@@ -867,24 +1033,62 @@ class Bot {
     // ─────────────────────────────────────────────────────────────────────────
 
     _tickFoodTrail(snake, W) {
-        const { pA, pB, clearA, clearB, foodTrailDir } = W;
-        if (!foodTrailDir) { this._mission = 'ROAM'; return; }
+        const { foodTrailDir, freshDeathInfo } = W;
 
-        if (foodTrailDir === snake.direction) return; // already heading down trail
+        // ── Vacuum: steer toward the nearest visible food item ─────────────────
+        // Sweeping item-to-item naturally centres the bot ON the dropped line (not
+        // skimming beside it), so it collects the bulk of a death pile efficiently
+        // instead of following a cardinal direction and drifting off the food.
+        const food = this._nearestFood(snake);
+        if (food) { this._navigateToward(snake, food, W); return; }
 
-        // Turn toward the trail if the path is safe
-        const tClear = foodTrailDir === pA ? clearA
-                     : foodTrailDir === pB ? clearB
-                     : this._pathClear(snake, foodTrailDir); // opposite direction
-        if (tClear >= this.dangerDist * 0.90) {
-            this._turn(snake, foodTrailDir);
-        } else {
-            // Trail in an unsafe direction — just take the safer perpendicular
-            // toward higher food density
-            const bestPerp = (W.fdA >= W.fdB ? pA : pB);
-            const bClear   = bestPerp === pA ? clearA : clearB;
-            if (bClear >= this.dangerDist) this._turn(snake, bestPerp);
+        // ── No food loaded yet — drive to the logged death point ───────────────
+        // The dead snake's segments were removed on death, so the location is safe
+        // to approach; once close, the dropped food enters range and is vacuumed.
+        if (freshDeathInfo) { this._navigateToward(snake, freshDeathInfo, W); return; }
+
+        // Stale corridor flag but nothing to chase — let the next tick re-evaluate.
+        this._mission = 'ROAM';
+    }
+
+    // ── Nearest visible food item ──────────────────────────────────────────────
+
+    _nearestFood(snake, radius = 120) {
+        const sp = snake.position;
+        let best = null, bestD2 = radius * radius;
+        for (const e of Object.values(this.client.loadedEntities)) {
+            if (e.type !== Enums.EntityTypes.ENTITY_ITEM || !e.position) continue;
+            const dx = e.position.x - sp.x, dy = e.position.y - sp.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < bestD2) { bestD2 = d2; best = e.position; }
         }
+        return best;
+    }
+
+    // ── Navigate toward a world point ──────────────────────────────────────────
+    //
+    //  Steers onto the cross-axis offset to a point, turning only when the chosen
+    //  perpendicular is safe and never reversing.  Forward progress along the main
+    //  axis happens naturally; this just corrects the lateral error so the bot
+    //  converges on `point`.  The tolerance (1.5) is tighter than the food eat
+    //  radius (3) so the bot lands ON food lines instead of skimming past them.
+
+    _navigateToward(snake, point, W) {
+        const { pA, pB, clearA, clearB } = W;
+        const sp = snake.position;
+        const sd = snake.direction;
+        const dx = point.x - sp.x, dy = point.y - sp.y;
+
+        let desired = null;
+        if (isH(sd)) {
+            if (Math.abs(dy) > 1.5) desired = dy > 0 ? D.UP : D.DOWN;     // correct vertical error
+        } else {
+            if (Math.abs(dx) > 1.5) desired = dx > 0 ? D.RIGHT : D.LEFT;  // correct horizontal error
+        }
+        if (desired === null) return; // aligned on the cross-axis — keep going forward
+
+        const c = desired === pA ? clearA : desired === pB ? clearB : this._pathClear(snake, desired);
+        if (c >= this.dangerDist) this._turn(snake, desired);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -918,7 +1122,7 @@ class Bot {
         // RUB_OFFSET: how far lateral from target's body we aim to travel.
         // The server detects rubbing at distance < 4.  Using offset 2 means
         // the bot's path is 2 units from the body — well inside rub range.
-        const RUB_OFFSET  = 2;
+        const RUB_OFFSET  = RUB_OFFSET_C;
         // LANE_THRESH: enter Phase 2 (align direction) when within this many
         // units of laneCoord.  With offset=2 and rub threshold 4, being within
         // 2 units of laneCoord places us within 4 units of the actual body.
@@ -1304,10 +1508,10 @@ class Bot {
         const sA   = fdA   * comboBoost;
         const sB   = fdB   * comboBoost;
 
-        // Only turn for food if perpendicular density is meaningfully higher,
-        // the path there is safe, and a random roll passes (avoids constant
-        // jittery turning every tick — looks more human-like).
-        const foodTurnChance = lerp(0.12, 0.40, this.sk.foodGreed);
+        // Food is the primary directive, so even while roaming the bot actively
+        // swings toward the food-richest safe direction.  The random roll only
+        // prevents jittery every-tick turning (keeps motion human-like).
+        const foodTurnChance = lerp(0.30, 0.65, this.sk.foodGreed);
         if (Math.random() < foodTurnChance) {
             if (sA > sFwd + 0.5 && sA > sB && clearA >= this.dangerDist * 1.05) {
                 this._turn(snake, pA); return;
@@ -1317,19 +1521,28 @@ class Bot {
             }
         }
 
-        // ── Congregation: drift toward clusters of other snakes ───────────────
-        // More snakes = more rub targets + food from kills.  Bots that roam
-        // toward others naturally find more hunting opportunities.
-        if (Math.random() < this.sk.aggressionLevel * 0.15) {
+        // ── Congregation with spacing ─────────────────────────────────────────
+        // All personalities drift toward snake clusters (rub targets + kill food).
+        // When already close to other snakes, orbit rather than pushing deeper,
+        // preventing bots from piling into the same point and mass-dying.
+        const congregationProb = lerp(0.08, 0.30, this.sk.aggressionLevel);
+        if (Math.random() < congregationProb) {
             const sdFwd = this._snakeDensity(snake, snake.direction);
             const sdA   = this._snakeDensity(snake, pA);
             const sdB   = this._snakeDensity(snake, pB);
             const maxSD = Math.max(sdFwd, sdA, sdB);
-            if (maxSD > 0 && sdA > sdFwd + 0 && sdA >= sdB && clearA >= this.dangerDist * 1.05) {
-                this._turn(snake, pA); return;
-            }
-            if (maxSD > 0 && sdB > sdFwd + 0 && sdB > sdA && clearB >= this.dangerDist * 1.05) {
-                this._turn(snake, pB); return;
+            if (maxSD > 0) {
+                const nearestDist = this._nearestThreatDist(snake);
+                const orbitRadius = lerp(18, 38, this.sk.selfPreservation);
+                if (nearestDist < orbitRadius) {
+                    // Inside cluster — orbit by picking the less-crowded perpendicular
+                    if (sdA <= sdB && clearA >= this.dangerDist * 1.05) { this._turn(snake, pA); return; }
+                    if (sdB < sdA  && clearB >= this.dangerDist * 1.05) { this._turn(snake, pB); return; }
+                } else {
+                    // Approaching — move toward densest direction
+                    if (sdA > sdFwd && sdA >= sdB && clearA >= this.dangerDist * 1.05) { this._turn(snake, pA); return; }
+                    if (sdB > sdFwd && sdB > sdA  && clearB >= this.dangerDist * 1.05) { this._turn(snake, pB); return; }
+                }
             }
         }
 
@@ -1346,7 +1559,9 @@ class Bot {
     //  PATH SAFETY
     // ─────────────────────────────────────────────────────────────────────────
 
-    _pathClear(snake, direction, clearance = CLEARANCE) {
+    // excludeSnake: optional snake whose body segments are ignored (used by the
+    // hunt approach phase so the target's own body doesn't block the approach).
+    _pathClear(snake, direction, clearance = CLEARANCE, excludeSnake = null) {
         const postCoil = Date.now() < this._postCoilUntil;
         const half  = this.server.config.ArenaSize / 2;
         const wDist = wallDist(snake.position, direction, half);
@@ -1364,6 +1579,7 @@ class Bot {
                 if (hit.id === snake._headSegHandle?.id)     continue;
                 if (hit.id === snake._bodySegHandles[0]?.id) continue;
             }
+            if (excludeSnake !== null && hit.snake === excludeSnake) continue;
             let d;
             if (isH(direction)) {
                 d = !hit.isH ? Math.abs(hit.x - sp.x) - clearance
@@ -1449,11 +1665,11 @@ class Bot {
      *
      * Returns the best direction, or null if no trail.
      */
-    _detectFoodTrail(snake) {
+    _detectFoodTrail(snake, hasFreshBoost = false) {
         const sp   = snake.position;
-        const W    = 7;   // narrow corridor width
-        const L    = 65;  // corridor length
-        const MIN  = 5;   // minimum items to count as a trail
+        const W    = 7;                        // narrow corridor width
+        const L    = hasFreshBoost ? 85 : 65;  // look further in fresh-boost mode
+        const MIN  = hasFreshBoost ? 3 : 5;    // lower threshold near fresh kill food
 
         let bestDir = null, bestCount = 0;
 
@@ -1479,7 +1695,7 @@ class Bot {
      * Used for congregation: bots are drawn toward clusters because clusters mean
      * more rub targets and more kill opportunities.
      */
-    _snakeDensity(snake, direction, range = 110) {
+    _snakeDensity(snake, direction, range = 320) {
         const sp = snake.position;
         let count = 0;
         for (const e of Object.values(this.client.loadedEntities)) {
@@ -1570,6 +1786,99 @@ class Bot {
             this._lastTurnAt  = now;
             this._lastTurnPos = { x: sp.x, y: sp.y };
         } catch (_) {}
+    }
+
+    // ── Fresh death detection ─────────────────────────────────────────────────
+    //
+    //  Scans server.recentDeaths (populated by Snake.kill()) and returns info
+    //  about the closest recent death within 200 units and 12 seconds.
+    //  Returns null if no qualifying death exists.
+
+    _checkFreshDeaths(snake) {
+        const deaths = this.server.recentDeaths;
+        if (!deaths?.length) return null;
+        const now = Date.now();
+        const FRESH_MS = 12000;
+        const RANGE    = 320; // match the sensory window so any visible death pulls the bot
+        let best = null, bestScore = -Infinity;
+        for (const d of deaths) {
+            const age = now - d.time;
+            if (age > FRESH_MS) continue;
+            const dist = MapFunctions.GetDistance(snake.position, d);
+            if (dist > RANGE) continue;
+            // Score: fresher and closer is better
+            const score = (1 - age / FRESH_MS) * 0.6 + (1 - dist / RANGE) * 0.4;
+            if (score > bestScore) { bestScore = score; best = { x: d.x, y: d.y, dist, age, score }; }
+        }
+        return best;
+    }
+
+    // ── Per-direction path risk score (0 = safe, 1 = very dangerous) ─────────
+    //
+    //  Checks for enemy snake heads inside `range` units that are in the given
+    //  direction.  Head-on collisions score 1.0; crossing paths score 0.45.
+    //  Used to gate food chain decisions — the bot avoids chasing food through
+    //  dangerous corridors based on its selfPreservation skill.
+
+    _pathRisk(snake, dir, range = 50) {
+        const sp = snake.position;
+        let risk = 0;
+        for (const e of Object.values(this.client.loadedEntities)) {
+            if (e.type !== Enums.EntityTypes.ENTITY_PLAYER || e === snake) continue;
+            const ep = e.position;
+            const dist = MapFunctions.GetDistance(sp, ep);
+            if (dist > range) continue;
+            const dx = ep.x - sp.x, dy = ep.y - sp.y;
+            let inDir = false;
+            switch (dir) {
+                case D.UP:    inDir = dy > 1;  break;
+                case D.DOWN:  inDir = dy < -1; break;
+                case D.RIGHT: inDir = dx > 1;  break;
+                case D.LEFT:  inDir = dx < -1; break;
+            }
+            if (!inDir) continue;
+            const headOn = (dir === D.UP    && e.direction === D.DOWN)  ||
+                           (dir === D.DOWN  && e.direction === D.UP)    ||
+                           (dir === D.RIGHT && e.direction === D.LEFT)  ||
+                           (dir === D.LEFT  && e.direction === D.RIGHT);
+            const proximity = 1 - dist / range;
+            risk = Math.max(risk, proximity * (headOn ? 1.0 : 0.45));
+        }
+        return risk;
+    }
+
+    // ── Count nearby snakes ────────────────────────────────────────────────────
+
+    _countNearbySnakes(snake, range = 100) {
+        let count = 0;
+        for (const e of Object.values(this.client.loadedEntities)) {
+            if (e.type !== Enums.EntityTypes.ENTITY_PLAYER || e === snake) continue;
+            if (MapFunctions.GetDistance(snake.position, e.position) < range) count++;
+        }
+        return count;
+    }
+
+    // ── Debug logging (enabled via BOT_DEBUG=1 environment variable) ──────────
+    //
+    //  Logs bot state at most once per 2 seconds per bot.  Shows:
+    //    mission, kill target, per-direction risk scores, food density (forward),
+    //    nearby snake count, fresh death info, fresh-boost state.
+
+    _debugLog(snake, W) {
+        const now = Date.now();
+        if (now - this._debugLogAt < 2000) return;
+        this._debugLogAt = now;
+        const fd = W.freshDeathInfo;
+        console.log(
+            `[BOT ${this.nickname}|${this.personality}]` +
+            ` mission=${this._mission}` +
+            ` target=${W.killTarget?.nick ?? 'none'}` +
+            ` risk=fwd${W.riskFwd.toFixed(2)}/A${W.riskA.toFixed(2)}/B${W.riskB.toFixed(2)}` +
+            ` fdFwd=${W.fdFwd}` +
+            ` nearby=${this._countNearbySnakes(snake)}` +
+            ` freshDeath=${fd ? `d=${fd.dist.toFixed(0)} t=${(fd.age / 1000).toFixed(1)}s` : 'none'}` +
+            ` freshBoost=${W.hasFreshBoost}`
+        );
     }
 
     // ── Idle turns (low-skill bots only) ─────────────────────────────────────
