@@ -413,20 +413,34 @@ class Server {
             const { entitiesToAdd, entitiesToRemove, entitiesInRadius } =
                 SnakeFunctions.GetEntitiesNearClient(client);
 
-            // Build partial-update list from currently loaded entities
+            // Food proximity eat — query only the small area around the snake
+            // head via the quadtree (≈ the few food touching the head) instead of
+            // scanning every loaded food each tick. The old per-loaded-food scan
+            // was O(food in view) per client and pegged tick time to ~1s when
+            // thousands of food were spawned; this is O(food near the head).
+            if (isSpawned && snake) {
+                const R = 3; // eat radius in world units (3² = 9 below)
+                const nearFood = this.entityQuadtree.query({
+                    x: snake.position.x - R, y: snake.position.y - R,
+                    width: R * 2, height: R * 2,
+                });
+                for (const item of nearFood) {
+                    if (item.subtype !== Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD) continue;
+                    const dx = snake.position.x - item.position.x;
+                    const dy = snake.position.y - item.position.y;
+                    if (dx * dx + dy * dy < 9) item.eat(snake);
+                }
+            }
+
+            // Build partial-update list from currently loaded entities. Players
+            // move every tick; items only need a partial when they actually moved
+            // (e.g. death-drop food easing into place), flagged via lastUpdate.
             const partialEntities = [];
             for (const entity of Object.values(client.loadedEntities)) {
                 if (entity.type === Enums.EntityTypes.ENTITY_PLAYER) {
                     partialEntities.push(entity);
                 } else if (entity.type === Enums.EntityTypes.ENTITY_ITEM) {
                     if (entity.lastUpdate > this.lastUpdate) partialEntities.push(entity);
-
-                    // Food proximity eat
-                    if (entity.subtype === Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD && isSpawned) {
-                        const dx = snake.position.x - entity.position.x;
-                        const dy = snake.position.y - entity.position.y;
-                        if (dx * dx + dy * dy < 9) entity.eat(snake); // 3² = 9
-                    }
                 }
             }
 
