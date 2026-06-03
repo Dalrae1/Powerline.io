@@ -10,13 +10,29 @@ const MapFunctions = require("./MapFunctions.js");
 // admin "bypassLimits" only skips the soft maxFood / maxNaturalFood caps.
 const HARD_ENTITY_LIMIT = 65000;
 
+// Food colour is sent to clients as packed RGB (0xRRGGBB) so it can match any
+// snake/skin colour — including pure black (e.g. the Demogorgon skin), which a
+// hue alone can't represent. Natural/normal food passes a hue and we convert it
+// here; death-drop food passes an explicit RGB from Snake.colorAt().
+function packRGB(r, g, b) {
+    return ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+}
+function hueToRGB(hue) {
+    const h = (((hue % 360) + 360) % 360) / 360;
+    const s = 1, l = 0.5;
+    const k = n => (n + h * 12) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return packRGB(Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255));
+}
+
 class Food {
     type = Enums.EntityTypes.ENTITY_ITEM;
     subtype = Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD;
     position = { x: 0, y: 0 };
     spawned = true
     lastUpdate = Date.now();
-    constructor(server, x, y, color = Math.random() * 360, origin = null, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5), bypassLimits = false) {
+    constructor(server, x, y, color = Math.random() * 360, origin = null, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5), bypassLimits = false, colorRGB = null) {
         // Hard protocol cap — NEVER bypassable (uint16 entity-id ceiling).
         // Without this, spawning enough food overflows the 16-bit IDs and
         // aliases entities, corrupting/crashing every connected client.
@@ -45,6 +61,9 @@ class Food {
             this.position = { x: x, y: y };
         }
         this.color = color
+        // Packed RGB sent to clients. Explicit value (death-drop, skin-matched)
+        // wins; otherwise derive it from the hue so normal food is unchanged.
+        this.colorRGB = (colorRGB != null) ? colorRGB : hueToRGB(color);
         this.id = thisId;
         if (origin)
             this.origin = origin;

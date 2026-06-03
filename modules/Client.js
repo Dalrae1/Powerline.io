@@ -1193,7 +1193,9 @@ class Client extends EventEmitter {
                     } else if (entity.type === Enums.EntityTypes.ENTITY_ITEM) {
                         w.writeFloat32(entity.position.x);
                         w.writeFloat32(entity.position.y);
-                        w.writeUint16(entity.color);
+                        // Packed RGB (0xRRGGBB) so food can be any colour incl.
+                        // black; client reads this as a uint32 (see Food.updateNetwork).
+                        w.writeUint32(entity.colorRGB >>> 0);
                     }
 
                     this.loadedEntities[entity.id] = entity;

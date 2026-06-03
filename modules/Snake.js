@@ -6,6 +6,60 @@ const Food = require("./Food.js");
 const AVLTree = require("./AVLTree.js");
 const IDManager = require("./IDManager.js");
 
+// ── Skin → food colour model ────────────────────────────────────────────────
+//
+// Death-drop food is coloured to match what the snake actually looked like at
+// the body position the food dropped from. Most skins are gradients drawn from
+// head (t=0) to tail (t=1); we mirror those gradients here as RGB stops so the
+// server can pick the right colour per food. Keys match how a skin is assigned
+// client-side: the exact customPlayerColors name, or the 'demogorgon' nick.
+// A snake with no skin just uses its own hue (so its food matches its colour).
+const SKIN_GRADIENTS = {
+    'demogorgon':   [[0, [0, 0, 0]]],                       // all black
+    'Dracula':      [[0, [0, 0, 0]]],                       // black body
+    'Sun':          [[0, [227, 182, 18]]],                  // golden
+    'Void':         [[0, [110, 0, 255]], [1, [60, 0, 140]]],
+    'Laser':        [[0, [0, 255, 255]]],                   // cyan
+    'Matrix':       [[0, [0, 255, 60]]],                    // green
+    'Pastel':       [[0, [255, 0, 180]], [0.5, [0, 255, 255]], [1, [255, 230, 0]]],
+    'Gold':         [[0, [255, 180, 0]], [0.35, [255, 255, 180]], [0.7, [180, 90, 0]], [1, [255, 220, 80]]],
+    'Fire And Ice': [[0, [255, 50, 0]], [0.45, [255, 220, 80]], [0.55, [180, 240, 255]], [1, [0, 160, 255]]],
+    // 'Rainbow' is handled specially (full spectrum along the body).
+};
+
+function packRGB(r, g, b) {
+    return ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+}
+
+// HSL→RGB with the food's fixed saturation/lightness (matches the old
+// hsl(hue,100%,50%) rendering so normal-snake food looks unchanged).
+function hueToRGB(hue) {
+    const h = (((hue % 360) + 360) % 360) / 360;
+    const s = 1, l = 0.5;
+    const k = n => (n + h * 12) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return packRGB(Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255));
+}
+
+// Interpolate an array of [stop, [r,g,b]] gradient stops at t∈[0,1].
+function gradientAt(stops, t) {
+    t = Math.max(0, Math.min(1, t));
+    if (stops.length === 1) return packRGB(...stops[0][1]);
+    for (let i = 0; i < stops.length - 1; i++) {
+        const [s0, c0] = stops[i], [s1, c1] = stops[i + 1];
+        if (t >= s0 && t <= s1) {
+            const f = s1 === s0 ? 0 : (t - s0) / (s1 - s0);
+            return packRGB(
+                Math.round(c0[0] + (c1[0] - c0[0]) * f),
+                Math.round(c0[1] + (c1[1] - c0[1]) * f),
+                Math.round(c0[2] + (c1[2] - c0[2]) * f),
+            );
+        }
+    }
+    return packRGB(...stops[stops.length - 1][1]);
+}
+
 
 class Snake {
     network = null;
@@ -361,6 +415,16 @@ class Snake {
         this.RubSnake = undefined;
         this.flags &= ~Enums.EntityFlags.IS_RUBBING;
     }
+
+    // Packed-RGB colour of this snake at body fraction t (0 = head, 1 = tail).
+    // Skinned snakes follow their gradient; plain snakes use their own hue.
+    colorAt(t) {
+        if (this.nick === 'Rainbow') return hueToRGB((t * 360) % 360);
+        const stops = SKIN_GRADIENTS[this.nick];
+        if (stops) return gradientAt(stops, t);
+        return hueToRGB(this.color);
+    }
+
     kill(reason, killedBy) {
         if (this.invincible && reason != Enums.KillReasons.LEFT_SCREEN)
             return;
@@ -544,7 +608,11 @@ class Snake {
                 nextPoint = this.position;
             else
                 nextPoint = SnakeFunctions.GetPointAtDistance(this, i + 1);
-            let food = new Food(this.server, point.x, point.y, this.color - 25 + Math.random() * 50, this, 20000 + (Math.random() * 60 * 1000 * 5));
+            // Colour each food to match the snake at this body position
+            // (t: 0 = head … 1 = tail), so skins like Fire And Ice fade red→blue
+            // and Demogorgon drops pure black.
+            let t = actualLength > 0 ? i / actualLength : 0;
+            let food = new Food(this.server, point.x, point.y, this.color, this, 20000 + (Math.random() * 60 * 1000 * 5), false, this.colorAt(t));
 
             // Move food forward the direction that the line was going
 

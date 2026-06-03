@@ -180,10 +180,13 @@ var Food = function() {
 			this.x = this.dstX;
 			this.y = this.dstY;
 
-			this.hue = view.getUint16(offset, true);
-			offset += 2;
-
-			style = 'hsl('+this.hue+', 100%, 50%)'
+			// Packed RGB (0xRRGGBB) — lets food be any colour incl. black to
+			// match snake skins (server widened this field from a hue to uint32).
+			var rgb = view.getUint32(offset, true);
+			offset += 4;
+			var r = (rgb >> 16) & 0xff, g = (rgb >> 8) & 0xff, b = rgb & 0xff;
+			this.hue = rgb; // kept for any legacy reference; now holds packed RGB
+			style = 'rgb(' + r + ',' + g + ',' + b + ')';
 			renderedFrame = resources.frames.food.renderTintedFrame(style);
 		}else{
 			this.canInterpolate = true;
