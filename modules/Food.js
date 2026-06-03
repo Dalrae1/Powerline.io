@@ -1,18 +1,35 @@
 const Enums = require("./Enums.js");
 const MapFunctions = require("./MapFunctions.js");
 
+// Entity IDs are sent to clients as uint16 (see Client.update, Food.eat and the
+// leaderboard packet), so the server can address at most 65535 simultaneous
+// entities — and ID 0 is a reserved "none"/terminator sentinel. We cap the total
+// entity count a bit below that ceiling to leave ID headroom for player/bot
+// snakes and death-drop food. Exceeding it would overflow the uint16 and alias
+// entity IDs, corrupting the protocol. This hard cap is ALWAYS enforced —
+// admin "bypassLimits" only skips the soft maxFood / maxNaturalFood caps.
+const HARD_ENTITY_LIMIT = 65000;
+
 class Food {
     type = Enums.EntityTypes.ENTITY_ITEM;
     subtype = Enums.EntitySubtypes.SUB_ENTITY_ITEM_FOOD;
     position = { x: 0, y: 0 };
     spawned = true
     lastUpdate = Date.now();
-    constructor(server, x, y, color = Math.random() * 360, origin = null, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5)) {
-        if (server.maxFood && server.maxFood <= Object.keys(server.entities).length) {
+    constructor(server, x, y, color = Math.random() * 360, origin = null, timeToLive = 5000 + (Math.random() * 60 * 1000 * 5), bypassLimits = false) {
+        // Hard protocol cap — NEVER bypassable (uint16 entity-id ceiling).
+        // Without this, spawning enough food overflows the 16-bit IDs and
+        // aliases entities, corrupting/crashing every connected client.
+        if (Object.keys(server.entities).length >= HARD_ENTITY_LIMIT) {
+            return
+        }
+        // bypassLimits lets admins spawn food past the normal caps (maxFood /
+        // maxNaturalFood), which otherwise silently drop spawns once reached.
+        if (!bypassLimits && server.maxFood && server.maxFood <= Object.keys(server.entities).length) {
             return
         }
         if (!x) { // Food is natural.
-            if (server.maxNaturalFood <= server.naturalFood) {
+            if (!bypassLimits && server.maxNaturalFood <= server.naturalFood) {
                 return
             }
             server.naturalFood++;
@@ -118,5 +135,9 @@ class Food {
         delete this.server.entities[this.id]; 
     }
 }
+
+// Exposed so command handlers can clamp bulk-spawn counts to the remaining
+// capacity (and never loop more times than the server could ever hold).
+Food.HARD_ENTITY_LIMIT = HARD_ENTITY_LIMIT;
 
 module.exports = Food;

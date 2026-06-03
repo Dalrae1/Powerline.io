@@ -265,8 +265,9 @@ setInterval(() => {
     for (const [userId, serverId] of global.ephemeralServers) {
         const server = Servers[serverId];
         if (!server) { global.ephemeralServers.delete(userId); continue; }
+        const lifetime = server.ephemeralLifetimeMs || EPHEMERAL_TIMEOUT_MS;
         const idle = Object.keys(server.clients).length === 0 &&
-                     (Date.now() - server.lastConnectionTime) > EPHEMERAL_TIMEOUT_MS;
+                     (Date.now() - server.lastConnectionTime) > lifetime;
         if (idle) {
             console.log(`Auto-deleting idle ephemeral server ${serverId} (owner: ${userId})`);
             server.destroy();

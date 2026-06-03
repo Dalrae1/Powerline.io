@@ -52,6 +52,7 @@ var Network = function () {
 	var OPCODE_DEBUG_GRAB = 0x09;
 	var OPCODE_BIG_PICTURE = 0x0B;
 	var OPCODE_TALK = 0x0C;
+	var OPCODE_ADMIN_LIST_REQUEST = 0x0F;
 
 	// Server -> Client
 	var OPCODE_SC_PONG = 0x01;
@@ -64,6 +65,8 @@ var Network = function () {
 	var OPCODE_LEADERBOARD = 0xA5;
 	var OPCODE_MINIMAP = 0xA6;
 	var OPCODE_PERMISSIONS = 0xAC;
+	var OPCODE_ADMIN_PLAYERS = 0xAD;
+	var OPCODE_ENTITY_COSMETIC = 0xB1;
 
 	// Event Codes
 	var EVENT_DID_KILL = 0x01;
@@ -676,7 +679,9 @@ var Network = function () {
 			console.log("Adding message: " + message);
 			chatt.addMessage(message, nick);
 		}
-		else if (op == 0xA9) { // Map barriers
+		else if (op == 0xA9) { // Map barriers (authoritative full list — clear then re-add)
+			map.clearBarriers();
+			minimap.clearBarriers();
 			var offset = 1;
 			while (offset < view.byteLength) {
 				let x = view.getFloat32(offset, true) * 10;
@@ -702,8 +707,39 @@ var Network = function () {
 			myIsOwner         = view.getUint8(offset) === 1; offset += 1;
 			myIsDev           = view.getUint8(offset) === 1; offset += 1;
 			myIsEphemeral     = view.getUint8(offset) === 1; offset += 1;
+			// 5th byte (dev server) is optional for forward/backward compatibility.
+			myIsDevServer     = (offset < view.byteLength) ? (view.getUint8(offset) === 1) : false; offset += 1;
 			if (typeof adminPanel === 'object' && adminPanel && adminPanel.onPermissions)
-				adminPanel.onPermissions(myPermissionLevel, myIsOwner, myIsDev, myIsEphemeral);
+				adminPanel.onPermissions(myPermissionLevel, myIsOwner, myIsDev, myIsEphemeral, myIsDevServer);
+		}
+		else if (op == OPCODE_ADMIN_PLAYERS) { // Full server player list (admin panel)
+			var offset = 1;
+			var count = view.getUint16(offset, true); offset += 2;
+			var players = [];
+			for (var i = 0; i < count; i++) {
+				var id     = view.getUint16(offset, true); offset += 2;
+				var lvl    = view.getUint8(offset);        offset += 1;
+				var muted  = view.getUint8(offset) === 1;  offset += 1;
+				var frozen = view.getUint8(offset) === 1;  offset += 1;
+				var isBot  = view.getUint8(offset) === 1;  offset += 1;
+				var length = view.getUint32(offset, true); offset += 4;
+				var hue    = view.getUint16(offset, true); offset += 2;
+				var res    = getString(view, offset);      offset = res.offset;
+				players.push({ id: id, level: lvl, muted: muted, frozen: frozen, isBot: isBot, length: length, hue: hue, nick: res.nick });
+			}
+			if (typeof adminPanel === 'object' && adminPanel && adminPanel.onPlayers)
+				adminPanel.onPlayers(players);
+		}
+		else if (op == OPCODE_ENTITY_COSMETIC) { // Live nick/hue change (admin recolour / rename)
+			var offset = 1;
+			var id  = view.getUint16(offset, true); offset += 2;
+			var hue = view.getUint16(offset, true); offset += 2;
+			var res = getString(view, offset);      offset = res.offset;
+			var e = entities[id];
+			if (e) {
+				e.hue = hue;                 // body/name colour uses this.hue at draw time
+				if (res.nick) e.nick = res.nick;
+			}
 		}
 	};
 
@@ -882,6 +918,15 @@ var Network = function () {
 		for(var i = 0; i < command.length; ++i){
 			view.setUint16(1 + i * 2, command.charCodeAt(i), true);
 		}
+		webSocket.send(buf);
+	};
+
+	// Ask the server for the full player list (admin panel). Server replies with
+	// OPCODE_ADMIN_PLAYERS only if this client is privileged.
+	this.sendAdminListRequest = function () {
+		if (!this.hasConnection || !webSocket || webSocket.readyState !== WebSocket.OPEN) return;
+		var buf = new ArrayBuffer(1);
+		new DataView(buf).setUint8(0, OPCODE_ADMIN_LIST_REQUEST);
 		webSocket.send(buf);
 	};
 

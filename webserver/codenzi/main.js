@@ -44,6 +44,7 @@ var myPermissionLevel = 0;
 var myIsOwner = false;
 var myIsDev = false;
 var myIsEphemeral = false;
+var myIsDevServer = false;
 
 // Game Stats
 var statTopPosition = 0;
@@ -427,7 +428,7 @@ var addAdminPanel = function () {
 	if (adminPanel) { return; }
 	adminPanel = new AdminPanel();
 	// Apply any permission info already received before the panel existed.
-	adminPanel.onPermissions(myPermissionLevel, myIsOwner, myIsDev, myIsEphemeral);
+	adminPanel.onPermissions(myPermissionLevel, myIsOwner, myIsDev, myIsEphemeral, myIsDevServer);
 }
 
 var addStats = function() {
@@ -1726,7 +1727,7 @@ loadScript("codenzi/Snake.js?v=18");
 loadScript("codenzi/Food.js?v=1");
 loadScript("codenzi/Map.js?v=3");
 loadScript("codenzi/Minimap.js?v=4");
-loadScript("codenzi/Network.js?v=17");
+loadScript("codenzi/Network.js?v=18");
 loadScript("codenzi/App.js?v=5");
 loadScript("codenzi/Camera.js?v=1");
 loadScript("codenzi/Frame.js?v=1");

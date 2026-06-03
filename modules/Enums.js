@@ -18,6 +18,14 @@ const ServerToClient = {
     // admin panel can show the right controls. Server stays authoritative —
     // every admin command is re-validated server-side regardless of this.
     OPCODE_PERMISSIONS: 0xAC,
+    // Full list of ALL players currently on the server (not just the ones
+    // streamed to this client) — used by the admin panel. Sent only to
+    // privileged clients in response to OPCODE_ADMIN_LIST_REQUEST.
+    OPCODE_ADMIN_PLAYERS: 0xAD,
+    // Cosmetic update for an already-loaded entity (nick + hue). These fields
+    // are only sent in FULL entity updates, so when an admin renames or recolors
+    // a snake we push this lightweight packet to replicate the change live.
+    OPCODE_ENTITY_COSMETIC: 0xB1,
 };
 
 const ClientToServer = {
@@ -36,7 +44,9 @@ const ClientToServer = {
     OPCODE_BOOST: 0x08,
     OPCODE_DEBUG_GRAB: 0x09,
     OPCODE_BIG_PICTURE: 0x0B,
-    OPCODE_TALK: 0x0C
+    OPCODE_TALK: 0x0C,
+    // Admin panel requests the full server player list (server validates rank).
+    OPCODE_ADMIN_LIST_REQUEST: 0x0F
 };
 
 const EventCodes = {

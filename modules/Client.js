@@ -83,7 +83,10 @@ class Client extends EventEmitter {
             messageType !== Enums.ClientToServer.OPCODE_HELLO_V4      &&
             messageType !== Enums.ClientToServer.OPCODE_HELLO_DEBUG   &&
             messageType !== Enums.ClientToServer.OPCODE_CS_PING       &&
-            messageType !== Enums.ClientToServer.OPCODE_CS_PONG;
+            messageType !== Enums.ClientToServer.OPCODE_CS_PONG       &&
+            // Admin panel may request the full player list while dead or before
+            // spawning, so this read-only request doesn't require a live snake.
+            messageType !== Enums.ClientToServer.OPCODE_ADMIN_LIST_REQUEST;
 
         if (needsSnake && (!this.snake || !this.snake.id)) return;
 
@@ -175,6 +178,58 @@ class Client extends EventEmitter {
             case 0x0e: // Commands
                 this._handleCommand(view);
                 break;
+
+            case Enums.ClientToServer.OPCODE_ADMIN_LIST_REQUEST:
+                this._sendAdminPlayers();
+                break;
+        }
+    }
+
+    // ── admin panel: full player list ────────────────────────────────────────
+    // Sends EVERY player currently on the server (not just the ones streamed to
+    // this client). Only privileged clients (Moderator+) receive it.
+    _sendAdminPlayers() {
+        if (this.permissionLevel() < 1) return;
+        const players = [];
+        for (const c of Object.values(this.server.clients)) {
+            if (!c.snake || !c.snake.spawned) continue;
+            players.push(c);
+        }
+        this._send(w => {
+            w.writeUint8(Enums.ServerToClient.OPCODE_ADMIN_PLAYERS);
+            w.writeUint16(players.length);
+            for (const c of players) {
+                w.writeUint16(c.snake.id);
+                w.writeUint8(typeof c.permissionLevel === 'function' ? c.permissionLevel() : 0);
+                w.writeUint8(c.muted ? 1 : 0);
+                w.writeUint8(c.snake.frozen ? 1 : 0);
+                w.writeUint8(c.isBot ? 1 : 0);
+                w.writeUint32(Math.max(0, Math.round(c.snake.visualLength || 0)));
+                w.writeUint16(Math.round(c.snake.color || 0) & 0xFFFF);
+                w.writeString((c.snake.nick || '').slice(0, 25));
+            }
+        }, 64 + players.length * 48);
+    }
+
+    // Push a cosmetic (nick + hue) update for a snake to every client that has it
+    // loaded (plus its own client). nick and hue only ride along in FULL entity
+    // updates, so this is how an admin's rename/recolour replicates live without
+    // re-streaming the whole entity.
+    _broadcastCosmetic(snake) {
+        if (!snake) return;
+        const nick = (snake.nick || '').slice(0, 25);
+        const hue  = Math.round(snake.color || 0) & 0xFFFF;
+        const build = w => {
+            w.writeUint8(Enums.ServerToClient.OPCODE_ENTITY_COSMETIC);
+            w.writeUint16(snake.id);
+            w.writeUint16(hue);
+            w.writeString(nick);
+        };
+        const size = 8 + nick.length * 2;
+        for (const c of Object.values(this.server.clients)) {
+            if (c.loadedEntities[snake.id] || c.snake === snake) {
+                try { c._send(build, size); } catch (_) {}
+            }
         }
     }
 
@@ -191,6 +246,9 @@ class Client extends EventEmitter {
     //  everywhere and outrank even the owner.
 
     permissionLevel() {
+        // Dev mode (DEV_SKIP_AUTH): auth is skipped and everyone — even
+        // unauthenticated clients — is treated as a full Developer.
+        if (this.server.isDevServer) return 3;
         if (!this.user) return 0;
         const rank = this.user.rank || 0;
         if (rank >= 3) return 3;                       // developer — global
@@ -201,8 +259,10 @@ class Client extends EventEmitter {
     }
 
     // True if this client outranks another (used so a moderator can't act on an
-    // equal-or-higher-ranked player).
+    // equal-or-higher-ranked player). In dev mode everyone is level 3, so we
+    // treat it as a free-for-all sandbox where anyone may act on anyone.
     _outranks(other) {
+        if (this.server.isDevServer) return true;
         const theirs = (other && typeof other.permissionLevel === 'function') ? other.permissionLevel() : 0;
         return this.permissionLevel() > theirs;
     }
@@ -221,6 +281,20 @@ class Client extends EventEmitter {
             .find(c => c.snake && c.snake.id === id) || null;
     }
 
+    // Resolve a target client for a player-directed command, with the usual
+    // checks + admin messaging. Returns the client, or null (after messaging).
+    //   label   — command name for error messages
+    //   outrank — require this client to outrank the target (default true)
+    //   allowSelf — allow targeting yourself even without outranking (default true)
+    _targetClient(id, label, { outrank = true, allowSelf = true } = {}) {
+        const t = this._clientByEntityId(id);
+        if (!t || !t.snake || t.dead) { this.sendAdminMessage(`${label}: player not found.`); return null; }
+        if (outrank && !(allowSelf && t === this) && !this._outranks(t)) {
+            this.sendAdminMessage(`${label}: target is equal or higher rank.`); return null;
+        }
+        return t;
+    }
+
     // ── command handler ───────────────────────────────────────────────────────
 
     _handleCommand(view) {
@@ -236,16 +310,24 @@ class Client extends EventEmitter {
         // everyone (still subject to mute). Anything not listed defaults to ADMIN.
         const REQUIRED = {
             say: 0,
-            // Moderator (1)
+            // ── Moderator (1): player moderation + light global actions ────────
             kick: 1, ban: 1, unban: 1, mute: 1, unmute: 1, kill: 1, timeleft: 1,
-            // Admin (2) — arena + snake control
+            freeze: 1, unfreeze: 1, warn: 1, announce: 1, muteall: 1, unmuteall: 1,
+            stripspeed: 1, clearstreak: 1, clearchat: 1,
+            // ── Admin (2): full arena + any-snake control ──────────────────────
             length: 2, setlength: 2, setspeed: 2, speedlock: 2, teleport: 2,
             debug: 2, debugall: 2, createfood: 2, clearfood: 2, randomfood: 2,
             debuggrabammount: 2, arenasize: 2, maxboostspeed: 2, maxrubspeed: 2,
             updateinterval: 2, maxfood: 2, maxnaturalfood: 2, foodspawnpercent: 2,
             defaultlength: 2, foodmultiplier: 2, foodvalue: 2,
+            grow: 2, shrink: 2, boost: 2, sethue: 2, rename: 2, invincible: 2,
+            tpto: 2, bring: 2, createfoodat: 2, killall: 2, freezeall: 2,
+            unfreezeall: 2, setspeedall: 2, extendserver: 2,
             // Owner / Developer (case body does the finer owner-vs-dev check)
             addadmin: 2, removeadmin: 2, deleteserver: 2,
+            // ── Developer (3): server lifecycle + structural ───────────────────
+            setservertime: 3, setmaxplayers: 3, setservername: 3, setowner: 3,
+            resetbans: 3, setping: 3, spawnbarrier: 3, clearbarriers: 3,
         };
         const need = REQUIRED[cmd] ?? 2;
         if (level < need) {
@@ -313,8 +395,19 @@ class Client extends EventEmitter {
                 break;
             }
             case 'randomfood': {
-                const v = clampedInt(1, 1, 1000);
-                if (v !== null) for (let i = 0; i < v; i++) new Food(this.server);
+                // Admins bypass the soft food caps, but the count is clamped to
+                // the remaining capacity under the hard uint16 entity-id limit,
+                // so a huge number (e.g. 8e9) can neither overflow IDs nor spin
+                // the server in an enormous loop.
+                const requested = intArg(1);
+                if (requested === null || requested < 1) break;
+                const remaining = Math.max(0, Food.HARD_ENTITY_LIMIT - Object.keys(this.server.entities).length);
+                const v = Math.min(requested, remaining);
+                if (v <= 0) { this.sendAdminMessage('Server is at the entity limit — cannot spawn more food.'); break; }
+                for (let i = 0; i < v; i++) new Food(this.server, undefined, undefined, undefined, null, undefined, true);
+                this.sendAdminMessage(v < requested
+                    ? `Spawned ${v} food (capped at the ${Food.HARD_ENTITY_LIMIT}-entity server limit).`
+                    : `Spawned ${v} food.`);
                 break;
             }
             case 'clearfood':
@@ -393,14 +486,20 @@ class Client extends EventEmitter {
                 break;
             }
             case 'createfood': {
-                const v = clampedInt(1, 1, 1000);
-                if (v !== null) {
-                    for (let i = 0; i < v; i++) {
-                        new Food(this.server,
-                            this.snake.position.x + Math.random() * 10,
-                            this.snake.position.y + Math.random() * 10 - 5);
-                    }
+                const requested = intArg(1);
+                if (requested === null || requested < 1) break;
+                const remaining = Math.max(0, Food.HARD_ENTITY_LIMIT - Object.keys(this.server.entities).length);
+                const v = Math.min(requested, remaining);
+                if (v <= 0) { this.sendAdminMessage('Server is at the entity limit — cannot spawn more food.'); break; }
+                for (let i = 0; i < v; i++) {
+                    new Food(this.server,
+                        this.snake.position.x + Math.random() * 10,
+                        this.snake.position.y + Math.random() * 10 - 5,
+                        undefined, null, undefined, true);
                 }
+                this.sendAdminMessage(v < requested
+                    ? `Spawned ${v} food (capped at the ${Food.HARD_ENTITY_LIMIT}-entity server limit).`
+                    : `Spawned ${v} food.`);
                 break;
             }
             // ── Moderation: target another player by entity id ────────────────
@@ -458,9 +557,9 @@ class Client extends EventEmitter {
                 break;
             }
             case 'setlength': {
-                const t   = this._clientByEntityId(intArg(1));
+                const t   = this._targetClient(intArg(1), 'setlength');  // enforces rank guard
                 const len = intArg(2);
-                if (!t || !t.snake || t.dead) { this.sendAdminMessage('setlength: player not found.'); break; }
+                if (!t) break;
                 if (len === null || len < 1 || len > 1000000) { this.sendAdminMessage('Usage: setlength <id> <length 1-1000000>'); break; }
                 t.snake.length       = len;   // setter keeps the leaderboard in sync
                 t.snake.visualLength = len;   // snap visual length so the change is immediate
@@ -468,9 +567,9 @@ class Client extends EventEmitter {
                 break;
             }
             case 'setspeed': {
-                const t = this._clientByEntityId(intArg(1));
+                const t = this._targetClient(intArg(1), 'setspeed');     // enforces rank guard
                 const v = intArg(2);
-                if (!t || !t.snake || t.dead) { this.sendAdminMessage('setspeed: player not found.'); break; }
+                if (!t) break;
                 if (v === null || v < 0 || v > 100000) { this.sendAdminMessage('Usage: setspeed <id> <extraSpeed 0-100000>'); break; }
                 t.snake.extraSpeed = v;
                 t.snake.speed      = 0.25 + v / (255 * UPDATE_EVERY_N_TICKS);
@@ -478,12 +577,260 @@ class Client extends EventEmitter {
                 this.sendAdminMessage(`Set ${t.snake.nick}'s extra speed to ${v}.`);
                 break;
             }
+            // ── Level 1: additional moderation ────────────────────────────────
+            case 'freeze': {
+                const t = this._targetClient(intArg(1), 'freeze');
+                if (!t) break;
+                t.snake.frozen = true;
+                this.sendAdminMessage(`Froze ${t.snake.nick}.`);
+                break;
+            }
+            case 'unfreeze': {
+                const t = this._targetClient(intArg(1), 'unfreeze', { outrank: false });
+                if (!t) break;
+                t.snake.frozen = false;
+                this.sendAdminMessage(`Unfroze ${t.snake.nick}.`);
+                break;
+            }
+            case 'warn': {
+                const t = this._targetClient(intArg(1), 'warn', { outrank: false });
+                if (!t) break;
+                const msg = args.slice(2).join(' ').substring(0, 120);
+                if (!msg) { this.sendAdminMessage('Usage: warn <id> <message>'); break; }
+                t.sendAdminMessage(`⚠ Warning: ${msg}`);
+                this.sendAdminMessage(`Warned ${t.snake.nick}.`);
+                break;
+            }
+            case 'announce': {
+                const msg = args.slice(1).join(' ').substring(0, 160);
+                if (!msg) { this.sendAdminMessage('Usage: announce <message>'); break; }
+                for (const c of Object.values(this.server.clients)) c.sendAdminMessage(`📢 ${msg}`);
+                break;
+            }
+            case 'muteall': {
+                let n = 0;
+                for (const c of Object.values(this.server.clients))
+                    if (c !== this && this._outranks(c)) { c.muted = true; n++; }
+                this.sendAdminMessage(`Muted ${n} player(s).`);
+                break;
+            }
+            case 'unmuteall': {
+                let n = 0;
+                for (const c of Object.values(this.server.clients)) if (c.muted) { c.muted = false; n++; }
+                this.sendAdminMessage(`Unmuted ${n} player(s).`);
+                break;
+            }
+            case 'stripspeed': {
+                const t = this._targetClient(intArg(1), 'stripspeed');
+                if (!t) break;
+                t.snake.extraSpeed = 0; t.snake.speed = 0.25; t.snake.lockspeed = false;
+                this.sendAdminMessage(`Stripped ${t.snake.nick}'s speed.`);
+                break;
+            }
+            case 'clearstreak': {
+                const t = this._targetClient(intArg(1), 'clearstreak');
+                if (!t) break;
+                t.snake.killstreak = 0;
+                this.sendAdminMessage(`Cleared ${t.snake.nick}'s killstreak.`);
+                break;
+            }
+            case 'clearchat': {
+                this.server.chatHistory = [];
+                this.sendAdminMessage('Chat history cleared.');
+                break;
+            }
+
+            // ── Level 2: additional snake / arena control ─────────────────────
+            case 'grow': {
+                const t = this._targetClient(intArg(1), 'grow');
+                const amt = intArg(2);
+                if (!t) break;
+                if (amt === null || amt <= 0) { this.sendAdminMessage('Usage: grow <id> <amount>'); break; }
+                const nl = Math.min(1000000, (t.snake.length || 0) + amt);
+                t.snake.length = nl; t.snake.visualLength = nl;
+                this.sendAdminMessage(`Grew ${t.snake.nick} to ${Math.round(nl)}.`);
+                break;
+            }
+            case 'shrink': {
+                const t = this._targetClient(intArg(1), 'shrink');
+                const amt = intArg(2);
+                if (!t) break;
+                if (amt === null || amt <= 0) { this.sendAdminMessage('Usage: shrink <id> <amount>'); break; }
+                const nl = Math.max(1, (t.snake.length || 0) - amt);
+                t.snake.length = nl; t.snake.visualLength = nl;
+                this.sendAdminMessage(`Shrank ${t.snake.nick} to ${Math.round(nl)}.`);
+                break;
+            }
+            case 'boost': {
+                const t = this._targetClient(intArg(1), 'boost');
+                const amt = intArg(2);
+                if (!t) break;
+                if (amt === null) { this.sendAdminMessage('Usage: boost <id> <amount>'); break; }
+                t.snake.extraSpeed = Math.max(0, (t.snake.extraSpeed || 0) + amt);
+                t.snake.speed = 0.25 + t.snake.extraSpeed / (255 * UPDATE_EVERY_N_TICKS);
+                this.sendAdminMessage(`Boosted ${t.snake.nick} (+${amt}).`);
+                break;
+            }
+            case 'sethue': {
+                const t = this._targetClient(intArg(1), 'sethue');
+                const hue = intArg(2);
+                if (!t) break;
+                if (hue === null || hue < 0 || hue > 360) { this.sendAdminMessage('Usage: sethue <id> <0-360>'); break; }
+                t.snake.color = hue;
+                this._broadcastCosmetic(t.snake);
+                this.sendAdminMessage(`Set ${t.snake.nick}'s hue to ${hue}.`);
+                break;
+            }
+            case 'rename': {
+                const t = this._targetClient(intArg(1), 'rename');
+                const name = args.slice(2).join(' ').substring(0, 25);
+                if (!t) break;
+                if (!name) { this.sendAdminMessage('Usage: rename <id> <name>'); break; }
+                t.snake.nick = name;
+                this._broadcastCosmetic(t.snake);
+                this.sendAdminMessage(`Renamed #${args[1]} to ${name}.`);
+                break;
+            }
+            case 'invincible': {
+                const t = this._targetClient(intArg(1), 'invincible');
+                const on = intArg(2);
+                if (!t) break;
+                t.snake.invincible = on === 1;
+                this.sendAdminMessage(`${t.snake.nick} invincibility ${on === 1 ? 'ON' : 'OFF'}.`);
+                break;
+            }
+            case 'tpto': {
+                const t = this._targetClient(intArg(1), 'tpto', { outrank: false });
+                if (!t) break;
+                if (!this.snake || this.dead) { this.sendAdminMessage('tpto: you must be in-game.'); break; }
+                this.snake.position.x = t.snake.position.x;
+                this.snake.position.y = t.snake.position.y;
+                this.sendAdminMessage(`Teleported to ${t.snake.nick}.`);
+                break;
+            }
+            case 'bring': {
+                const t = this._targetClient(intArg(1), 'bring');
+                if (!t) break;
+                if (!this.snake || this.dead) { this.sendAdminMessage('bring: you must be in-game.'); break; }
+                t.snake.position.x = this.snake.position.x;
+                t.snake.position.y = this.snake.position.y;
+                this.sendAdminMessage(`Brought ${t.snake.nick} to you.`);
+                break;
+            }
+            case 'createfoodat': {
+                const x = floatArg(1), y = floatArg(2), n = intArg(3);
+                if (x === null || y === null || n === null || n < 1) { this.sendAdminMessage('Usage: createfoodat <x> <y> <count>'); break; }
+                const remaining = Math.max(0, Food.HARD_ENTITY_LIMIT - Object.keys(this.server.entities).length);
+                const count = Math.min(n, remaining);
+                if (count <= 0) { this.sendAdminMessage('Server is at the entity limit — cannot spawn more food.'); break; }
+                for (let i = 0; i < count; i++) new Food(this.server, x + Math.random() * 10 - 5, y + Math.random() * 10 - 5, undefined, null, undefined, true);
+                this.sendAdminMessage(count < n
+                    ? `Spawned ${count} food at (${x}, ${y}) (capped at the ${Food.HARD_ENTITY_LIMIT}-entity server limit).`
+                    : `Spawned ${count} food at (${x}, ${y}).`);
+                break;
+            }
+            case 'killall': {
+                let n = 0;
+                for (const c of Object.values(this.server.clients))
+                    if (c !== this && c.snake && !c.dead && this._outranks(c)) { c.snake.kill(Enums.KillReasons.BOUNDARY, c.snake); n++; }
+                this.sendAdminMessage(`Killed ${n} player(s).`);
+                break;
+            }
+            case 'freezeall': {
+                let n = 0;
+                for (const c of Object.values(this.server.clients)) if (c.snake && this._outranks(c)) { c.snake.frozen = true; n++; }
+                this.sendAdminMessage(`Froze ${n} player(s).`);
+                break;
+            }
+            case 'unfreezeall': {
+                let n = 0;
+                for (const c of Object.values(this.server.clients)) if (c.snake && c.snake.frozen) { c.snake.frozen = false; n++; }
+                this.sendAdminMessage(`Unfroze ${n} player(s).`);
+                break;
+            }
+            case 'setspeedall': {
+                const v = clampedInt(1, 0, 100000);
+                if (v === null) { this.sendAdminMessage('Usage: setspeedall <extraSpeed>'); break; }
+                let n = 0;
+                for (const c of Object.values(this.server.clients))
+                    if (c.snake && this._outranks(c)) {
+                        c.snake.extraSpeed = v; c.snake.speed = 0.25 + v / (255 * UPDATE_EVERY_N_TICKS); c.snake.lockspeed = v > 0; n++;
+                    }
+                this.sendAdminMessage(`Set extra speed of ${n} player(s) to ${v}.`);
+                break;
+            }
+            case 'extendserver': {
+                if (!this.server.isEphemeral) { this.sendAdminMessage('Not an ephemeral server.'); break; }
+                this.server.lastConnectionTime = Date.now();
+                this.sendAdminMessage('Idle timer reset — server lifetime extended.');
+                break;
+            }
+
+            // ── Level 3: developer / server structural ────────────────────────
+            case 'setservertime': {
+                const mins = clampedInt(1, 1, 100000);
+                if (mins === null) { this.sendAdminMessage('Usage: setservertime <minutes>'); break; }
+                this.server.ephemeralLifetimeMs = mins * 60000;
+                this.sendAdminMessage(`Ephemeral idle lifetime set to ${mins} minute(s).`);
+                break;
+            }
+            case 'setmaxplayers': {
+                const v = clampedInt(1, 1, 1000);
+                if (v === null) { this.sendAdminMessage('Usage: setmaxplayers <1-1000>'); break; }
+                this.server.MaxPlayers = v;
+                this.sendAdminMessage(`Max players set to ${v}.`);
+                break;
+            }
+            case 'setservername': {
+                const name = args.slice(1).join(' ').substring(0, 30);
+                if (!name) { this.sendAdminMessage('Usage: setservername <name>'); break; }
+                this.server.name = name;
+                this.sendAdminMessage(`Server name set to "${name}".`);
+                break;
+            }
+            case 'setowner': {
+                const id = intArg(1);
+                if (id === null) { this.sendAdminMessage('Usage: setowner <userid>'); break; }
+                this.server.owner = id;
+                this.server.addAdmin(id);
+                this.sendAdminMessage(`Server owner set to user ${id}.`);
+                break;
+            }
+            case 'resetbans': {
+                this.server.bannedIPs.clear();
+                this.server.bannedUsers.clear();
+                this.sendAdminMessage('All bans cleared.');
+                break;
+            }
+            case 'setping': {
+                const v = clampedInt(1, 0, 5000);
+                if (v === null) { this.sendAdminMessage('Usage: setping <0-5000>'); break; }
+                this.server.artificialPing = v;
+                this.sendAdminMessage(`Artificial ping set to ${v}ms.`);
+                break;
+            }
+            case 'spawnbarrier': {
+                const x = floatArg(1), y = floatArg(2), w = floatArg(3), h = floatArg(4);
+                if (x === null || y === null || w === null || h === null) { this.sendAdminMessage('Usage: spawnbarrier <x> <y> <width> <height>'); break; }
+                this.server.barriers.push({ x, y, width: w, height: h });
+                Object.values(this.server.clients).forEach(c => c.sendMapBarriers());
+                this.sendAdminMessage('Barrier spawned.');
+                break;
+            }
+            case 'clearbarriers': {
+                this.server.barriers = [];
+                Object.values(this.server.clients).forEach(c => c.sendMapBarriers());
+                this.sendAdminMessage('All barriers cleared.');
+                break;
+            }
+
             case 'timeleft':
                 if (this.server.isEphemeral) {
-                    const ms   = Math.max(0, 3600000 - (Date.now() - this.server.lastConnectionTime));
+                    const lifetime = this.server.ephemeralLifetimeMs || 3600000;
+                    const ms   = Math.max(0, lifetime - (Date.now() - this.server.lastConnectionTime));
                     const mins = Math.floor(ms / 60000);
                     const secs = Math.floor((ms % 60000) / 1000);
-                    this.sendAdminMessage(`Server auto-deletes in: ${mins}m ${secs}s`);
+                    this.sendAdminMessage(`Server auto-deletes after ${mins}m ${secs}s idle.`);
                 } else {
                     this.sendAdminMessage('This is not an ephemeral server.');
                 }
@@ -657,8 +1004,11 @@ class Client extends EventEmitter {
     // server so the admin panel can show the appropriate controls. Purely for
     // UX — every command is still re-validated server-side in _handleCommand.
     sendPermissions() {
+        const isDevServer = this.server.isDevServer ? 1 : 0;
         const isOwner = this._isOwner() ? 1 : 0;
-        const isDev   = (this.user && (this.user.rank || 0) >= 3) ? 1 : 0;
+        // "Developer" status unlocks dev-only panel controls — true for a global
+        // rank-3 user OR anyone on a dev server (where everyone is level 3).
+        const isDev   = ((this.user && (this.user.rank || 0) >= 3) || isDevServer) ? 1 : 0;
         const isEph   = this.server.isEphemeral ? 1 : 0;
         this._send(w => {
             w.writeUint8(Enums.ServerToClient.OPCODE_PERMISSIONS);
@@ -666,6 +1016,7 @@ class Client extends EventEmitter {
             w.writeUint8(isOwner);
             w.writeUint8(isDev);
             w.writeUint8(isEph);
+            w.writeUint8(isDevServer);
         }, 8);
     }
 

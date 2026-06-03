@@ -36,6 +36,14 @@ class Server {
         this.type        = serverInfo.type;
         this.host        = serverInfo.host;
         this.isEphemeral = serverInfo.isEphemeral || false;
+        // Dev mode: when the whole Node process runs with DEV_SKIP_AUTH enabled
+        // (local development), authentication is bypassed and EVERY user on EVERY
+        // server is treated as a full Developer (level 3). Production servers
+        // (DEV_SKIP_AUTH unset) keep normal rank-based permissions.
+        this.isDevServer = process.env.DEV_SKIP_AUTH === 'true';
+        // How long an idle ephemeral server lives before auto-deletion. Settable
+        // by a developer via the `setservertime` command (default 1 hour).
+        this.ephemeralLifetimeMs = 60 * 60 * 1000;
 
         this.entityIDs  = new IDManager();
         this.clientIDs  = new IDManager();
@@ -181,7 +189,9 @@ class Server {
 
         for (const snake of snakeList) {
             // ── movement ──────────────────────────────────────────────────────
-            const dist = snake.speed * UPDATE_EVERY_N_TICKS;
+            // Frozen snakes (admin "freeze") don't advance: dist 0 keeps the head
+            // in place and makes the collision query a zero-length no-op.
+            const dist = snake.frozen ? 0 : snake.speed * UPDATE_EVERY_N_TICKS;
             switch (snake.direction) {
                 case Enums.Directions.UP:    snake.position.y += dist; break;
                 case Enums.Directions.DOWN:  snake.position.y -= dist; break;

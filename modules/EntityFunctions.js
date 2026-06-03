@@ -73,9 +73,16 @@ class SnakeFunctions {
         let position = client.dead ? client.deadPosition : (client.snake ? client.snake.position : null)
         if (!position) return { entitiesToAdd: [], entitiesToRemove: [] };
         const entitiesInRadius = EntityFunctions.GetEntitiesInRadius({ x: position.x, y: position.y}, client);
-        const loadedEntitiesSet = new Set(Object.values(client.loadedEntities));
-        const entitiesToAdd = entitiesInRadius.filter(entity => !loadedEntitiesSet.has(entity));
-        const entitiesToRemove = Object.values(client.loadedEntities).filter(entity => !entitiesInRadius.includes(entity) && entity != client.snake);
+        // Use Sets for O(1) membership tests. The old code did
+        // `entitiesInRadius.includes(entity)` (a linear scan) inside a filter over
+        // every loaded entity — O(L × M). With thousands of food that was ~10^8
+        // comparisons per client per tick and spiked tick time to ~1s. Sets make
+        // this O(L + M).
+        const inRadiusSet       = new Set(entitiesInRadius);
+        const loadedEntities    = Object.values(client.loadedEntities);
+        const loadedEntitiesSet = new Set(loadedEntities);
+        const entitiesToAdd    = entitiesInRadius.filter(entity => !loadedEntitiesSet.has(entity));
+        const entitiesToRemove = loadedEntities.filter(entity => !inRadiusSet.has(entity) && entity != client.snake);
         return { entitiesToAdd, entitiesToRemove, entitiesInRadius };
     }
 
