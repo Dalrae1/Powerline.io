@@ -25,8 +25,11 @@ const NODE_API_BASE = IS_DEV
     ? "http://127.0.0.1:1335"
     : "";
 
+// All Node API endpoints live under /api/* (proxied to the Node server by a
+// single Apache rule). Callers pass a leading-slash path like "/getservers";
+// this prepends the /api base so it becomes "/api/getservers".
 function nodeApi(path) {
-    return `${NODE_API_BASE}${path}`;
+    return `${NODE_API_BASE}/api${path}`;
 }
 
 // Performance Stats
@@ -34,6 +37,13 @@ var statsFPS, statsLAG, statsTPS;
 
 // Admin
 var commandPallete = false;
+var adminPanel = false;
+// Effective permission level for the current server (sent by the server via
+// OPCODE_PERMISSIONS). 0 Player, 1 Moderator, 2 Admin, 3 Developer.
+var myPermissionLevel = 0;
+var myIsOwner = false;
+var myIsDev = false;
+var myIsEphemeral = false;
 
 // Game Stats
 var statTopPosition = 0;
@@ -407,9 +417,17 @@ var addCommandPallete = function () {
 	commandPallete.domElement.style.top = (canvas.height - 18 - offsetY)+'px';
 
 	document.getElementById('commandpallete').appendChild(commandPallete.domElement);
+	addAdminPanel();
 
 
 	
+}
+
+var addAdminPanel = function () {
+	if (adminPanel) { return; }
+	adminPanel = new AdminPanel();
+	// Apply any permission info already received before the panel existed.
+	adminPanel.onPermissions(myPermissionLevel, myIsOwner, myIsDev, myIsEphemeral);
 }
 
 var addStats = function() {
@@ -1094,6 +1112,11 @@ function createServer() {
 			var serverIsPublic = document.getElementById("isPublic").checked
 			var serverDefaultLength = document.getElementById("defaultLength").value
 			var serverArenaSize = document.getElementById("arenaSize").value
+			var serverMaxBoostSpeed = document.getElementById("maxBoostSpeed").value
+			var serverMaxRubSpeed = document.getElementById("maxRubSpeed").value
+			var serverUpdateInterval = document.getElementById("updateInterval").value
+			var serverFoodMultiplier = document.getElementById("foodMultiplier").value
+			var serverMaxNaturalFood = document.getElementById("maxNaturalFood").value
 			var button = document.querySelector("#createserverbutton")
 			button.disabled = true
 			button.innerHTML = "Creating..."
@@ -1106,7 +1129,12 @@ function createServer() {
 					foodValue: serverFoodValue,
 					isPublic: serverIsPublic,
 					defaultLength: serverDefaultLength,
-					arenaSize: serverArenaSize
+					arenaSize: serverArenaSize,
+					maxBoostSpeed: serverMaxBoostSpeed,
+					maxRubSpeed: serverMaxRubSpeed,
+					updateInterval: serverUpdateInterval,
+					foodMultiplier: serverFoodMultiplier,
+					maxNaturalFood: serverMaxNaturalFood
 				}),
 				credentials: "include",
 				headers: {
@@ -1137,6 +1165,11 @@ function createServer() {
 			var serverIsPublic = document.getElementById("isPublic").checked
 			var serverDefaultLength = document.getElementById("defaultLength").value
 			var serverArenaSize = document.getElementById("arenaSize").value
+			var serverMaxBoostSpeed = document.getElementById("maxBoostSpeed").value
+			var serverMaxRubSpeed = document.getElementById("maxRubSpeed").value
+			var serverUpdateInterval = document.getElementById("updateInterval").value
+			var serverFoodMultiplier = document.getElementById("foodMultiplier").value
+			var serverMaxNaturalFood = document.getElementById("maxNaturalFood").value
 
 			var button = document.querySelector("#createserverbutton")
 			button.disabled = true
@@ -1152,6 +1185,11 @@ function createServer() {
 					isPublic: serverIsPublic,
 					defaultLength: serverDefaultLength,
 					arenaSize: serverArenaSize,
+					maxBoostSpeed: serverMaxBoostSpeed,
+					maxRubSpeed: serverMaxRubSpeed,
+					updateInterval: serverUpdateInterval,
+					foodMultiplier: serverFoodMultiplier,
+					maxNaturalFood: serverMaxNaturalFood,
 				}),
 				credentials: "include",
 				headers: {
@@ -1681,14 +1719,14 @@ function loadScript(url){var head = document.getElementsByTagName('head')[0];var
 loadScript("codenzi/Grid.js?v=1");
 loadScript("codenzi/Utils.js?v=1");
 loadScript("codenzi/Resources.js?v=1");
-loadScript("codenzi/Input.js?v=3");
+loadScript("codenzi/Input.js?v=4");
 loadScript("codenzi/Effects.js?v=1");
 loadScript("codenzi/Hud.js?v=3");
 loadScript("codenzi/Snake.js?v=18");
 loadScript("codenzi/Food.js?v=1");
 loadScript("codenzi/Map.js?v=3");
 loadScript("codenzi/Minimap.js?v=4");
-loadScript("codenzi/Network.js?v=16");
+loadScript("codenzi/Network.js?v=17");
 loadScript("codenzi/App.js?v=5");
 loadScript("codenzi/Camera.js?v=1");
 loadScript("codenzi/Frame.js?v=1");

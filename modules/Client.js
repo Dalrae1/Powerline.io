@@ -35,11 +35,15 @@ class Client extends EventEmitter {
         this._fastDeathStreak      = 0;
         this._reEntryCooldownUntil = 0;
 
+        // Moderation: set by the `mute` admin command, gates say / talk.
+        this.muted = false;
+
         server.clients[this.id] = this;
 
         this.sendConfig();
         this.sendMapBarriers();
         this.sendChatHistory();
+        this.sendPermissions();
 
         console.log(user
             ? `Client connected to ${server.name} as user ${user.userid} (${user.username})`
@@ -130,6 +134,7 @@ class Client extends EventEmitter {
             }
 
             case Enums.ClientToServer.OPCODE_TALK:
+                if (this.muted) break;
                 if (this.snake.talkStamina >= 255) {
                     this.snake.Talk(view.getUint8(1));
                     this.snake.talkStamina = 0;
@@ -173,10 +178,47 @@ class Client extends EventEmitter {
         }
     }
 
-    // ── privilege check ───────────────────────────────────────────────────────
+    // ── permission tiers ───────────────────────────────────────────────────────
+    //
+    //   0 PLAYER     — no privileges
+    //   1 MODERATOR  — moderation: mute / kick / ban / kill
+    //   2 ADMIN      — full control of this arena and any snake in it
+    //   3 DEVELOPER  — global: admin in EVERY server + delete / edit servers
+    //
+    //  The DB `rank` column is the global rank (0..3+).  On top of that, the
+    //  OWNER of a server and anyone in server.admins[] get ADMIN (2) in THAT
+    //  server regardless of their global rank.  Developers (rank ≥ 3) are admin
+    //  everywhere and outrank even the owner.
 
+    permissionLevel() {
+        if (!this.user) return 0;
+        const rank = this.user.rank || 0;
+        if (rank >= 3) return 3;                       // developer — global
+        let level = Math.max(0, Math.min(2, rank));    // global rank 0..2
+        if (this._isOwner() || this.server.admins.includes(this.user.userid))
+            level = Math.max(level, 2);                // owner / server-admin → admin here
+        return level;
+    }
+
+    // True if this client outranks another (used so a moderator can't act on an
+    // equal-or-higher-ranked player).
+    _outranks(other) {
+        const theirs = (other && typeof other.permissionLevel === 'function') ? other.permissionLevel() : 0;
+        return this.permissionLevel() > theirs;
+    }
+
+    // Backwards-compatible privileged check used by self-affecting opcodes
+    // (boost / invincible / debug-grab) — these require ADMIN (2).
     _isPrivileged() {
-        return this.user && (this.server.admins.includes(this.user.userid) || this.user.rank > 2);
+        return this.permissionLevel() >= 2;
+    }
+
+    // Resolve a live client by the entity id of its snake (admin panel targets
+    // players by id, which the client already knows from streamed entities).
+    _clientByEntityId(id) {
+        if (id == null || isNaN(id)) return null;
+        return Object.values(this.server.clients)
+            .find(c => c.snake && c.snake.id === id) || null;
     }
 
     // ── command handler ───────────────────────────────────────────────────────
@@ -188,10 +230,30 @@ class Client extends EventEmitter {
         const args = command.split(' ');
         const cmd  = args[0].toLowerCase();
 
-        const isPrivileged = this._isPrivileged();
-        if (!isPrivileged && cmd !== 'say') return;
+        const level = this.permissionLevel();
 
-        console.log(`Command "${command}" from ${this.snake.nick}`);
+        // Minimum permission level required for each command. 'say' is open to
+        // everyone (still subject to mute). Anything not listed defaults to ADMIN.
+        const REQUIRED = {
+            say: 0,
+            // Moderator (1)
+            kick: 1, ban: 1, unban: 1, mute: 1, unmute: 1, kill: 1, timeleft: 1,
+            // Admin (2) — arena + snake control
+            length: 2, setlength: 2, setspeed: 2, speedlock: 2, teleport: 2,
+            debug: 2, debugall: 2, createfood: 2, clearfood: 2, randomfood: 2,
+            debuggrabammount: 2, arenasize: 2, maxboostspeed: 2, maxrubspeed: 2,
+            updateinterval: 2, maxfood: 2, maxnaturalfood: 2, foodspawnpercent: 2,
+            defaultlength: 2, foodmultiplier: 2, foodvalue: 2,
+            // Owner / Developer (case body does the finer owner-vs-dev check)
+            addadmin: 2, removeadmin: 2, deleteserver: 2,
+        };
+        const need = REQUIRED[cmd] ?? 2;
+        if (level < need) {
+            if (cmd !== 'say') this.sendAdminMessage('You do not have permission for that.');
+            return;
+        }
+
+        console.log(`Command "${command}" from ${this.snake?.nick ?? `client ${this.id}`} (level ${level})`);
 
         const intArg   = n => { const v = parseInt(args[n]);    return isNaN(v) ? null : v; };
         const floatArg = n => { const v = parseFloat(args[n]);  return isNaN(v) ? null : v; };
@@ -276,6 +338,7 @@ class Client extends EventEmitter {
                 break;
             }
             case 'say': {
+                if (this.muted) { this.sendAdminMessage('You are muted.'); return; }
                 if (this.dead || this.snake.talkStamina < 255) return;
                 const msg = args.slice(1).join(' ').substring(0, 50);
                 this.snake.flags    |= Enums.EntityFlags.SHOW_CUSTOM_TALKING;
@@ -340,6 +403,81 @@ class Client extends EventEmitter {
                 }
                 break;
             }
+            // ── Moderation: target another player by entity id ────────────────
+            case 'kick': {
+                const t = this._clientByEntityId(intArg(1));
+                if (!t)               { this.sendAdminMessage('kick: player not found.'); break; }
+                if (!this._outranks(t)) { this.sendAdminMessage('You cannot kick an equal or higher rank.'); break; }
+                const who = t.snake?.nick ?? `id ${args[1]}`;
+                try { t.socket.close(1008, 'Kicked by an admin'); } catch {}
+                this.sendAdminMessage(`Kicked ${who}.`);
+                break;
+            }
+            case 'ban': {
+                const t = this._clientByEntityId(intArg(1));
+                if (!t)               { this.sendAdminMessage('ban: player not found.'); break; }
+                if (!this._outranks(t)) { this.sendAdminMessage('You cannot ban an equal or higher rank.'); break; }
+                const who = t.snake?.nick ?? `id ${args[1]}`;
+                if (t._clientIP) this.server.bannedIPs.add(t._clientIP);
+                if (t.user)      this.server.bannedUsers.add(parseInt(t.user.userid));
+                try { t.socket.close(1008, 'Banned by an admin'); } catch {}
+                this.sendAdminMessage(`Banned ${who}.`);
+                break;
+            }
+            case 'unban': {
+                const a = args[1];
+                if (!a) { this.sendAdminMessage('Usage: unban <ip|userid>'); break; }
+                let removed = this.server.bannedIPs.delete(a);
+                const uid = parseInt(a);
+                if (!isNaN(uid) && this.server.bannedUsers.delete(uid)) removed = true;
+                this.sendAdminMessage(removed ? `Unbanned ${a}.` : `No active ban for ${a}.`);
+                break;
+            }
+            case 'mute': {
+                const t = this._clientByEntityId(intArg(1));
+                if (!t)               { this.sendAdminMessage('mute: player not found.'); break; }
+                if (!this._outranks(t)) { this.sendAdminMessage('You cannot mute an equal or higher rank.'); break; }
+                t.muted = true;
+                this.sendAdminMessage(`Muted ${t.snake?.nick ?? `id ${args[1]}`}.`);
+                break;
+            }
+            case 'unmute': {
+                const t = this._clientByEntityId(intArg(1));
+                if (!t) { this.sendAdminMessage('unmute: player not found.'); break; }
+                t.muted = false;
+                this.sendAdminMessage(`Unmuted ${t.snake?.nick ?? `id ${args[1]}`}.`);
+                break;
+            }
+            case 'kill': {
+                const t = this._clientByEntityId(intArg(1));
+                if (!t || !t.snake || t.dead) { this.sendAdminMessage('kill: player not found.'); break; }
+                if (t !== this && !this._outranks(t)) { this.sendAdminMessage('You cannot kill an equal or higher rank.'); break; }
+                const who = t.snake.nick;
+                t.snake.kill(Enums.KillReasons.BOUNDARY, t.snake);
+                this.sendAdminMessage(`Killed ${who}.`);
+                break;
+            }
+            case 'setlength': {
+                const t   = this._clientByEntityId(intArg(1));
+                const len = intArg(2);
+                if (!t || !t.snake || t.dead) { this.sendAdminMessage('setlength: player not found.'); break; }
+                if (len === null || len < 1 || len > 1000000) { this.sendAdminMessage('Usage: setlength <id> <length 1-1000000>'); break; }
+                t.snake.length       = len;   // setter keeps the leaderboard in sync
+                t.snake.visualLength = len;   // snap visual length so the change is immediate
+                this.sendAdminMessage(`Set ${t.snake.nick}'s length to ${len}.`);
+                break;
+            }
+            case 'setspeed': {
+                const t = this._clientByEntityId(intArg(1));
+                const v = intArg(2);
+                if (!t || !t.snake || t.dead) { this.sendAdminMessage('setspeed: player not found.'); break; }
+                if (v === null || v < 0 || v > 100000) { this.sendAdminMessage('Usage: setspeed <id> <extraSpeed 0-100000>'); break; }
+                t.snake.extraSpeed = v;
+                t.snake.speed      = 0.25 + v / (255 * UPDATE_EVERY_N_TICKS);
+                t.snake.lockspeed  = v > 0;
+                this.sendAdminMessage(`Set ${t.snake.nick}'s extra speed to ${v}.`);
+                break;
+            }
             case 'timeleft':
                 if (this.server.isEphemeral) {
                     const ms   = Math.max(0, 3600000 - (Date.now() - this.server.lastConnectionTime));
@@ -351,7 +489,7 @@ class Client extends EventEmitter {
                 }
                 break;
             case 'addadmin':
-                if (this.server.isEphemeral && this._isOwner()) {
+                if ((this.server.isEphemeral && this._isOwner()) || level >= 3) {
                     const id = intArg(1);
                     if (id !== null) {
                         this.sendAdminMessage(
@@ -368,7 +506,7 @@ class Client extends EventEmitter {
                 }
                 break;
             case 'removeadmin':
-                if (this.server.isEphemeral && this._isOwner()) {
+                if ((this.server.isEphemeral && this._isOwner()) || level >= 3) {
                     const id = intArg(1);
                     if (id !== null) {
                         this.sendAdminMessage(
@@ -385,13 +523,15 @@ class Client extends EventEmitter {
                 }
                 break;
             case 'deleteserver':
-                if (this.server.isEphemeral && this._isOwner()) {
+                // Owner can delete their own custom server; a developer (rank ≥ 3)
+                // can delete ANY server they are in.
+                if (level >= 3 || (this.server.isEphemeral && this._isOwner())) {
                     this.sendAdminMessage('Deleting server...');
                     setTimeout(() => this.server.destroy(), 500);
                 } else {
                     this.sendAdminMessage(this.server.isEphemeral
-                        ? 'Only the server owner can delete this server.'
-                        : 'This command only works on custom servers.');
+                        ? 'Only the server owner or a developer can delete this server.'
+                        : 'Only a developer can delete this server.');
                 }
                 break;
         }
@@ -511,6 +651,22 @@ class Client extends EventEmitter {
             w.writeUint8(Enums.ServerToClient.OPCODE_SERVER_MESSAGE);
             w.writeString(message);
         }, 4 + message.length * 2);
+    }
+
+    // Tell the client its effective permission level + role flags for THIS
+    // server so the admin panel can show the appropriate controls. Purely for
+    // UX — every command is still re-validated server-side in _handleCommand.
+    sendPermissions() {
+        const isOwner = this._isOwner() ? 1 : 0;
+        const isDev   = (this.user && (this.user.rank || 0) >= 3) ? 1 : 0;
+        const isEph   = this.server.isEphemeral ? 1 : 0;
+        this._send(w => {
+            w.writeUint8(Enums.ServerToClient.OPCODE_PERMISSIONS);
+            w.writeUint8(this.permissionLevel());
+            w.writeUint8(isOwner);
+            w.writeUint8(isDev);
+            w.writeUint8(isEph);
+        }, 8);
     }
 
     sendConfig() {

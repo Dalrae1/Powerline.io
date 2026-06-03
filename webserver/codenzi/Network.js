@@ -63,6 +63,7 @@ var Network = function () {
 	var OPCODE_EVENTS = 0xA4;
 	var OPCODE_LEADERBOARD = 0xA5;
 	var OPCODE_MINIMAP = 0xA6;
+	var OPCODE_PERMISSIONS = 0xAC;
 
 	// Event Codes
 	var EVENT_DID_KILL = 0x01;
@@ -694,6 +695,15 @@ var Network = function () {
 			var res = getString(view, 1);
 			var message = res.nick;
 			hud.showTip(message);
+		}
+		else if (op == OPCODE_PERMISSIONS) { // Effective permission level for this server
+			var offset = 1;
+			myPermissionLevel = view.getUint8(offset); offset += 1;
+			myIsOwner         = view.getUint8(offset) === 1; offset += 1;
+			myIsDev           = view.getUint8(offset) === 1; offset += 1;
+			myIsEphemeral     = view.getUint8(offset) === 1; offset += 1;
+			if (typeof adminPanel === 'object' && adminPanel && adminPanel.onPermissions)
+				adminPanel.onPermissions(myPermissionLevel, myIsOwner, myIsDev, myIsEphemeral);
 		}
 	};
 

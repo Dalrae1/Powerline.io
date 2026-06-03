@@ -481,6 +481,13 @@ routes.createserver = async (req, res) => {
         const foodValue     = Math.min(Math.max(parseFloat(json.foodValue)   || 10,  1), 100);
         const defaultLength = Math.min(Math.max(parseInt(json.defaultLength) || 10,  1), 200);
         const arenaSize     = Math.min(Math.max(parseInt(json.arenaSize)     || 300, 50), 2000);
+        // Extra owner-configurable stats (each clamped; falls back to default
+        // when omitted or invalid).
+        const maxBoostSpeed = Math.min(Math.max(parseInt(json.maxBoostSpeed)  || 255,  1), 1000);
+        const maxRubSpeed   = Math.min(Math.max(parseInt(json.maxRubSpeed)    || 200,  1), 1000);
+        const updateInterval= Math.min(Math.max(parseInt(json.updateInterval) || 100, 20), 500);
+        const foodMultiplier= Math.min(Math.max(parseInt(json.foodMultiplier) || 1,   1), 10);
+        const maxNaturalFood= Math.min(Math.max(parseInt(json.maxNaturalFood) || 1500, 1), 10000);
 
         while (Servers[nextEphemeralId]) nextEphemeralId++;
         const newId = nextEphemeralId++;
@@ -490,9 +497,14 @@ routes.createserver = async (req, res) => {
             owner: user.userid, type: 'custom', isEphemeral: true, pinned: false,
             config: {
                 ...defaultConfig,
-                FoodValue:     SnakeFunctions.ScoreToLength(foodValue),
-                DefaultLength: defaultLength,
-                ArenaSize:     arenaSize,
+                FoodValue:      SnakeFunctions.ScoreToLength(foodValue),
+                DefaultLength:  defaultLength,
+                ArenaSize:      arenaSize,
+                MaxBoostSpeed:  maxBoostSpeed,
+                MaxRubSpeed:    maxRubSpeed,
+                UpdateInterval: updateInterval,
+                FoodMultiplier: foodMultiplier,
+                MaxNaturalFood: maxNaturalFood,
             },
         });
         global.ephemeralServers.set(uid, newId);
@@ -607,10 +619,17 @@ routes.removeadmin = async (req, res) => {
 let remoteServers = [];
 
 async function serverListener(req, res) {
-    // Strip .php suffix so PHP proxy files route to the same handlers
-    let path = req.url.split('/')[1] || '';
-    path = path.includes('?') ? path.split('?')[0] : path;
-    path = path.replace(/\.php$/, '');
+    // Every Node endpoint is served under /api/* so a SINGLE Apache rule
+    //     ProxyPass        /api  http://127.0.0.1:1335/api
+    //     ProxyPassReverse /api  http://127.0.0.1:1335/api
+    // forwards all current and future routes here — no per-endpoint vhosts
+    // entry is ever needed again. The leading /api is stripped before the route
+    // lookup; it's optional so direct-to-node calls (e.g. local tooling) without
+    // the prefix still resolve. The legacy .php suffix is also tolerated.
+    let pathname = (req.url || '').split('?')[0];        // drop query string
+    pathname = pathname.replace(/\.php$/, '');            // legacy .php proxy files
+    pathname = pathname.replace(/^\/api(?=\/|$)/, '');    // strip optional /api prefix
+    const path = pathname.split('/')[1] || '';
 
     const handler = routes[path];
     if (handler) {

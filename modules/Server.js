@@ -51,16 +51,23 @@ class Server {
         this.barriers     = [];
         this.chatHistory  = [];
         this.bots         = [];
+        // In-memory moderation state (per server, cleared on restart).
+        // bannedIPs / bannedUsers gate reconnection; mutes are tracked per live
+        // Client (client.muted) since they only matter while connected.
+        this.bannedIPs    = new Set();
+        this.bannedUsers  = new Set(); // userids
         // Axis-aligned segment index — O(1) collision and rubbing queries.
         this.segmentIndex = new SegmentIndex();
 
         this.leaderboardDataview       = null;  // writable DataView sent to clients
         this.leaderboardDataviewOffset = 0;     // offset where per-snake personal rank is appended
 
-        this.foodMultiplier  = 1;
+        // Honour config overrides when provided (custom servers set these at
+        // creation); otherwise fall back to the historical defaults.
+        this.foodMultiplier  = this.config.FoodMultiplier || 1;
         this.maxFood         = 60000;
         this.naturalFood     = 0;
-        this.maxNaturalFood  = this.config.ArenaSize * 5;
+        this.maxNaturalFood  = this.config.MaxNaturalFood || this.config.ArenaSize * 5;
         this.foodSpawnPercent = (this.config.ArenaSize ^ 2) / 10;
         this.artificialPing  = 0;
 
@@ -126,7 +133,7 @@ class Server {
                 maxPlayers: this.MaxPlayers,
             });
             const req = https.request({
-                hostname: 'dalr.ae', port: 443, path: '/heartbeat', method: 'POST',
+                hostname: 'dalr.ae', port: 443, path: '/api/heartbeat', method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
                 agent,
             }, res => { res.resume(); }); // drain response
@@ -499,6 +506,13 @@ class Server {
             return;
         }
 
+        // Reject IP-banned connections outright (userid bans are also checked
+        // after the session resolves, in finalize()).
+        if (this.isBanned(ws._clientIP, null)) {
+            ws.close(1008, 'You are banned from this server');
+            return;
+        }
+
         this.lastConnectionTime = Date.now();
 
         // Queue messages received before session lookup completes
@@ -507,6 +521,11 @@ class Server {
         ws.on('message', enqueue);
 
         const finalize = (user) => {
+            // Userid bans are enforced here, once the session has resolved.
+            if (user && this.isBanned(null, user.userid)) {
+                try { ws.close(1008, 'You are banned from this server'); } catch {}
+                return;
+            }
             const client = new Client(this, ws, user || null);
 
             // Replay queued messages
@@ -573,6 +592,14 @@ class Server {
             this.admins.splice(idx, 1);
             return true;
         }
+        return false;
+    }
+
+    // ── ban helpers ─────────────────────────────────────────────────────────
+
+    isBanned(ip, userid) {
+        if (ip && this.bannedIPs.has(ip)) return true;
+        if (userid != null && this.bannedUsers.has(parseInt(userid))) return true;
         return false;
     }
 

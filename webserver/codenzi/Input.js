@@ -70,6 +70,17 @@ var Input = function() {
 			commandPallete.toggle();
 		}
 
+		// Backslash (\) — toggle the admin panel. Ignored while typing in a field
+		// so the panel's own inputs (and the command box) keep the character.
+		if (e.keyCode == 220) {
+			var ae = document.activeElement;
+			var typing = ae && (ae.tagName == 'INPUT' || ae.tagName == 'SELECT' || ae.tagName == 'TEXTAREA');
+			if (!typing && adminPanel && adminPanel.toggle) {
+				adminPanel.toggle();
+				return;
+			}
+		}
+
 		if (document.activeElement && document.activeElement.tagName == 'INPUT' && (e.keyCode > 40 || e.keyCode < 37)) {
 			return;
 		}

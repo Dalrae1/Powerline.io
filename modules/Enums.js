@@ -14,6 +14,10 @@ const ServerToClient = {
     OPCODE_CUSTOM_TALK: 0xA8,
     OPCODE_MAP_BARRIERS: 0xA9,
     OPCODE_SERVER_MESSAGE: 0xAA,
+    // Tells the client its effective permission level for THIS server so the
+    // admin panel can show the right controls. Server stays authoritative —
+    // every admin command is re-validated server-side regardless of this.
+    OPCODE_PERMISSIONS: 0xAC,
 };
 
 const ClientToServer = {

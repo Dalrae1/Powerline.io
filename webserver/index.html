@@ -309,7 +309,22 @@
 		
 					<label for="arenaSize">Arena Size: <span id="arenaSizeValue">200</span></label>
 					<input type="range" id="arenaSize" class="clickable" name="arenaSize" min="1" max="1000" value="200">
-		
+
+					<label for="maxBoostSpeed">Max Boost Speed: <span id="maxBoostSpeedValue">255</span></label>
+					<input type="range" id="maxBoostSpeed" class="clickable" name="maxBoostSpeed" min="1" max="1000" value="255">
+
+					<label for="maxRubSpeed">Max Rub Speed: <span id="maxRubSpeedValue">200</span></label>
+					<input type="range" id="maxRubSpeed" class="clickable" name="maxRubSpeed" min="1" max="1000" value="200">
+
+					<label for="updateInterval">Update Interval (ms): <span id="updateIntervalValue">100</span></label>
+					<input type="range" id="updateInterval" class="clickable" name="updateInterval" min="20" max="500" value="100">
+
+					<label for="foodMultiplier">Food Multiplier: <span id="foodMultiplierValue">1</span></label>
+					<input type="range" id="foodMultiplier" class="clickable" name="foodMultiplier" min="1" max="10" value="1">
+
+					<label for="maxNaturalFood">Max Natural Food: <span id="maxNaturalFoodValue">1500</span></label>
+					<input type="range" id="maxNaturalFood" class="clickable" name="maxNaturalFood" min="1" max="10000" value="1500">
+
 					<label for="adminSearch">Add Admins:</label>
 					<input type="text" id="adminSearch" class="clickable" name="adminSearch" placeholder="Search for players">
 					<div id="searchResults" class="search-results"></div>
@@ -368,6 +383,17 @@
 						document.querySelector('#arenaSize').value = 200
 						document.querySelector('#arenaSizeValue').textContent = 200
 
+						document.querySelector('#maxBoostSpeed').value = 255
+						document.querySelector('#maxBoostSpeedValue').textContent = 255
+						document.querySelector('#maxRubSpeed').value = 200
+						document.querySelector('#maxRubSpeedValue').textContent = 200
+						document.querySelector('#updateInterval').value = 100
+						document.querySelector('#updateIntervalValue').textContent = 100
+						document.querySelector('#foodMultiplier').value = 1
+						document.querySelector('#foodMultiplierValue').textContent = 1
+						document.querySelector('#maxNaturalFood').value = 1500
+						document.querySelector('#maxNaturalFoodValue').textContent = 1500
+
 						document.querySelector('#isPublic').checked = false;
 
 						document.querySelector("#createServerModal .modal-content h4").textContent = "Create server";
@@ -401,6 +427,21 @@
 
 						document.querySelector('#arenaSize').value = row.getAttribute('arenasize');
 						document.querySelector('#arenaSizeValue').textContent = row.getAttribute('arenasize');
+
+						(function(){
+							var extra = {
+								maxBoostSpeed: row.getAttribute('maxboostspeed') || 255,
+								maxRubSpeed:   row.getAttribute('maxrubspeed')   || 200,
+								updateInterval:row.getAttribute('updateinterval')|| 100,
+								foodMultiplier:row.getAttribute('foodmultiplier')|| 1,
+								maxNaturalFood:row.getAttribute('maxnaturalfood')|| 1500,
+							};
+							for (var key in extra) {
+								var s = document.getElementById(key), v = document.getElementById(key + 'Value');
+								if (s) s.value = extra[key];
+								if (v) v.textContent = extra[key];
+							}
+						})();
 
 						document.querySelector("#createserverbutton").setAttribute('serverid', row.getAttribute('serverid'));
 
@@ -443,6 +484,16 @@
 				foodValueSlider.addEventListener('input', function() {
 					foodValueValue.textContent = foodValueSlider.value;
 				});
+
+				// Newly added stat sliders — keep each value label in sync.
+				['maxBoostSpeed', 'maxRubSpeed', 'updateInterval', 'foodMultiplier', 'maxNaturalFood']
+					.forEach(function(idName) {
+						var slider = document.getElementById(idName);
+						var valSpan = document.getElementById(idName + 'Value');
+						if (slider && valSpan) {
+							slider.addEventListener('input', function() { valSpan.textContent = slider.value; });
+						}
+					});
 			});
 			document.addEventListener('DOMContentLoaded', function() {
 				const adminSearch = document.getElementById('adminSearch');
@@ -623,6 +674,7 @@
 <script src="lib/modernizr-custom.js?v=1"></script>
 <script src="lib/Stats.js?v=2"></script>
 <script src="codenzi/CommandPallete.js?v=1"></script>
+<script src="codenzi/AdminPanel.js?v=1"></script>
 <script src="lib/howler.min.js?v=1"></script>
 
 
