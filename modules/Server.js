@@ -647,8 +647,8 @@ class Server {
         this.bots = [];
         for (const client of Object.values(this.clients)) {
             try {
-                if (client.ws && client.ws.readyState === 1) {
-                    client.ws.close(1000, 'Server shutting down');
+                if (client.socket && client.socket.readyState === 1 && typeof client.socket.close === 'function') {
+                    client.socket.close(1008, 'Server closed');
                 }
             } catch (e) {
                 console.error('Error closing client socket:', e);
