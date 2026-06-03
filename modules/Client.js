@@ -635,8 +635,14 @@ class Client extends EventEmitter {
                 break;
             }
             case 'clearchat': {
+                // Wipe the server-side history AND tell every connected client to
+                // clear its chat display, so it actually clears for everyone.
                 this.server.chatHistory = [];
-                this.sendAdminMessage('Chat history cleared.');
+                const clearBuf = this._buildClearChatPacket();
+                for (const c of Object.values(this.server.clients)) {
+                    try { c.socket.send(clearBuf); } catch {}
+                }
+                this.sendAdminMessage('Chat cleared for all players.');
                 break;
             }
 
@@ -1060,6 +1066,12 @@ class Client extends EventEmitter {
         w.writeUint8(Enums.ServerToClient.OPCODE_CUSTOM_TALK);
         w.writeString(nick);
         w.writeString(message);
+        return w.toBuffer();
+    }
+
+    _buildClearChatPacket() {
+        const w = new BinaryWriter(1);
+        w.writeUint8(Enums.ServerToClient.OPCODE_CLEAR_CHAT);
         return w.toBuffer();
     }
 

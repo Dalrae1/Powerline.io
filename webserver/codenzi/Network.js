@@ -67,6 +67,7 @@ var Network = function () {
 	var OPCODE_PERMISSIONS = 0xAC;
 	var OPCODE_ADMIN_PLAYERS = 0xAD;
 	var OPCODE_ENTITY_COSMETIC = 0xB1;
+	var OPCODE_CLEAR_CHAT = 0xB2;
 
 	// Event Codes
 	var EVENT_DID_KILL = 0x01;
@@ -208,6 +209,11 @@ var Network = function () {
 	};
 
 	this.onSocketOpen = function(e) {
+		// Fresh connection — wipe any chat left over from the previous server so
+		// only THIS server's history (sent right after connect) is shown. Also
+		// prevents duplicated history on a reconnect to the same server.
+		if (typeof chatt !== 'undefined' && chatt && chatt.clear) chatt.clear();
+
 		if(network.connectVar)
 		{
 			clearTimeout(network.connectVar);
@@ -740,6 +746,9 @@ var Network = function () {
 				e.hue = hue;                 // body/name colour uses this.hue at draw time
 				if (res.nick) e.nick = res.nick;
 			}
+		}
+		else if (op == OPCODE_CLEAR_CHAT) { // Admin cleared chat for everyone
+			if (typeof chatt !== 'undefined' && chatt && chatt.clear) chatt.clear();
 		}
 	};
 

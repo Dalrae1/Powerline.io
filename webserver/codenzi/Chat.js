@@ -15,6 +15,11 @@ var Chat = function () {
         return div.innerHTML;
     }
 
+    function clear() {
+        const chatMessages = document.getElementById('chat-messages');
+        if (chatMessages) chatMessages.innerHTML = '';
+    }
+
     function addMessage(text, sender = "System") {
         const chatMessages = document.getElementById('chat-messages');
         if (!chatMessages) return;
@@ -177,6 +182,7 @@ var Chat = function () {
     return {
         domElement: create(),
         addMessage: addMessage,
+        clear: clear,
     };
 };
 

@@ -26,6 +26,9 @@ const ServerToClient = {
     // are only sent in FULL entity updates, so when an admin renames or recolors
     // a snake we push this lightweight packet to replicate the change live.
     OPCODE_ENTITY_COSMETIC: 0xB1,
+    // Tells the client to wipe its chat display. Broadcast to everyone when an
+    // admin runs `clearchat`; also lets a client start fresh on a new server.
+    OPCODE_CLEAR_CHAT: 0xB2,
 };
 
 const ClientToServer = {
