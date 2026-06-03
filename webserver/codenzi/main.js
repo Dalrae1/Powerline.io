@@ -1410,6 +1410,16 @@ function delete_cookie( name, path, domain ) {
 		";expires=Thu, 01 Jan 1970 00:00:01 GMT";
 	}
 }
+
+// The session_id cookie is Secure + HttpOnly, so JavaScript can't read or
+// delete it — logout must be done server-side. Hit the logout endpoint (which
+// deletes the session row and expires the cookie), then reload either way so
+// the UI returns to the logged-out state.
+function doLogout() {
+	fetch('/logout.php', { method: 'POST', credentials: 'include' })
+		.then(function() { location.reload(); })
+		.catch(function() { location.reload(); });
+}
 fetch('/fetchuser.php')
 	.then(response => response.json())
 	.then(data => {
@@ -1418,10 +1428,7 @@ fetch('/fetchuser.php')
 			if (data.verified_name) {
 				// Logged-in user with a verified name
 				document.getElementById('loginButton').textContent = "Log out of " + data.verified_name;
-				document.getElementById('loginButton').addEventListener('click', function() {
-					delete_cookie('session_id', '/');
-					location.reload();
-				});
+				document.getElementById('loginButton').addEventListener('click', doLogout);
 				// Pre-fill the nick input with the verified name
 				var nickInput = document.getElementById('nick');
 				if (nickInput && !nickInput.value) {
@@ -1436,10 +1443,7 @@ fetch('/fetchuser.php')
 			} else {
 				// Logged in but no verified name yet — prompt them to create one
 				document.getElementById('loginButton').textContent = "Log out";
-				document.getElementById('loginButton').addEventListener('click', function() {
-					delete_cookie('session_id', '/');
-					location.reload();
-				});
+				document.getElementById('loginButton').addEventListener('click', doLogout);
 				var modal = document.getElementById('setVerifiedNameModal');
 				if (modal) modal.style.display = 'block';
 			}
