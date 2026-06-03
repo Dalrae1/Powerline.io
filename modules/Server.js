@@ -326,10 +326,20 @@ class Server {
             if (Date.now() - snake.lastAte > 500) snake.eatCombo = 0;
 
             // ── speed from eat combo ──────────────────────────────────────────
-            if (snake.eatCombo >= 5 && (snake.extraSpeed + 1 <= this.config.MaxBoostSpeed || snake.speedBypass)) {
-                snake.extraSpeed += 2;
+            // Ramp toward MaxBoostSpeed while eating, but CLAMP at the cap and
+            // hold there. The old code tested `extraSpeed + 1 <= MaxBoostSpeed`
+            // then added 2, overshooting to 256 at the 255 cap; extraSpeed then
+            // oscillated 254↔256 and — since it's sent as a uint8 — 256 wrapped
+            // to 0, making the snake flash and the boost sound cut in and out.
+            if (snake.eatCombo >= 5) {
+                const cap = this.config.MaxBoostSpeed;
+                if (snake.speedBypass) {
+                    snake.extraSpeed += 2;
+                } else if (snake.extraSpeed < cap) {
+                    snake.extraSpeed = Math.min(snake.extraSpeed + 2, cap);
+                }
                 snake.speed    = 0.25 + snake.extraSpeed / 1000;
-                snake.speeding = true;
+                snake.speeding = true; // hold at the cap rather than decaying back down
             } else {
                 snake.speeding = false;
             }

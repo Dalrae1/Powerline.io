@@ -1183,7 +1183,7 @@ class Client extends EventEmitter {
                         w.writeUint16(entity.points.length);
                         this._writePlayerFlags(w, entity);
                         w.writeUint8(entity.talkStamina);
-                        w.writeUint8(entity.extraSpeed);
+                        w.writeUint8(Math.min(255, Math.max(0, Math.round(entity.extraSpeed || 0)))); // uint8: clamp so high speeds never wrap to a low value
                         for (const pt of entity.points) {
                             w.writeFloat32(pt.x);
                             w.writeFloat32(pt.y);
@@ -1214,7 +1214,7 @@ class Client extends EventEmitter {
                         w.writeUint16(entity.points.length);
                         this._writePlayerFlags(w, entity);
                         w.writeUint8(entity.talkStamina);
-                        w.writeUint8(entity.extraSpeed);
+                        w.writeUint8(Math.min(255, Math.max(0, Math.round(entity.extraSpeed || 0)))); // uint8: clamp so high speeds never wrap to a low value
                         // New turn points (sent in reverse: newest → oldest)
                         const np = entity.newPoints;
                         w.writeUint8(np.length);

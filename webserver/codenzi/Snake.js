@@ -1745,7 +1745,12 @@ var Snake = function () {
 
 		if(focus && this.killReason != KILL_REASON_LEFT_SCREEN){
 			this.beingDeleted = true;
-			
+
+			// Stop the boost loop immediately on death. A normal kill plays a
+			// fly-off animation and only reaches cleanup() much later, so without
+			// this the boost sound kept looping — even after the player respawned.
+			stopLoopSounds();
+
 			// Don't like this
 			if(this.id == localPlayerID)
 			{
@@ -1794,18 +1799,21 @@ var Snake = function () {
 	this.resume = function() {
 	};
 
+	// Hard-stop this snake's looping boost sounds. Safe to call repeatedly and
+	// before any loop was started (each is null-guarded). Called both on death
+	// (so the boost loop can't keep playing after respawn) and in cleanup().
+	function stopLoopSounds() {
+		if(loopSound)        soundManager.sound.stop(loopSound);
+		if(loopFastSound)    soundManager.sound.stop(loopFastSound);
+		if(loopElectroSound) soundManager.sound.stop(loopElectroSound);
+		loopSound = null;
+		loopFastSound = null;
+		loopElectroSound = null;
+	}
+
 	this.cleanup = function() {
 		playerCount--;
-		if(loopSound){
-			if(this.playSounds)
-			{
-				soundManager.sound.stop(loopSound);
-				soundManager.sound.stop(loopFastSound);
-				soundManager.sound.stop(loopElectroSound);
-				loopSound = null;
-				loopFastSound = null;
-			}
-		}
+		stopLoopSounds();
 	};
 
 	this.setKilledBy = function(id) {
