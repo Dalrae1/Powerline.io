@@ -132,6 +132,7 @@ class Snake {
 
         this.server.snakes[this.id] = this;
         this.server.entities[this.id] = this;
+        this.server.entityCount++;
 
 
         this.network.send(Bit8);
@@ -603,7 +604,7 @@ class Snake {
             foodToDrop = Math.floor(foodToDrop * 0.25);
         }
 
-        foodToDrop = Math.min(foodToDrop, Math.max(0, Food.HARD_ENTITY_LIMIT - Object.keys(this.server.entities).length));
+        foodToDrop = Math.min(foodToDrop, Math.max(0, Food.HARD_ENTITY_LIMIT - this.server.entityCount));
         let dropAtInterval = foodToDrop > 0 ? actualLength / foodToDrop : Infinity;
         for (let i = 0; i < actualLength && foodToDrop > 0; i += dropAtInterval) {
             let point = SnakeFunctions.GetPointAtDistance(this, i);
@@ -702,6 +703,7 @@ class Snake {
             this.server.entityIDs.releaseID(this.id);
         }, 1000);
         delete this.server.snakes[this.id];
+        if (this.server.entities[this.id] !== undefined) this.server.entityCount--;
         delete this.server.entities[this.id]
 
     }

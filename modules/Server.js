@@ -88,6 +88,7 @@ class Server {
         this.admins            = [parseInt(this.owner)];
         this.debugGrabAmount   = 1000;
         this.entities          = [];
+        this.entityCount       = 0;
         this.clients           = [];
         this.snakes            = [];
 
@@ -410,7 +411,7 @@ class Server {
         }
 
         // Natural food spawning
-        if (Object.keys(this.entities).length < this.maxNaturalFood) {
+        if (this.entityCount < this.maxNaturalFood) {
             if (Math.random() * 100 < this.foodSpawnPercent) new Food(this);
         }
 

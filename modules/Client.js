@@ -281,6 +281,23 @@ class Client extends EventEmitter {
             .find(c => c.snake && c.snake.id === id) || null;
     }
 
+    _spawnFoodBatched(total, makeOne) {
+        const server = this.server;
+        const CHUNK = 1000;
+        let remaining = total;
+        const step = () => {
+            if (server.stopped) return;
+            let n = 0;
+            while (n < CHUNK && remaining > 0 && server.entityCount < Food.HARD_ENTITY_LIMIT) {
+                makeOne();
+                n++;
+                remaining--;
+            }
+            if (remaining > 0 && server.entityCount < Food.HARD_ENTITY_LIMIT) setTimeout(step, 0);
+        };
+        step();
+    }
+
     // Resolve a target client for a player-directed command, with the usual
     // checks + admin messaging. Returns the client, or null (after messaging).
     //   label   — command name for error messages
@@ -401,13 +418,14 @@ class Client extends EventEmitter {
                 // the server in an enormous loop.
                 const requested = intArg(1);
                 if (requested === null || requested < 1) break;
-                const remaining = Math.max(0, Food.HARD_ENTITY_LIMIT - Object.keys(this.server.entities).length);
+                const remaining = Math.max(0, Food.HARD_ENTITY_LIMIT - this.server.entityCount);
                 const v = Math.min(requested, remaining);
                 if (v <= 0) { this.sendAdminMessage('Server is at the entity limit — cannot spawn more food.'); break; }
-                for (let i = 0; i < v; i++) new Food(this.server, undefined, undefined, undefined, null, undefined, true);
+                const srv = this.server;
+                this._spawnFoodBatched(v, () => new Food(srv, undefined, undefined, undefined, null, undefined, true));
                 this.sendAdminMessage(v < requested
-                    ? `Spawned ${v} food (capped at the ${Food.HARD_ENTITY_LIMIT}-entity server limit).`
-                    : `Spawned ${v} food.`);
+                    ? `Spawning ${v} food (capped at the ${Food.HARD_ENTITY_LIMIT}-entity server limit).`
+                    : `Spawning ${v} food.`);
                 break;
             }
             case 'clearfood':
@@ -489,18 +507,14 @@ class Client extends EventEmitter {
             case 'createfood': {
                 const requested = intArg(1);
                 if (requested === null || requested < 1) break;
-                const remaining = Math.max(0, Food.HARD_ENTITY_LIMIT - Object.keys(this.server.entities).length);
+                const remaining = Math.max(0, Food.HARD_ENTITY_LIMIT - this.server.entityCount);
                 const v = Math.min(requested, remaining);
                 if (v <= 0) { this.sendAdminMessage('Server is at the entity limit — cannot spawn more food.'); break; }
-                for (let i = 0; i < v; i++) {
-                    new Food(this.server,
-                        this.snake.position.x + Math.random() * 10,
-                        this.snake.position.y + Math.random() * 10 - 5,
-                        undefined, null, undefined, true);
-                }
+                const srv = this.server, px = this.snake.position.x, py = this.snake.position.y;
+                this._spawnFoodBatched(v, () => new Food(srv, px + Math.random() * 10, py + Math.random() * 10 - 5, undefined, null, undefined, true));
                 this.sendAdminMessage(v < requested
-                    ? `Spawned ${v} food (capped at the ${Food.HARD_ENTITY_LIMIT}-entity server limit).`
-                    : `Spawned ${v} food.`);
+                    ? `Spawning ${v} food (capped at the ${Food.HARD_ENTITY_LIMIT}-entity server limit).`
+                    : `Spawning ${v} food.`);
                 break;
             }
             // ── Moderation: target another player by entity id ────────────────
@@ -726,14 +740,15 @@ class Client extends EventEmitter {
             }
             case 'createfoodat': {
                 const x = floatArg(1), y = floatArg(2), n = intArg(3);
-                if (x === null || y === null || n === null || n < 1) { this.sendAdminMessage('Usage: createfoodat <x> <y> <count>'); break; }
-                const remaining = Math.max(0, Food.HARD_ENTITY_LIMIT - Object.keys(this.server.entities).length);
+                if (x === null || y === null || n === null || n < 1 || !Number.isFinite(x) || !Number.isFinite(y)) { this.sendAdminMessage('Usage: createfoodat <x> <y> <count>'); break; }
+                const remaining = Math.max(0, Food.HARD_ENTITY_LIMIT - this.server.entityCount);
                 const count = Math.min(n, remaining);
                 if (count <= 0) { this.sendAdminMessage('Server is at the entity limit — cannot spawn more food.'); break; }
-                for (let i = 0; i < count; i++) new Food(this.server, x + Math.random() * 10 - 5, y + Math.random() * 10 - 5, undefined, null, undefined, true);
+                const srv = this.server;
+                this._spawnFoodBatched(count, () => new Food(srv, x + Math.random() * 10 - 5, y + Math.random() * 10 - 5, undefined, null, undefined, true));
                 this.sendAdminMessage(count < n
-                    ? `Spawned ${count} food at (${x}, ${y}) (capped at the ${Food.HARD_ENTITY_LIMIT}-entity server limit).`
-                    : `Spawned ${count} food at (${x}, ${y}).`);
+                    ? `Spawning ${count} food at (${x}, ${y}) (capped at the ${Food.HARD_ENTITY_LIMIT}-entity server limit).`
+                    : `Spawning ${count} food at (${x}, ${y}).`);
                 break;
             }
             case 'killall': {

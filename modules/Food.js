@@ -36,12 +36,12 @@ class Food {
         // Hard protocol cap — NEVER bypassable (uint16 entity-id ceiling).
         // Without this, spawning enough food overflows the 16-bit IDs and
         // aliases entities, corrupting/crashing every connected client.
-        if (Object.keys(server.entities).length >= HARD_ENTITY_LIMIT) {
+        if (server.entityCount >= HARD_ENTITY_LIMIT) {
             return
         }
         // bypassLimits lets admins spawn food past the normal caps (maxFood /
         // maxNaturalFood), which otherwise silently drop spawns once reached.
-        if (!bypassLimits && server.maxFood && server.maxFood <= Object.keys(server.entities).length) {
+        if (!bypassLimits && server.maxFood && server.maxFood <= server.entityCount) {
             return
         }
         if (!x) { // Food is natural.
@@ -81,8 +81,9 @@ class Food {
         }
 
         this.server.entities[thisId] = this;
-        
-        
+        this.server.entityCount++;
+
+
         setTimeout(() => {
             if (this.server.entities[this.id])
                 this.eat();
@@ -150,8 +151,9 @@ class Food {
         setTimeout(() => {
             this.server.entityIDs.releaseID(this.id);
         }, 1000);
-        
-        delete this.server.entities[this.id]; 
+
+        if (this.server.entities[this.id] !== undefined) this.server.entityCount--;
+        delete this.server.entities[this.id];
     }
 }
 
