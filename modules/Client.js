@@ -479,9 +479,10 @@ class Client extends EventEmitter {
             }
             case 'teleport': {
                 const x = floatArg(1), y = floatArg(2);
-                if (x !== null && y !== null) {
-                    this.snake.position.x = x;
-                    this.snake.position.y = y;
+                if (x !== null && y !== null && Number.isFinite(x) && Number.isFinite(y)) {
+                    const half = this.server.config.ArenaSize / 2;
+                    this.snake.position.x = Math.max(-half, Math.min(half, x));
+                    this.snake.position.y = Math.max(-half, Math.min(half, y));
                 }
                 break;
             }

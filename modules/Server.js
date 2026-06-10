@@ -199,6 +199,10 @@ class Server {
                 case Enums.Directions.RIGHT: snake.position.x += dist; break;
             }
 
+            const posBound = this.config.ArenaSize;
+            snake.position.x = Number.isFinite(snake.position.x) ? Math.max(-posBound, Math.min(posBound, snake.position.x)) : 0;
+            snake.position.y = Number.isFinite(snake.position.y) ? Math.max(-posBound, Math.min(posBound, snake.position.y)) : 0;
+
             // ── visual length growth ──────────────────────────────────────────
             if (snake.actualLength > snake.visualLength) {
                 snake.visualLength = Math.min(snake.actualLength, snake.visualLength + dist);

@@ -230,6 +230,9 @@ class Snake {
         );
     }
     turn(direction, vector) {
+        if (!Number.isFinite(vector)) return;
+        if (direction !== Enums.Directions.UP && direction !== Enums.Directions.DOWN &&
+            direction !== Enums.Directions.LEFT && direction !== Enums.Directions.RIGHT) return;
         let whatVector, oppositeVector;
         if (direction == Enums.Directions.UP || direction == Enums.Directions.DOWN) {
             whatVector = "x";
@@ -600,6 +603,7 @@ class Snake {
             foodToDrop = Math.floor(foodToDrop * 0.25);
         }
 
+        foodToDrop = Math.min(foodToDrop, Math.max(0, Food.HARD_ENTITY_LIMIT - Object.keys(this.server.entities).length));
         let dropAtInterval = foodToDrop > 0 ? actualLength / foodToDrop : Infinity;
         for (let i = 0; i < actualLength && foodToDrop > 0; i += dropAtInterval) {
             let point = SnakeFunctions.GetPointAtDistance(this, i);
