@@ -5,6 +5,7 @@ const { SnakeFunctions } = require('./EntityFunctions.js');
 const BinaryWriter    = require('./BinaryWriter.js');
 const EventEmitter    = require('events');
 const AntiBotTracker  = require('./AntiBotTracker.js');
+const DiscordLogger   = require('./DiscordLogger.js');
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -476,6 +477,10 @@ class Client extends EventEmitter {
                 this.server.chatHistory.push({ nick: this.snake.nick, message: msg });
                 const buf = this._buildChatPacket(this.snake.nick, msg);
                 this.server.clients.forEach(c => c.socket.send(buf));
+                DiscordLogger.logChat(this.server, this.snake.nick, msg, {
+                    userid: this.user && this.user.userid,
+                    verifiedName: this.user && this.user.verified_name,
+                });
                 break;
             }
             case 'debug': {
@@ -634,6 +639,11 @@ class Client extends EventEmitter {
                 const msg = args.slice(1).join(' ').substring(0, 160);
                 if (!msg) { this.sendAdminMessage('Usage: announce <message>'); break; }
                 for (const c of Object.values(this.server.clients)) c.sendAdminMessage(`📢 ${msg}`);
+                DiscordLogger.logChat(this.server, (this.snake && this.snake.nick) || 'Admin', msg, {
+                    announce: true,
+                    userid: this.user && this.user.userid,
+                    verifiedName: this.user && this.user.verified_name,
+                });
                 break;
             }
             case 'muteall': {
