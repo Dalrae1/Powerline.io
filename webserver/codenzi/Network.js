@@ -724,6 +724,7 @@ var Network = function () {
 			var players = [];
 			for (var i = 0; i < count; i++) {
 				var id     = view.getUint16(offset, true); offset += 2;
+				var dbid   = view.getUint32(offset, true); offset += 4;
 				var lvl    = view.getUint8(offset);        offset += 1;
 				var muted  = view.getUint8(offset) === 1;  offset += 1;
 				var frozen = view.getUint8(offset) === 1;  offset += 1;
@@ -731,10 +732,26 @@ var Network = function () {
 				var length = view.getUint32(offset, true); offset += 4;
 				var hue    = view.getUint16(offset, true); offset += 2;
 				var res    = getString(view, offset);      offset = res.offset;
-				players.push({ id: id, level: lvl, muted: muted, frozen: frozen, isBot: isBot, length: length, hue: hue, nick: res.nick });
+				players.push({ id: id, dbid: dbid, level: lvl, muted: muted, frozen: frozen, isBot: isBot, length: length, hue: hue, nick: res.nick });
+			}
+			var arenaCfg = null;
+			if (offset + 28 <= view.byteLength) {
+				arenaCfg = {
+					arenaSize:       view.getUint32(offset, true),
+					maxBoostSpeed:   view.getUint16(offset + 4, true),
+					maxRubSpeed:     view.getUint16(offset + 6, true),
+					updateInterval:  view.getUint16(offset + 8, true),
+					defaultLength:   view.getUint32(offset + 10, true),
+					foodValue:       view.getUint16(offset + 14, true),
+					foodMultiplier:  view.getUint16(offset + 16, true),
+					maxFood:         view.getUint32(offset + 18, true),
+					maxNaturalFood:  view.getUint32(offset + 22, true),
+					foodSpawnPercent:view.getUint16(offset + 26, true),
+				};
+				offset += 28;
 			}
 			if (typeof adminPanel === 'object' && adminPanel && adminPanel.onPlayers)
-				adminPanel.onPlayers(players);
+				adminPanel.onPlayers(players, arenaCfg);
 		}
 		else if (op == OPCODE_ENTITY_COSMETIC) { // Live nick/hue change (admin recolour / rename)
 			var offset = 1;

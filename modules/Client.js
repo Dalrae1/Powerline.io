@@ -200,6 +200,7 @@ class Client extends EventEmitter {
             w.writeUint16(players.length);
             for (const c of players) {
                 w.writeUint16(c.snake.id);
+                w.writeUint32((c.user && c.user.userid) ? parseInt(c.user.userid) >>> 0 : 0);
                 w.writeUint8(typeof c.permissionLevel === 'function' ? c.permissionLevel() : 0);
                 w.writeUint8(c.muted ? 1 : 0);
                 w.writeUint8(c.snake.frozen ? 1 : 0);
@@ -208,6 +209,19 @@ class Client extends EventEmitter {
                 w.writeUint16(Math.round(c.snake.color || 0) & 0xFFFF);
                 w.writeString((c.snake.nick || '').slice(0, 25));
             }
+            const cfg = this.server.config;
+            const u16 = v => Math.min(65535, Math.max(0, Math.round(v || 0)));
+            const u32 = v => Math.max(0, Math.round(v || 0)) >>> 0;
+            w.writeUint32(u32(cfg.ArenaSize));
+            w.writeUint16(u16(cfg.MaxBoostSpeed));
+            w.writeUint16(u16(cfg.MaxRubSpeed));
+            w.writeUint16(u16(cfg.UpdateInterval));
+            w.writeUint32(u32(cfg.DefaultLength));
+            w.writeUint16(u16(SnakeFunctions.LengthToScore(cfg.FoodValue || 0)));
+            w.writeUint16(u16(this.server.foodMultiplier));
+            w.writeUint32(u32(this.server.maxFood));
+            w.writeUint32(u32(this.server.maxNaturalFood));
+            w.writeUint16(u16(this.server.foodSpawnPercent));
         }, 64 + players.length * 48);
     }
 

@@ -1107,6 +1107,10 @@ function refreshAd()
 function createServer() {
 	switch(document.querySelector("#createserverbutton").innerHTML) {
 		case "Create":
+			if (!myUser || !myUser.verified_name) {
+				alert("You must set a verified name before creating a custom server.");
+				return;
+			}
 			var serverName = document.getElementById("serverName").value
 			var serverMaxPlayers = document.getElementById("maxPlayers").value
 			var serverFoodValue = document.getElementById("foodValue").value

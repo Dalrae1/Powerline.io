@@ -466,6 +466,7 @@ routes.createserver = async (req, res) => {
     try {
         const user = await getUserFromRequest(req);
         if (!user) return sendError(req, res, 401, 'You must be logged in to create a server.');
+        if (!user.verified_name) return sendError(req, res, 403, 'You must set a verified name before creating a custom server.');
 
         const uid = parseInt(user.userid);
         if (global.ephemeralServers.has(uid)) {
