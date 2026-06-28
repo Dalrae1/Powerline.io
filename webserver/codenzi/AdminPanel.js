@@ -27,7 +27,7 @@ var AdminPanel = function () {
     var activeTab = 'players';
     var lastHasBots = false;
     var arenaConfig = null;
-    var root, panel, header, tabsBar, body;
+    var root, panel, header, tabsBar, body, mobileBtn;
     var requestTimer = null;
 
     var players = [];          // latest full list from the server
@@ -214,7 +214,22 @@ var AdminPanel = function () {
     function build() {
         root = el('div',
             'display:none;position:fixed;left:0;top:0;width:100%;height:100%;z-index:1002;background-color:rgba(0,0,0,0.8);');
+        root.id = 'adminPanelRoot';   // lets the mobile touch layer ignore taps on the panel
         root.addEventListener('mousedown', function (e) { if (e.target === root) hide(); });
+
+        // Floating button so touch users (no Backslash key) can open the panel.
+        // Shown only on touch devices, and only once they actually have admin
+        // access in this server (see updateMobileButton / onPermissions).
+        if (typeof isTouchDevice !== 'undefined' && isTouchDevice) {
+            mobileBtn = el('div',
+                'display:none;position:fixed;left:10px;bottom:10px;z-index:1001;width:46px;height:46px;' +
+                'border-radius:50%;background-color:' + TEAL + ';border:2px solid ' + CYAN + ';color:' + CYAN + ';' +
+                'box-shadow:0 0 12px ' + CYAN + ';font-size:22px;line-height:44px;text-align:center;cursor:pointer;' +
+                '-webkit-tap-highlight-color:transparent;', '⚙');
+            mobileBtn.id = 'adminMobileBtn';
+            mobileBtn.addEventListener('click', function () { if (visible) hide(); else show(); });
+            document.body.appendChild(mobileBtn);
+        }
 
         panel = el('div',
             'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:92%;max-width:680px;' +
@@ -657,9 +672,17 @@ var AdminPanel = function () {
     this.onPermissions = function (l, o, d, e, ds) {
         isDevServer = !!ds;
         level = l | 0; isOwner = !!o; isDev = (!!d) || isDevServer; isEphemeral = !!e;
+        updateMobileButton();
         if (visible && level < 1) { hide(); toast('Your permissions changed — panel access revoked.'); return; }
         if (visible) render(); else updateHeader();
     };
+
+    // Show the floating mobile button only when this player actually has admin
+    // access (Moderator+) in the current server.
+    function updateMobileButton() {
+        if (!mobileBtn) return;
+        mobileBtn.style.display = (level >= 1) ? 'block' : 'none';
+    }
 
     build();
 };

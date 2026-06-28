@@ -398,6 +398,63 @@ body {
     box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.2);
 }
 
+/* ── Mobile / touch support ──────────────────────────────────────────────────
+   Touch-only styles are scoped to body.touch-device (added by TouchControls.js),
+   so desktop is completely unaffected. */
+
+/* Stop the browser hijacking touches (pinch-zoom, pull-to-refresh, text select). */
+canvas#canvas { touch-action: none; }
+body.touch-device { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+body.touch-device, body.touch-device * { -webkit-user-select: none; user-select: none; }
+body.touch-device input, body.touch-device textarea { -webkit-user-select: text; user-select: text; }
+/* 16px keeps iOS from auto-zooming when the nick field is focused. */
+body.touch-device .input-nick { font-size: 16px; }
+
+/* Start-screen control-scheme selector (Swipe vs Local Turn). */
+#controlSchemeSelector { display: none; margin: 16px auto 0; max-width: 320px; text-align: center; }
+body.touch-device #controlSchemeSelector { display: block; }
+#controlSchemeSelector .ctrlSchemeTitle {
+    color: #05ffff; font-size: 12px; letter-spacing: 2px; margin-bottom: 6px; opacity: 0.75;
+}
+.ctrlSchemeBtn {
+    display: block; width: 100%; margin: 6px 0; padding: 10px 12px; box-sizing: border-box;
+    border: 2px solid #05ffff; border-radius: 8px; background: rgba(0,40,40,0.55);
+    color: #05ffff; text-align: left; line-height: 1.25; cursor: pointer;
+}
+.ctrlSchemeBtn .cs-label { display: block; font-weight: bold; font-size: 15px; }
+.ctrlSchemeBtn .cs-sub   { display: block; font-size: 11px; opacity: 0.7; }
+.ctrlSchemeBtn.selected { background: #05ffff; color: #003a3a; }
+.ctrlSchemeBtn.selected .cs-sub { color: #003a3a; opacity: 0.85; }
+
+/* Touch-only Play button on the start screen. */
+#mobilePlayBtn {
+    display: none; width: 100%; max-width: 320px; margin: 12px auto 0; padding: 14px;
+    border: none; border-radius: 8px; background: #05ffff; color: #003a3a;
+    font-family: 'Arial Black', sans-serif; font-size: 18px; letter-spacing: 2px; cursor: pointer;
+    box-shadow: 0 0 14px rgba(5,255,255,0.6);
+}
+body.touch-device #mobilePlayBtn { display: block; }
+
+/* In-game BOOST button (created hidden; shown by TouchControls while playing). */
+#boostBtn {
+    display: none; position: fixed; right: 18px; bottom: 24px; z-index: 1001;
+    width: 84px; height: 84px; border-radius: 50%;
+    align-items: center; justify-content: center;
+    background: rgba(5,255,255,0.15); border: 3px solid #05ffff; color: #05ffff;
+    font-family: 'Arial Black', sans-serif; font-size: 15px; letter-spacing: 1px;
+    box-shadow: 0 0 14px rgba(5,255,255,0.6); touch-action: none;
+}
+#boostBtn:active { background: rgba(5,255,255,0.4); }
+
+/* Local-turn left/right tap-zone hints (visual only; non-interactive). */
+.turnHint {
+    display: none; position: fixed; top: 0; bottom: 0; width: 22%; z-index: 1000;
+    align-items: center; justify-content: center;
+    color: rgba(5,255,255,0.22); font-size: 60px; pointer-events: none;
+}
+.turnHint.left  { left: 0; }
+.turnHint.right { right: 0; }
+
 .login-option:hover {
     opacity: 0.9;
 }

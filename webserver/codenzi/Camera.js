@@ -11,6 +11,21 @@ var Camera = function(aCanvas, aContext, x, y) {
 	this.maxZoom = 2.0;
 	this.zoom = this.minZoom;
 
+	// World rotation (radians), used by the "Local Turn" mobile control scheme to
+	// keep the followed snake pointing up. 0 for desktop / swipe mode.
+	this.rotation = 0;
+	this.targetRotation = 0;
+
+	// Rotation that makes a snake heading point to screen-up (UP=1 LEFT=2 DOWN=3 RIGHT=4).
+	function rotationForDirection(dir) {
+		switch (dir) {
+			case 2: return  Math.PI / 2;   // LEFT
+			case 3: return  Math.PI;       // DOWN
+			case 4: return -Math.PI / 2;   // RIGHT
+			default: return 0;             // UP / NONE
+		}
+	}
+
 	var followCameraPos = {x: 0,
 						   y: 0}
 
@@ -34,16 +49,14 @@ var Camera = function(aCanvas, aContext, x, y) {
 
 	this.setupContext = function(ctx) {
 		var zoom = camera.zoom;
-		// zoom *= 0.5; // Debug
-		var translateX = canvas.width / 2 - camera.x * zoom;
-		var translateY = canvas.height / 2 - camera.y * zoom;
-
-		//console.log('X: '+camera.x+' Y:'+camera.y);
-
-		// Reset transform matrix
+		// Rotate + scale around the screen centre (where the followed snake sits) so
+		// "Local Turn" mode can spin the world to keep the snake pointing up. With
+		// rotation 0 this is identical to the old translate+scale.
 		ctx.setTransform(1,0,0,1,0,0);
-		ctx.translate(translateX+shakeShiftX, translateY+shakeShiftY);
+		ctx.translate(canvas.width / 2 + shakeShiftX, canvas.height / 2 + shakeShiftY);
+		if (camera.rotation) ctx.rotate(camera.rotation);
 		ctx.scale(zoom, zoom);
+		ctx.translate(-camera.x, -camera.y);
 	};
 
 	this.applyShake = function(dt) {
@@ -122,6 +135,19 @@ var Camera = function(aCanvas, aContext, x, y) {
 				}
 			}
 		}
+		// Local-Turn camera: ease the world rotation so the snake's heading is up.
+		var wantRot = 0;
+		if (typeof controlScheme !== 'undefined' && controlScheme === 'local'
+			&& typeof isTouchDevice !== 'undefined' && isTouchDevice
+			&& isInGame && localPlayer && typeof input === 'object' && input) {
+			wantRot = rotationForDirection(input.direction);
+		}
+		camera.targetRotation = wantRot;
+		var dRot = camera.targetRotation - camera.rotation;
+		while (dRot >  Math.PI) dRot -= Math.PI * 2;
+		while (dRot < -Math.PI) dRot += Math.PI * 2;
+		camera.rotation = (Math.abs(dRot) < 0.001) ? camera.targetRotation : camera.rotation + dRot * 0.2;
+
 		worldScreenDelta.x = x - camera.x;
 		worldScreenDelta.y = y - camera.y;
 
@@ -153,11 +179,20 @@ var Camera = function(aCanvas, aContext, x, y) {
 	    shakePower = power;
 	};
 
-	// Gets bounds of current zoom level of current position
+	// Gets bounds of current zoom level of current position. When the world is
+	// rotated (Local Turn), expand to the axis-aligned box that still covers the
+	// rotated viewport, so edge culling doesn't clip the corners.
 	this.getBounds = function() {
+		var hw = canvas.width / 2 / camera.zoom;
+		var hh = canvas.height / 2 / camera.zoom;
+		if (camera.rotation) {
+			var c = Math.abs(Math.cos(camera.rotation)), s = Math.abs(Math.sin(camera.rotation));
+			var ew = hw * c + hh * s, eh = hw * s + hh * c;
+			hw = ew; hh = eh;
+		}
 		return [
-			{x: camera.x - canvas.width / 2 / camera.zoom, y: camera.y - canvas.height / 2 / camera.zoom},
-			{x: camera.x + canvas.width / 2 / camera.zoom, y: camera.y + canvas.height / 2 / camera.zoom}
+			{x: camera.x - hw, y: camera.y - hh},
+			{x: camera.x + hw, y: camera.y + hh}
 		];
 	};
 

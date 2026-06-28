@@ -39,6 +39,12 @@ var statsFPS, statsLAG, statsTPS;
 var commandPallete = false;
 var adminPanel = false;
 var barrierEditor = null;
+
+// Mobile / touch support. `controlScheme` is 'swipe' or 'local' (see TouchControls).
+var isTouchDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+var controlScheme = 'swipe';
+try { controlScheme = localStorage.getItem('controlScheme') || 'swipe'; } catch (e) {}
+var touchControls = null;
 // Effective permission level for the current server (sent by the server via
 // OPCODE_PERMISSIONS). 0 Player, 1 Moderator, 2 Admin, 3 Developer.
 var myPermissionLevel = 0;
@@ -431,6 +437,7 @@ var addAdminPanel = function () {
 	// Apply any permission info already received before the panel existed.
 	adminPanel.onPermissions(myPermissionLevel, myIsOwner, myIsDev, myIsEphemeral, myIsDevServer);
 	if (typeof BarrierEditor === 'function' && !barrierEditor) barrierEditor = new BarrierEditor();
+	if (typeof TouchControls === 'function' && !touchControls) touchControls = new TouchControls();
 }
 
 var addStats = function() {
@@ -679,17 +686,8 @@ window['clickNoNames'] = function(element){
 var ua = window.navigator.userAgent;
 var usingIE = (ua.indexOf('MSIE ') > -1) || (ua.indexOf('Trident/') > -1);
 
-if(typeof window.orientation !== 'undefined')
-{
-	window.location.href = "https://play.google.com/store/apps/details?id=com.profusionstudios.powerlineio";
-	//console.log('is mobile!');
-}
-
-/*
-if((ua.indexOf("Android") != -1 || ua.indexOf("iPhone") != -1 || ua.indexOf("iPad") != -1 || ua.indexOf("iPod") != -1) && !debug){
-	window.location.href = "http://wings.io/m";
-}
-*/
+// The game now runs directly in the mobile browser (touch controls below), so we
+// no longer redirect mobile visitors to a native app.
 
 if(usingIE)
 {
@@ -1739,7 +1737,7 @@ loadScript("codenzi/Map.js?v=4");
 loadScript("codenzi/Minimap.js?v=4");
 loadScript("codenzi/Network.js?v=20");
 loadScript("codenzi/App.js?v=5");
-loadScript("codenzi/Camera.js?v=1");
+loadScript("codenzi/Camera.js?v=2");
 loadScript("codenzi/Frame.js?v=1");
 loadScript("codenzi/AnimationManager.js?v=1");
 loadScript("codenzi/sheet.js?v=1");
