@@ -42,8 +42,8 @@ var barrierEditor = null;
 
 // Mobile / touch support. `controlScheme` is 'swipe' or 'local' (see TouchControls).
 var isTouchDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
-var controlScheme = 'swipe';
-try { controlScheme = localStorage.getItem('controlScheme') || 'swipe'; } catch (e) {}
+var controlScheme = 'local';
+try { controlScheme = localStorage.getItem('controlScheme') || 'local'; } catch (e) {}
 var touchControls = null;
 // Effective permission level for the current server (sent by the server via
 // OPCODE_PERMISSIONS). 0 Player, 1 Moderator, 2 Admin, 3 Developer.
@@ -1260,7 +1260,28 @@ function refreshServers() {
             servers.sort((a, b) => b.playerCount - a.playerCount);
             servers.sort((a, b) => b.pinned - a.pinned);
 
+            // Mobile: rebuild the compact server dropdown (created by TouchControls).
+            // Selecting an option connects immediately (same as the desktop rows).
+            var mobileSel = document.getElementById('mobileServerSelect');
+            if (mobileSel) {
+                mobileSel.innerHTML = '';
+                var ph = document.createElement('option');
+                ph.value = ''; ph.textContent = 'Choose a server…'; ph.disabled = true; ph.selected = true;
+                mobileSel.appendChild(ph);
+            }
+
             servers.forEach(server => {
+                if (mobileSel) {
+                    var opt = document.createElement('option');
+                    var pc = (typeof server.playerCount === 'number')
+                        ? '  (' + server.playerCount + '/' + (server.maxplayers || '?') + ')' : '';
+                    opt.textContent = (server.name || 'Server') + pc;
+                    if (server.type === 'remote') { opt.setAttribute('data-kind', 'remote'); opt.setAttribute('data-host', server.host || ''); }
+                    else { opt.setAttribute('data-kind', 'local'); opt.setAttribute('data-id', server.id); }
+                    if ((server.type !== 'remote' && Number(network.serverId) === Number(server.id)) ||
+                        (server.type === 'remote' && network.remoteHost === server.host)) opt.selected = true;
+                    mobileSel.appendChild(opt);
+                }
 				switch(server.type) {
 
 					case "custom":

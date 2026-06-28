@@ -19,19 +19,20 @@
 var TouchControls = function () {
     var enabled = (typeof isTouchDevice !== 'undefined') && isTouchDevice;
 
-    var boostBtn, leftHint, rightHint, selectorEl;
+    var boostBtn, leftHint, rightHint;
+    var cogBtn, settingsPopup, serverSelect, chatToggle, rotateNotice;
     var startX = 0, startY = 0, activeId = null;
     var boosting = false;
     var SWIPE_MIN = 26;   // px of travel before a swipe registers
 
-    function scheme() { return (typeof controlScheme !== 'undefined') ? controlScheme : 'swipe'; }
+    function scheme() { return (typeof controlScheme !== 'undefined') ? controlScheme : 'local'; }
     function inGame() { return !UIVisible && isInGame && !!localPlayer; }
 
     // Ignore touches that land on real UI (buttons, the admin panel, the start
     // menu, form fields) so they don't also steer the snake.
     function isUIEl(t) {
         return !!(t && t.closest && t.closest(
-            '#boostBtn,#adminMobileBtn,#adminPanelRoot,#overlay,button,input,select,textarea,a'));
+            '#boostBtn,#adminMobileBtn,#adminPanelRoot,#overlay,#chat,#chatToggle,button,input,select,textarea,a'));
     }
 
     // ── steering ────────────────────────────────────────────────────────────────
@@ -92,34 +93,53 @@ var TouchControls = function () {
     }
     function stopBoost() { boosting = false; if (network.sendBoost) network.sendBoost(false); }
 
-    // ── start-screen scheme selector ────────────────────────────────────────────
+    // ── scheme selection ─────────────────────────────────────────────────────────
     function setScheme(s) {
         controlScheme = s;
         try { localStorage.setItem('controlScheme', s); } catch (_) {}
-        paintSelector();
+        paintSchemeButtons();
     }
-    function paintSelector() {
-        if (!selectorEl) return;
-        var btns = selectorEl.querySelectorAll('.ctrlSchemeBtn');
+    function paintSchemeButtons() {
+        if (!settingsPopup) return;
+        var btns = settingsPopup.querySelectorAll('.ctrlSchemeBtn');
         for (var i = 0; i < btns.length; i++)
             btns[i].classList.toggle('selected', btns[i].getAttribute('data-val') === scheme());
     }
-    function buildSelector() {
+    function mkSchemeBtn(label, val, sub) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ctrlSchemeBtn';
+        b.setAttribute('data-val', val);
+        b.innerHTML = '<span class="cs-label">' + label + '</span><span class="cs-sub">' + sub + '</span>';
+        b.onclick = function () { setScheme(val); settingsPopup.style.display = 'none'; };
+        return b;
+    }
+
+    // ── start-screen mobile UI: compact server picker, Play, controls cog ─────────
+    function buildStartUI() {
         var host = document.getElementById('topGui');
         if (!host) return;
-        selectorEl = document.createElement('div');
-        selectorEl.id = 'controlSchemeSelector';
-        var title = document.createElement('div');
-        title.className = 'ctrlSchemeTitle';
-        title.textContent = 'Controls';
-        selectorEl.appendChild(title);
-        selectorEl.appendChild(mkSchemeBtn('Swipe Control', 'swipe', 'Camera stays fixed — swipe to steer.'));
-        selectorEl.appendChild(mkSchemeBtn('Local Turn', 'local', 'View follows the snake — tap left/right to turn.'));
-        host.appendChild(selectorEl);
-        paintSelector();
 
-        // On-screen Play button — phones have no Enter key visible without the
-        // keyboard open, so give touch users a clear tap target.
+        // Compact server picker — replaces the wide desktop table on mobile.
+        // loadServerList() (main.js) fills this; selecting connects immediately.
+        var wrap = document.createElement('div');
+        wrap.id = 'mobileServerWrap';
+        serverSelect = document.createElement('select');
+        serverSelect.id = 'mobileServerSelect';
+        serverSelect.innerHTML = '<option value="" disabled selected>Loading servers…</option>';
+        serverSelect.onchange = function () {
+            var o = serverSelect.options[serverSelect.selectedIndex];
+            if (!o) return;
+            if (o.getAttribute('data-kind') === 'remote') {
+                if (typeof joinRemoteServer === 'function') joinRemoteServer(o.getAttribute('data-host'));
+            } else if (typeof selectServer === 'function') {
+                selectServer(Number(o.getAttribute('data-id')));
+            }
+        };
+        wrap.appendChild(serverSelect);
+        host.appendChild(wrap);
+
+        // Play button (no visible Enter key on phones without the keyboard open).
         var playBtn = document.createElement('button');
         playBtn.type = 'button';
         playBtn.id = 'mobilePlayBtn';
@@ -129,15 +149,43 @@ var TouchControls = function () {
             if (typeof clickPlay === 'function') clickPlay(n ? n.value : '');
         };
         host.appendChild(playBtn);
+
+        // Controls settings cog + popup (default scheme is Local Turn).
+        cogBtn = document.createElement('button');
+        cogBtn.type = 'button';
+        cogBtn.id = 'controlSettingsBtn';
+        cogBtn.innerHTML = '⚙';
+        cogBtn.title = 'Controls';
+        cogBtn.onclick = function () {
+            settingsPopup.style.display = (settingsPopup.style.display === 'block') ? 'none' : 'block';
+        };
+        host.appendChild(cogBtn);
+
+        settingsPopup = document.createElement('div');
+        settingsPopup.id = 'controlSettingsPopup';
+        settingsPopup.style.display = 'none';
+        var t = document.createElement('div');
+        t.className = 'ctrlSchemeTitle';
+        t.textContent = 'Controls';
+        settingsPopup.appendChild(t);
+        settingsPopup.appendChild(mkSchemeBtn('Local Turn', 'local', 'View follows the snake — tap left/right to turn.'));
+        settingsPopup.appendChild(mkSchemeBtn('Swipe Control', 'swipe', 'Camera stays fixed — swipe to steer.'));
+        host.appendChild(settingsPopup);
+        paintSchemeButtons();
     }
-    function mkSchemeBtn(label, val, sub) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'ctrlSchemeBtn';
-        b.setAttribute('data-val', val);
-        b.innerHTML = '<span class="cs-label">' + label + '</span><span class="cs-sub">' + sub + '</span>';
-        b.onclick = function () { setScheme(val); };
-        return b;
+
+    // ── fixed overlays outside the menu: chat toggle + portrait notice ───────────
+    function buildOverlays() {
+        chatToggle = document.createElement('div');
+        chatToggle.id = 'chatToggle';
+        chatToggle.textContent = '💬';
+        chatToggle.onclick = function () { document.body.classList.toggle('chat-open'); };
+        document.body.appendChild(chatToggle);
+
+        rotateNotice = document.createElement('div');
+        rotateNotice.id = 'rotateNotice';
+        rotateNotice.innerHTML = '<div>⟳<br>Rotate your device to landscape to play.</div>';
+        document.body.appendChild(rotateNotice);
     }
 
     // ── in-game control overlays ────────────────────────────────────────────────
@@ -180,7 +228,8 @@ var TouchControls = function () {
     (function () {
         if (!enabled) return;
         document.body.classList.add('touch-device');
-        buildSelector();
+        buildStartUI();
+        buildOverlays();
         buildGameControls();
         document.addEventListener('touchstart', onStart, { passive: false });
         document.addEventListener('touchmove',  onMove,  { passive: false });

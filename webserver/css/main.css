@@ -455,6 +455,70 @@ body.touch-device #mobilePlayBtn { display: block; }
 .turnHint.left  { left: 0; }
 .turnHint.right { right: 0; }
 
+/* ── Mobile start-screen redesign ────────────────────────────────────────────
+   Name + Play are primary; everything else is minimized or replaced. */
+
+/* Compact server picker replaces the wide desktop table on touch. */
+#mobileServerWrap { display: none; max-width: 320px; margin: 10px auto 0; }
+body.touch-device #mobileServerWrap { display: block; }
+#mobileServerSelect {
+    width: 100%; box-sizing: border-box; padding: 10px; font-size: 16px;
+    background: #003a3a; color: #05ffff; border: 2px solid #05ffff; border-radius: 8px;
+}
+body.touch-device .scroll-window { display: none !important; }   /* hide the big table + tabs */
+
+/* "PRESS ENTER TO PLAY" hint is pointless on touch (we have a Play button). */
+body.touch-device #topGui .basic-text { display: none; }
+
+/* Controls settings cog + popup. */
+#controlSettingsBtn { display: none; }
+body.touch-device #controlSettingsBtn {
+    display: inline-block; margin: 10px auto 0; width: 44px; height: 44px; border-radius: 50%;
+    border: 2px solid #05ffff; background: rgba(0,40,40,0.6); color: #05ffff; font-size: 22px; cursor: pointer;
+}
+#controlSettingsPopup {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 1600;
+    width: 88%; max-width: 320px; box-sizing: border-box;
+    background: #003a3a; border: 2px solid #05ffff; border-radius: 10px;
+    box-shadow: 0 0 18px #05ffff; padding: 14px; text-align: center;
+}
+
+/* Chat: a small toggle button; closed by default on touch; wider + shorter. */
+#chatToggle { display: none; }
+body.touch-device #chatToggle {
+    display: flex; position: fixed; left: 10px; top: 10px; z-index: 120;
+    width: 42px; height: 42px; border-radius: 50%; align-items: center; justify-content: center;
+    background: rgba(0,58,58,0.6); border: 2px solid #05ffff; font-size: 20px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+body.touch-device #chat { display: none !important; }
+body.touch-device.chat-open #chat {
+    display: block !important;
+    top: 58px !important; left: 10px !important; right: auto;
+    width: 78% !important; max-width: 480px; min-height: 0 !important;
+    padding: 8px !important;
+}
+body.touch-device.chat-open #chat #chat-messages { max-height: 88px !important; margin-bottom: 6px !important; }
+body.touch-device.chat-open #chat #input-chat {
+    position: static !important; width: 100% !important; box-sizing: border-box;
+    height: 34px !important; margin-top: 4px;
+}
+
+/* Portrait → ask the player to rotate (browsers can't truly force orientation). */
+#rotateNotice { display: none; }
+@media (orientation: portrait) {
+    body.touch-device #rotateNotice {
+        display: flex; position: fixed; inset: 0; z-index: 3000; background: #01211f;
+        align-items: center; justify-content: center; text-align: center;
+        color: #05ffff; font-size: 22px; padding: 30px; line-height: 1.7;
+    }
+}
+
+/* Minimize the rest of the menu chrome on touch. */
+body.touch-device #firstRightBox { transform: scale(0.62); transform-origin: top right; }
+body.touch-device #linksID img { width: 26px; height: 26px; }
+body.touch-device .leftBottomBox { display: none; }
+
 .login-option:hover {
     opacity: 0.9;
 }
