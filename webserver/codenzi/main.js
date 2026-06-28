@@ -527,12 +527,9 @@ window['clickPlay'] = function(str){
 	input.mouseMoved = false;
 	network.sendNick(str, countingDown);
 
-	if(playClicks < 6 && hud)
+	if(playClicks < 6 && hud && !isTouchDevice)
 	{
 		if(playClicks%3 == 0)
-			//hud.showTip('Press T to Talk', 4000);
-			//hud.showTip('Press \'F\' to Toggle Fullscreen', 4000);
-		//else
 			hud.showTip('Press \'M\' to Toggle Sounds', 4000);
 	}
 
@@ -1760,12 +1757,12 @@ loadScript("codenzi/Resources.js?v=1");
 loadScript("codenzi/Input.js?v=4");
 loadScript("codenzi/Effects.js?v=1");
 loadScript("codenzi/Hud.js?v=3");
-loadScript("codenzi/Snake.js?v=18");
+loadScript("codenzi/Snake.js?v=19");
 loadScript("codenzi/Food.js?v=2");
-loadScript("codenzi/Map.js?v=4");
+loadScript("codenzi/Map.js?v=5");
 loadScript("codenzi/Minimap.js?v=4");
 loadScript("codenzi/Network.js?v=20");
-loadScript("codenzi/App.js?v=5");
+loadScript("codenzi/App.js?v=6");
 loadScript("codenzi/Camera.js?v=2");
 loadScript("codenzi/Frame.js?v=1");
 loadScript("codenzi/AnimationManager.js?v=1");

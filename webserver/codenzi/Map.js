@@ -187,7 +187,13 @@ var Mapp = function() {
 		context.fillStyle = resources.bgGrid;
 		var s = 0.65;
 		context.scale(s, s);
-		context.fillRect(bounds[0].x / s, bounds[0].y / s, canvas.width * z / s, canvas.height * z / s);
+		// Cover the whole (possibly rotated) viewport with a camera-centred square
+		// whose half-size is the screen's diagonal radius in world units. A plain
+		// width×height fill leaves the screen uncovered once the camera is rotated
+		// 90°/270° (Local Turn), and with no separate clear the old frames smear
+		// into streaks. A diagonal-sized square always covers, at any rotation.
+		var diag = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height) * 0.5 * z;
+		context.fillRect((camera.x - diag) / s, (camera.y - diag) / s, (diag * 2) / s, (diag * 2) / s);
 
 		// Draw barriers
 		context.fillStyle = '#023139';

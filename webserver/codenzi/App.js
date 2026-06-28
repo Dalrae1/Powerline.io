@@ -194,10 +194,11 @@ var App = function(aCanvas) {
 		// Start UI layer (reset transform matrix)
 		camera.startUILayer();
 
-		if(speedupTutorial.isInitialized)
+		// Keyboard tutorials/prompts don't apply on touch devices.
+		if(speedupTutorial.isInitialized && !isTouchDevice)
 			speedupTutorial.draw(context);
 
-		if(arrowsAlpha > 0.0 && !UIVisible && resources.keysImage)
+		if(arrowsAlpha > 0.0 && !UIVisible && resources.keysImage && !isTouchDevice)
 		{
 			context.save();
 			context.globalAlpha = arrowsAlpha;
@@ -207,7 +208,7 @@ var App = function(aCanvas) {
 			context.restore();
 		}
 
-		if(speedUpTutorialAlpha > 0.0 && !UIVisible && resources.boostImage)
+		if(speedUpTutorialAlpha > 0.0 && !UIVisible && resources.boostImage && !isTouchDevice)
 		{
 			context.save();
 			context.globalAlpha = speedUpTutorialAlpha;

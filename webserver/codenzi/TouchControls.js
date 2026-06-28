@@ -19,10 +19,9 @@
 var TouchControls = function () {
     var enabled = (typeof isTouchDevice !== 'undefined') && isTouchDevice;
 
-    var boostBtn, leftHint, rightHint;
+    var leftHint, rightHint;
     var cogBtn, settingsPopup, serverSelect, chatToggle, rotateNotice;
     var startX = 0, startY = 0, activeId = null;
-    var boosting = false;
     var SWIPE_MIN = 26;   // px of travel before a swipe registers
 
     function scheme() { return (typeof controlScheme !== 'undefined') ? controlScheme : 'local'; }
@@ -81,18 +80,6 @@ var TouchControls = function () {
         for (var i = 0; i < list.length; i++) if (list[i].identifier === id) return list[i];
         return null;
     }
-
-    // ── boost ─────────────────────────────────────────────────────────────────
-    function startBoost() {
-        if (boosting) return;
-        boosting = true;
-        (function loop() {
-            if (!boosting) { if (network.sendBoost) network.sendBoost(false); return; }
-            if (network.sendBoost) network.sendBoost(true);
-            setTimeout(loop, 100);
-        })();
-    }
-    function stopBoost() { boosting = false; if (network.sendBoost) network.sendBoost(false); }
 
     // ── scheme selection ─────────────────────────────────────────────────────────
     function setScheme(s) {
@@ -220,15 +207,8 @@ var TouchControls = function () {
     }
 
     // ── in-game control overlays ────────────────────────────────────────────────
+    // (Boost is intentionally NOT exposed on mobile — it's an admin-only action.)
     function buildGameControls() {
-        boostBtn = document.createElement('div');
-        boostBtn.id = 'boostBtn';
-        boostBtn.textContent = 'BOOST';
-        document.body.appendChild(boostBtn);
-        boostBtn.addEventListener('touchstart', function (e) { e.preventDefault(); e.stopPropagation(); startBoost(); }, { passive: false });
-        boostBtn.addEventListener('touchend',   function (e) { e.preventDefault(); e.stopPropagation(); stopBoost(); },  { passive: false });
-        boostBtn.addEventListener('touchcancel', stopBoost);
-
         leftHint  = mkHint('left',  '‹');
         rightHint = mkHint('right', '›');
         document.body.appendChild(leftHint);
@@ -246,8 +226,6 @@ var TouchControls = function () {
         requestAnimationFrame(tick);
         if (!enabled) return;
         var playing = inGame();
-        var disp = playing ? 'flex' : 'none';
-        if (boostBtn && boostBtn.style.display !== disp) boostBtn.style.display = disp;
         // Left/right tap hints only make sense in 'local' mode.
         var hintDisp = (playing && scheme() === 'local') ? 'flex' : 'none';
         if (leftHint  && leftHint.style.display  !== hintDisp) leftHint.style.display  = hintDisp;
@@ -256,7 +234,6 @@ var TouchControls = function () {
         var bar = document.getElementById('mobileBottomBar');
         var barDisp = (!playing && UIVisible) ? 'flex' : 'none';
         if (bar && bar.style.display !== barDisp) bar.style.display = barDisp;
-        if (!playing && boosting) stopBoost();
     }
 
     // ── init ────────────────────────────────────────────────────────────────────

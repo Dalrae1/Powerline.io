@@ -1020,6 +1020,9 @@ var Snake = function () {
 		context.save();
 		context.globalAlpha = alpha;
 		context.translate(this.headPos.x, this.headPos.y);
+		// Keep labels (name, crown, killstreak) upright when the world is rotated
+		// in Local Turn mode — otherwise they'd be upside down heading downward.
+		if (typeof camera === 'object' && camera && camera.rotation) context.rotate(-camera.rotation);
 
 		// King Crown
 		var isKing = this.id == kingID;
@@ -1067,6 +1070,7 @@ var Snake = function () {
 			context.save();
 			context.globalAlpha = 1.0;
 			context.translate(this.headPos.x, this.headPos.y);
+			if (typeof camera === 'object' && camera && camera.rotation) context.rotate(-camera.rotation);
 
 			var scale = Math.sin(balloonScale);
 			var lim = Math.sin(Math.PI*(3.0/4.0));
