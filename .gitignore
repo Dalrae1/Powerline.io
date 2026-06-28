@@ -1,5 +1,6 @@
 .env
 servers.json
+deploy
 
 node_modules
 vendor
