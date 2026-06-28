@@ -803,6 +803,9 @@ function showCountdownScreen()
 
 function updateStats()
 {
+	// Auto-close the mobile chat if the player died with it open.
+	if (typeof document !== 'undefined' && document.body) document.body.classList.remove('chat-open');
+
 	$('#basePanel').hide();
 	$('#statsPanel').show();
 
@@ -1260,27 +1263,32 @@ function refreshServers() {
             servers.sort((a, b) => b.playerCount - a.playerCount);
             servers.sort((a, b) => b.pinned - a.pinned);
 
-            // Mobile: rebuild the compact server dropdown (created by TouchControls).
-            // Selecting an option connects immediately (same as the desktop rows).
-            var mobileSel = document.getElementById('mobileServerSelect');
-            if (mobileSel) {
-                mobileSel.innerHTML = '';
-                var ph = document.createElement('option');
-                ph.value = ''; ph.textContent = 'Choose a server…'; ph.disabled = true; ph.selected = true;
-                mobileSel.appendChild(ph);
-            }
+            // Mobile: rebuild the dedicated server-select screen's list (built by
+            // TouchControls). Tapping a row connects immediately and closes the screen.
+            var mobileList = document.getElementById('mobileServerList');
+            if (mobileList) mobileList.innerHTML = '';
 
             servers.forEach(server => {
-                if (mobileSel) {
-                    var opt = document.createElement('option');
-                    var pc = (typeof server.playerCount === 'number')
-                        ? '  (' + server.playerCount + '/' + (server.maxplayers || '?') + ')' : '';
-                    opt.textContent = (server.name || 'Server') + pc;
-                    if (server.type === 'remote') { opt.setAttribute('data-kind', 'remote'); opt.setAttribute('data-host', server.host || ''); }
-                    else { opt.setAttribute('data-kind', 'local'); opt.setAttribute('data-id', server.id); }
+                if (mobileList) {
+                    var rowBtn = document.createElement('button');
+                    rowBtn.type = 'button';
+                    rowBtn.className = 'mobileServerRow';
+                    var nm = document.createElement('span'); nm.className = 'msr-name';
+                    nm.textContent = server.name || 'Server';
+                    var ct = document.createElement('span'); ct.className = 'msr-count';
+                    ct.textContent = (typeof server.playerCount === 'number')
+                        ? (server.playerCount + '/' + (server.maxplayers || '?')) : '';
+                    rowBtn.appendChild(nm); rowBtn.appendChild(ct);
                     if ((server.type !== 'remote' && Number(network.serverId) === Number(server.id)) ||
-                        (server.type === 'remote' && network.remoteHost === server.host)) opt.selected = true;
-                    mobileSel.appendChild(opt);
+                        (server.type === 'remote' && network.remoteHost === server.host)) rowBtn.classList.add('selected');
+                    (function (srv) {
+                        rowBtn.onclick = function () {
+                            if (srv.type === 'remote') { if (typeof joinRemoteServer === 'function') joinRemoteServer(srv.host); }
+                            else if (typeof selectServer === 'function') selectServer(Number(srv.id));
+                            var scr = document.getElementById('mobileServerScreen'); if (scr) scr.style.display = 'none';
+                        };
+                    })(server);
+                    mobileList.appendChild(rowBtn);
                 }
 				switch(server.type) {
 

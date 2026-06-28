@@ -32,7 +32,8 @@ var TouchControls = function () {
     // menu, form fields) so they don't also steer the snake.
     function isUIEl(t) {
         return !!(t && t.closest && t.closest(
-            '#boostBtn,#adminMobileBtn,#adminPanelRoot,#overlay,#chat,#chatToggle,button,input,select,textarea,a'));
+            '#boostBtn,#adminMobileBtn,#adminPanelRoot,#overlay,#chat,#chatToggle,' +
+            '#mobileBottomBar,#mobileServerScreen,#controlSettingsPopup,button,input,select,textarea,a'));
     }
 
     // ── steering ────────────────────────────────────────────────────────────────
@@ -115,64 +116,94 @@ var TouchControls = function () {
         return b;
     }
 
-    // ── start-screen mobile UI: compact server picker, Play, controls cog ─────────
+    // ── start-screen: big Play button + death-screen respawn button ───────────────
     function buildStartUI() {
-        var host = document.getElementById('topGui');
-        if (!host) return;
-
-        // Compact server picker — replaces the wide desktop table on mobile.
-        // loadServerList() (main.js) fills this; selecting connects immediately.
-        var wrap = document.createElement('div');
-        wrap.id = 'mobileServerWrap';
-        serverSelect = document.createElement('select');
-        serverSelect.id = 'mobileServerSelect';
-        serverSelect.innerHTML = '<option value="" disabled selected>Loading servers…</option>';
-        serverSelect.onchange = function () {
-            var o = serverSelect.options[serverSelect.selectedIndex];
-            if (!o) return;
-            if (o.getAttribute('data-kind') === 'remote') {
-                if (typeof joinRemoteServer === 'function') joinRemoteServer(o.getAttribute('data-host'));
-            } else if (typeof selectServer === 'function') {
-                selectServer(Number(o.getAttribute('data-id')));
-            }
-        };
-        wrap.appendChild(serverSelect);
-        host.appendChild(wrap);
-
-        // Play button (no visible Enter key on phones without the keyboard open).
-        var playBtn = document.createElement('button');
-        playBtn.type = 'button';
-        playBtn.id = 'mobilePlayBtn';
-        playBtn.textContent = 'PLAY';
-        playBtn.onclick = function () {
+        function play() {
             var n = document.getElementById('nick');
-            if (typeof clickPlay === 'function') clickPlay(n ? n.value : '');
-        };
-        host.appendChild(playBtn);
+            var nick = (n && n.value) || (function () { try { return localStorage.nick; } catch (_) { return ''; } })() || '';
+            if (typeof clickPlay === 'function') clickPlay(nick);
+        }
+        var host = document.getElementById('topGui');
+        if (host) {
+            var playBtn = document.createElement('button');
+            playBtn.type = 'button'; playBtn.id = 'mobilePlayBtn'; playBtn.textContent = 'PLAY';
+            playBtn.onclick = play;
+            host.appendChild(playBtn);
+        }
+        // Respawn button on the death/stats screen — phones have no Enter key, so
+        // without this the death screen softlocks.
+        var stats = document.getElementById('statsPanel');
+        if (stats) {
+            var again = document.createElement('button');
+            again.type = 'button'; again.id = 'mobilePlayAgainBtn'; again.textContent = 'PLAY AGAIN';
+            again.onclick = play;
+            stats.appendChild(again);
+        }
+    }
 
-        // Controls settings cog + popup (default scheme is Local Turn).
+    // ── bottom button bar: Servers, Controls cog, Mute ────────────────────────────
+    function buildBottomBar() {
+        var bar = document.createElement('div');
+        bar.id = 'mobileBottomBar';
+
+        var serversBtn = document.createElement('button');
+        serversBtn.type = 'button'; serversBtn.id = 'mobileServersBtn';
+        serversBtn.innerHTML = '🌐<span>Servers</span>';
+        serversBtn.onclick = openServerScreen;
+        bar.appendChild(serversBtn);
+
         cogBtn = document.createElement('button');
-        cogBtn.type = 'button';
-        cogBtn.id = 'controlSettingsBtn';
-        cogBtn.innerHTML = '⚙';
-        cogBtn.title = 'Controls';
+        cogBtn.type = 'button'; cogBtn.id = 'controlSettingsBtn';
+        cogBtn.innerHTML = '⚙<span>Controls</span>';
         cogBtn.onclick = function () {
             settingsPopup.style.display = (settingsPopup.style.display === 'block') ? 'none' : 'block';
         };
-        host.appendChild(cogBtn);
+        bar.appendChild(cogBtn);
 
+        // Re-home the existing mute button into the bar (keeps its toggleSound()).
+        var mute = document.getElementById('muteButton');
+        if (mute) { mute.classList.add('barBtn'); bar.appendChild(mute); }
+
+        document.body.appendChild(bar);
+        buildControlsPopup();
+    }
+
+    function buildControlsPopup() {
         settingsPopup = document.createElement('div');
         settingsPopup.id = 'controlSettingsPopup';
         settingsPopup.style.display = 'none';
         var t = document.createElement('div');
-        t.className = 'ctrlSchemeTitle';
-        t.textContent = 'Controls';
+        t.className = 'ctrlSchemeTitle'; t.textContent = 'Controls';
         settingsPopup.appendChild(t);
         settingsPopup.appendChild(mkSchemeBtn('Local Turn', 'local', 'View follows the snake — tap left/right to turn.'));
         settingsPopup.appendChild(mkSchemeBtn('Swipe Control', 'swipe', 'Camera stays fixed — swipe to steer.'));
-        host.appendChild(settingsPopup);
+        document.body.appendChild(settingsPopup);
         paintSchemeButtons();
     }
+
+    // ── dedicated full-screen server-select screen (hides the rest of the UI) ──────
+    function buildServerScreen() {
+        var scr = document.createElement('div');
+        scr.id = 'mobileServerScreen'; scr.style.display = 'none';
+
+        var head = document.createElement('div');
+        head.id = 'mobileServerHead';
+        var title = document.createElement('span'); title.textContent = 'Select a Server';
+        var close = document.createElement('button');
+        close.type = 'button'; close.id = 'mobileServerClose'; close.innerHTML = '✕';
+        close.onclick = closeServerScreen;
+        head.appendChild(title); head.appendChild(close);
+        scr.appendChild(head);
+
+        var list = document.createElement('div');
+        list.id = 'mobileServerList';
+        list.innerHTML = '<div class="msr-empty">Loading servers…</div>';
+        scr.appendChild(list);
+
+        document.body.appendChild(scr);
+    }
+    function openServerScreen()  { var s = document.getElementById('mobileServerScreen'); if (s) s.style.display = 'flex'; }
+    function closeServerScreen() { var s = document.getElementById('mobileServerScreen'); if (s) s.style.display = 'none'; }
 
     // ── fixed overlays outside the menu: chat toggle + portrait notice ───────────
     function buildOverlays() {
@@ -214,14 +245,18 @@ var TouchControls = function () {
     function tick() {
         requestAnimationFrame(tick);
         if (!enabled) return;
-        var show = inGame();
-        var disp = show ? 'flex' : 'none';
+        var playing = inGame();
+        var disp = playing ? 'flex' : 'none';
         if (boostBtn && boostBtn.style.display !== disp) boostBtn.style.display = disp;
         // Left/right tap hints only make sense in 'local' mode.
-        var hintDisp = (show && scheme() === 'local') ? 'flex' : 'none';
+        var hintDisp = (playing && scheme() === 'local') ? 'flex' : 'none';
         if (leftHint  && leftHint.style.display  !== hintDisp) leftHint.style.display  = hintDisp;
         if (rightHint && rightHint.style.display !== hintDisp) rightHint.style.display = hintDisp;
-        if (!show && boosting) stopBoost();
+        // Bottom bar (Servers/Controls/Mute) shows on the menu, not while playing.
+        var bar = document.getElementById('mobileBottomBar');
+        var barDisp = (!playing && UIVisible) ? 'flex' : 'none';
+        if (bar && bar.style.display !== barDisp) bar.style.display = barDisp;
+        if (!playing && boosting) stopBoost();
     }
 
     // ── init ────────────────────────────────────────────────────────────────────
@@ -229,6 +264,8 @@ var TouchControls = function () {
         if (!enabled) return;
         document.body.classList.add('touch-device');
         buildStartUI();
+        buildBottomBar();
+        buildServerScreen();
         buildOverlays();
         buildGameControls();
         document.addEventListener('touchstart', onStart, { passive: false });
