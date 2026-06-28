@@ -359,6 +359,7 @@ class Client extends EventEmitter {
             addadmin: 2, removeadmin: 2, deleteserver: 2,
             setmaxplayers: 2, setservername: 2, setowner: 2,
             resetbans: 2, setping: 2, spawnbarrier: 2, clearbarriers: 2,
+            editbarrier: 2, deletebarrier: 2, setbarriers: 2,
             // ── Developer (3): ephemeral server lifecycle ──────────────────────
             extendserver: 3, setservertime: 3,
         };
@@ -868,6 +869,54 @@ class Client extends EventEmitter {
                 this.server.barriers = [];
                 Object.values(this.server.clients).forEach(c => c.sendMapBarriers());
                 this.sendAdminMessage('All barriers cleared.');
+                break;
+            }
+            // Replace a single barrier by its index in the list. Used by the visual
+            // Barrier Editor; intentionally silent (no admin message) so dragging a
+            // gizmo doesn't spam the tip feed.
+            case 'editbarrier': {
+                const i = intArg(1);
+                const x = floatArg(2), y = floatArg(3), w = floatArg(4), h = floatArg(5);
+                if (i === null || x === null || y === null || w === null || h === null) {
+                    this.sendAdminMessage('Usage: editbarrier <index> <x> <y> <width> <height>'); break;
+                }
+                if (i < 0 || i >= this.server.barriers.length) { this.sendAdminMessage('editbarrier: invalid index.'); break; }
+                if (w <= 0 || h <= 0) { this.sendAdminMessage('editbarrier: width/height must be positive.'); break; }
+                this.server.barriers[i] = { x, y, width: w, height: h };
+                Object.values(this.server.clients).forEach(c => c.sendMapBarriers());
+                break;
+            }
+            // Replace the ENTIRE barrier list in one shot (used by the editor's
+            // Import button). Accepts a JSON array of {x,y,width,height} or an
+            // object with a `barriers` array. Invalid entries are skipped.
+            case 'setbarriers': {
+                const sp = command.indexOf(' ');
+                if (sp === -1) { this.sendAdminMessage('Usage: setbarriers <json>'); break; }
+                let parsed;
+                try { parsed = JSON.parse(command.slice(sp + 1)); } catch (e) { this.sendAdminMessage('setbarriers: invalid JSON.'); break; }
+                let arr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.barriers) ? parsed.barriers : null);
+                if (!arr) { this.sendAdminMessage('setbarriers: expected an array of barriers.'); break; }
+                if (arr.length > 1000) { this.sendAdminMessage('setbarriers: too many barriers (max 1000).'); break; }
+                const clean = [];
+                for (const b of arr) {
+                    if (!b) continue;
+                    const x = Number(b.x), y = Number(b.y), w = Number(b.width), h = Number(b.height);
+                    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h)) continue;
+                    if (w <= 0 || h <= 0) continue;
+                    clean.push({ x, y, width: w, height: h });
+                }
+                this.server.barriers = clean;
+                Object.values(this.server.clients).forEach(c => c.sendMapBarriers());
+                this.sendAdminMessage(`Loaded ${clean.length} barrier(s).`);
+                break;
+            }
+            // Remove a single barrier by its index in the list. Also silent.
+            case 'deletebarrier': {
+                const i = intArg(1);
+                if (i === null) { this.sendAdminMessage('Usage: deletebarrier <index>'); break; }
+                if (i < 0 || i >= this.server.barriers.length) { this.sendAdminMessage('deletebarrier: invalid index.'); break; }
+                this.server.barriers.splice(i, 1);
+                Object.values(this.server.clients).forEach(c => c.sendMapBarriers());
                 break;
             }
 

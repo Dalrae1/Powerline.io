@@ -52,11 +52,22 @@ var Mapp = function() {
 
 	var barriers = [];  // Array to store barriers
 
+	// Bumped on every change so the Barrier Editor can cheaply detect when the
+	// authoritative list (pushed by the server via OPCODE_MAP_BARRIERS) changed.
+	this.barrierVersion = 0;
+
 	this.addBarrier = function(x, y, width, height) {
 		barriers.push({ x: x, y: y, width: width, height: height });
+		map.barrierVersion++;
 	};
 	this.clearBarriers = function() {
 		barriers = [];
+		map.barrierVersion++;
+	}
+	// Live, ordered list (same order as the server's barriers array, so an index
+	// here maps to the same index server-side for editbarrier / deletebarrier).
+	this.getBarriers = function() {
+		return barriers;
 	}
 
 	this.preRenderSideLine = function(vertical) {

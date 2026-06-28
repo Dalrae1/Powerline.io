@@ -555,16 +555,13 @@ var AdminPanel = function () {
         // ── Barriers & Bans ─────────────────────────────────────────────────────────
         body.appendChild(sectionTitle('Barriers & Bans'));
         var b1 = row();
-        b1.appendChild(labelInfo('Spawn barrier (x,y,w,h)', 'Creates a solid rectangular wall centred at (x,y) with the given width/height. Snakes die if they hit it.', 'flex:1;min-width:120px;font-size:13px;color:' + CYAN + ';'));
-        var bx = field('x', 55), by = field('y', 55), bw = field('w', 55), bh = field('h', 55);
-        [bx, by, bw, bh].forEach(function (i) { b1.appendChild(i); });
-        b1.appendChild(button('Add', function () {
-            if (bx.value !== '' && by.value !== '' && bw.value !== '' && bh.value !== '')
-                send('spawnbarrier ' + bx.value + ' ' + by.value + ' ' + bw.value + ' ' + bh.value);
-        }));
+        b1.appendChild(labelInfo('Barriers', 'Open the full-screen visual editor to view, create, move, resize, and delete barriers on the map.', SCSS));
+        b1.appendChild(button('Open Barrier Editor', function () {
+            if (typeof barrierEditor === 'object' && barrierEditor && barrierEditor.open) { hide(); barrierEditor.open(); }
+            else toast('Barrier editor is not available.');
+        }, { title: 'Open the full-screen barrier editor.' }));
         body.appendChild(b1);
         var b2 = row();
-        b2.appendChild(button('Clear Barriers', function () { send('clearbarriers'); }, { danger: true, title: 'Remove every barrier wall from the arena.' }));
         b2.appendChild(button('Reset All Bans', function () { send('resetbans'); }, { danger: true, title: 'Lift every IP and account ban on this server.' }));
         body.appendChild(b2);
 
@@ -644,6 +641,7 @@ var AdminPanel = function () {
 
     // ── public API ─────────────────────────────────────────────────────────────────
     this.toggle = function () { if (visible) hide(); else show(); };
+    this.show = show;
     this.isVisible = function () { return visible; };
     this.onPlayers = onPlayers;
     this.onPermissions = function (l, o, d, e, ds) {

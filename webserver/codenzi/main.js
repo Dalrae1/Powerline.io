@@ -38,6 +38,7 @@ var statsFPS, statsLAG, statsTPS;
 // Admin
 var commandPallete = false;
 var adminPanel = false;
+var barrierEditor = null;
 // Effective permission level for the current server (sent by the server via
 // OPCODE_PERMISSIONS). 0 Player, 1 Moderator, 2 Admin, 3 Developer.
 var myPermissionLevel = 0;
@@ -429,6 +430,7 @@ var addAdminPanel = function () {
 	adminPanel = new AdminPanel();
 	// Apply any permission info already received before the panel existed.
 	adminPanel.onPermissions(myPermissionLevel, myIsOwner, myIsDev, myIsEphemeral, myIsDevServer);
+	if (typeof BarrierEditor === 'function' && !barrierEditor) barrierEditor = new BarrierEditor();
 }
 
 var addStats = function() {
@@ -1733,7 +1735,7 @@ loadScript("codenzi/Effects.js?v=1");
 loadScript("codenzi/Hud.js?v=3");
 loadScript("codenzi/Snake.js?v=18");
 loadScript("codenzi/Food.js?v=2");
-loadScript("codenzi/Map.js?v=3");
+loadScript("codenzi/Map.js?v=4");
 loadScript("codenzi/Minimap.js?v=4");
 loadScript("codenzi/Network.js?v=19");
 loadScript("codenzi/App.js?v=5");
