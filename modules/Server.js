@@ -567,24 +567,34 @@ class Server {
             }
             const client = new Client(this, ws, user || null);
 
-            // Replay queued messages
-            for (const msg of queue) {
-                const view = new DataView(new Uint8Array(msg).buffer);
-                client.RecieveMessage(view.getUint8(0), view).catch(err => {
-                    console.error(`[WS] Error replaying queued message:`, err.message);
-                });
-            }
-            ws.off('message', enqueue);
-
-            ws.on('message', msg => {
-                const view = new DataView(new Uint8Array(msg).buffer);
+            // Safely turn one raw frame into a dispatch. The opcode read
+            // (getUint8(0)) and the DataView construction are done INSIDE a
+            // try/catch here because they run synchronously, BEFORE the async
+            // RecieveMessage promise exists — so a zero-length or malformed frame
+            // would otherwise throw straight out of this 'message' listener with
+            // no .catch() to absorb it, crashing the whole (multi-room) process.
+            const dispatch = (msg) => {
+                let view;
+                try {
+                    const bytes = new Uint8Array(msg);
+                    if (bytes.byteLength < 1) return;   // ignore empty frames
+                    view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+                } catch (err) {
+                    console.error(`[WS] Malformed frame from client ${client.id}:`, err && err.message);
+                    return;
+                }
                 // RecieveMessage is async — without .catch() any thrown exception
-                // becomes an unhandled promise rejection that crashes Node.js 15+.
+                // becomes an unhandled promise rejection. A bad packet should only
+                // be dropped, never disconnect or crash anything.
                 client.RecieveMessage(view.getUint8(0), view).catch(err => {
-                    console.error(`[WS] Unhandled error from client ${client.id}:`, err.message);
-                    try { ws.close(1011, 'Internal error'); } catch {}
+                    console.error(`[WS] Unhandled error from client ${client.id}:`, err && err.message);
                 });
-            });
+            };
+
+            // Replay queued messages, then switch to live dispatch.
+            for (const msg of queue) dispatch(msg);
+            ws.off('message', enqueue);
+            ws.on('message', dispatch);
 
             ws.on('close', () => {
                 if (client.snake && client.snake.id) {

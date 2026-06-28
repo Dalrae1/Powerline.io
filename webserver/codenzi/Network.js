@@ -721,6 +721,7 @@ var Network = function () {
 		else if (op == OPCODE_ADMIN_PLAYERS) { // Full server player list (admin panel)
 			var offset = 1;
 			var count = view.getUint16(offset, true); offset += 2;
+			var showIP = view.getUint8(offset) === 1; offset += 1;  // only set for developers
 			var players = [];
 			for (var i = 0; i < count; i++) {
 				var id     = view.getUint16(offset, true); offset += 2;
@@ -732,7 +733,9 @@ var Network = function () {
 				var length = view.getUint32(offset, true); offset += 4;
 				var hue    = view.getUint16(offset, true); offset += 2;
 				var res    = getString(view, offset);      offset = res.offset;
-				players.push({ id: id, dbid: dbid, level: lvl, muted: muted, frozen: frozen, isBot: isBot, length: length, hue: hue, nick: res.nick });
+				var ip = '';
+				if (showIP) { var ipr = getString(view, offset); offset = ipr.offset; ip = ipr.nick; }
+				players.push({ id: id, dbid: dbid, level: lvl, muted: muted, frozen: frozen, isBot: isBot, length: length, hue: hue, nick: res.nick, ip: ip });
 			}
 			var arenaCfg = null;
 			if (offset + 28 <= view.byteLength) {

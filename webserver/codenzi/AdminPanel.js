@@ -182,6 +182,7 @@ var AdminPanel = function () {
                     id: p.id, dbid: p.dbid || 0, nick: (p.nick && p.nick.trim()) ? p.nick : '<unnamed>',
                     level: p.level | 0, muted: !!p.muted, frozen: !!p.frozen, isBot: !!p.isBot,
                     length: p.length || 0, hue: (typeof p.hue === 'number' ? p.hue : 180),
+                    ip: p.ip || '',
                     isSelf: (typeof localPlayerID !== 'undefined' && p.id === localPlayerID),
                 };
             });
@@ -364,6 +365,15 @@ var AdminPanel = function () {
         if (p.length) name.appendChild(badge('len ' + p.length, '#9fdede'));
         head.appendChild(name);
         card.appendChild(head);
+
+        // Developer-only: real client IP. The server only includes it in the list
+        // for level-3 developers, so p.ip is empty (and this line hidden) otherwise.
+        if (p.ip) {
+            var ipRow = el('div', 'font-size:11px;color:#9fdede;margin:2px 0 4px;');
+            ipRow.appendChild(el('span', 'opacity:0.7;', 'IP: '));
+            ipRow.appendChild(el('span', 'font-family:monospace;color:' + CYAN + ';', p.ip));
+            card.appendChild(ipRow);
+        }
 
         // Moderation (level >= 1)
         var mod = row();

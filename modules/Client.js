@@ -38,6 +38,9 @@ class Client extends EventEmitter {
 
         // Moderation: set by the `mute` admin command, gates say / talk.
         this.muted = false;
+        // Set true by the `ban` command so any further packets are ignored even
+        // if a malicious client refuses to honour the close handshake.
+        this.banned = false;
 
         server.clients[this.id] = this;
 
@@ -73,6 +76,10 @@ class Client extends EventEmitter {
     // ── incoming messages ─────────────────────────────────────────────────────
 
     async RecieveMessage(messageType, view) {
+        // A banned client may keep its socket open by ignoring the close frame —
+        // drop everything it sends.
+        if (this.banned) return;
+
         // Simulate artificial latency if configured
         if (this.server.artificialPing > 0) {
             await new Promise(r => setTimeout(r, this.server.artificialPing / 2));
@@ -196,9 +203,13 @@ class Client extends EventEmitter {
             if (!c.snake || !c.snake.spawned) continue;
             players.push(c);
         }
+        // Only developers (level 3) may see raw player IPs. We send a flag so the
+        // client knows whether an IP string follows each player record.
+        const showIP = this.permissionLevel() >= 3;
         this._send(w => {
             w.writeUint8(Enums.ServerToClient.OPCODE_ADMIN_PLAYERS);
             w.writeUint16(players.length);
+            w.writeUint8(showIP ? 1 : 0);
             for (const c of players) {
                 w.writeUint16(c.snake.id);
                 w.writeUint32((c.user && c.user.userid) ? parseInt(c.user.userid) >>> 0 : 0);
@@ -209,6 +220,7 @@ class Client extends EventEmitter {
                 w.writeUint32(Math.max(0, Math.round(c.snake.visualLength || 0)));
                 w.writeUint16(Math.round(c.snake.color || 0) & 0xFFFF);
                 w.writeString((c.snake.nick || '').slice(0, 25));
+                if (showIP) w.writeString(String(c._clientIP || '').slice(0, 45));
             }
             const cfg = this.server.config;
             const u16 = v => Math.min(65535, Math.max(0, Math.round(v || 0)));
@@ -541,7 +553,8 @@ class Client extends EventEmitter {
             // ── Moderation: target another player by entity id ────────────────
             case 'kick': {
                 const t = this._clientByEntityId(intArg(1));
-                if (!t)               { this.sendAdminMessage('kick: player not found.'); break; }
+                if (!t)                 { this.sendAdminMessage('kick: player not found.'); break; }
+                if (t === this)         { this.sendAdminMessage("kick: you can't kick yourself."); break; }
                 if (!this._outranks(t)) { this.sendAdminMessage('You cannot kick an equal or higher rank.'); break; }
                 const who = t.snake?.nick ?? `id ${args[1]}`;
                 try { t.socket.close(1008, 'Kicked by an admin'); } catch {}
@@ -550,12 +563,23 @@ class Client extends EventEmitter {
             }
             case 'ban': {
                 const t = this._clientByEntityId(intArg(1));
-                if (!t)               { this.sendAdminMessage('ban: player not found.'); break; }
+                if (!t)                 { this.sendAdminMessage('ban: player not found.'); break; }
+                if (t === this)         { this.sendAdminMessage("ban: you can't ban yourself."); break; }
                 if (!this._outranks(t)) { this.sendAdminMessage('You cannot ban an equal or higher rank.'); break; }
                 const who = t.snake?.nick ?? `id ${args[1]}`;
-                if (t._clientIP) this.server.bannedIPs.add(t._clientIP);
-                if (t.user)      this.server.bannedUsers.add(parseInt(t.user.userid));
+                // Account ban — precise and works regardless of network topology.
+                if (t.user) this.server.bannedUsers.add(parseInt(t.user.userid));
+                // IP ban — ONLY for a real, distinct client address. This server
+                // runs behind a local reverse proxy, so most/all players share one
+                // remote address (e.g. 127.0.0.1); on shared LAN/NAT they likewise
+                // collide. Banning such an address would lock out the moderator and
+                // everyone else (the reported "banning someone bans yourself" bug).
+                if (this._isBannableIP(t._clientIP)) this.server.bannedIPs.add(t._clientIP);
+                t.banned = true;
                 try { t.socket.close(1008, 'Banned by an admin'); } catch {}
+                // Force the connection shut shortly after in case the client ignores
+                // the close handshake and keeps sending packets.
+                setTimeout(() => { try { t.socket.terminate(); } catch {} }, 1000);
                 this.sendAdminMessage(`Banned ${who}.`);
                 break;
             }
@@ -976,6 +1000,20 @@ class Client extends EventEmitter {
 
     _isOwner() {
         return this.user && this.user.userid === parseInt(this.server.owner);
+    }
+
+    // True only if `ip` is a real, distinct client address worth IP-banning.
+    // Rejects missing/loopback addresses (every player shares the proxy's
+    // 127.0.0.1 here) and the moderator's own address, so a ban can never lock
+    // out the moderator or the whole server. Account (userid) bans are used for
+    // precision; this is just the supplementary IP ban.
+    _isBannableIP(ip) {
+        if (!ip || typeof ip !== 'string') return false;
+        const norm = ip.replace(/^::ffff:/i, '');                 // IPv4-mapped IPv6
+        if (norm === '127.0.0.1' || norm === '::1' || norm === '0.0.0.0') return false;
+        const meNorm = (this._clientIP || '').replace(/^::ffff:/i, '');
+        if (meNorm && norm === meNorm) return false;
+        return true;
     }
 
     // ── anti-bot: progressive re-entry cooldown ───────────────────────────────

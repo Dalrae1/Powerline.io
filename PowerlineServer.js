@@ -12,6 +12,18 @@ const AntiBotTracker     = require('./modules/AntiBotTracker.js');
 
 DBFunctions = new DatabaseFunctions();
 
+// ── crash safety net ──────────────────────────────────────────────────────────
+// This single process hosts every game room. Per-client message handling is
+// validated and wrapped (see Server.js / Client.js), but this is the last line
+// of defence: a stray exception or rejected promise from one connection must
+// never take Node down and disconnect everyone. Log it and keep running.
+process.on('uncaughtException', (err) => {
+    console.error('[FATAL] Uncaught exception (server kept alive):', (err && err.stack) || err);
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('[FATAL] Unhandled rejection (server kept alive):', (reason && reason.stack) || reason);
+});
+
 // ── global helpers sent to modules ───────────────────────────────────────────
 
 global.getString = function (data, bitOffset) {
@@ -650,16 +662,25 @@ async function serverListener(req, res) {
 // ── WebSocket server ──────────────────────────────────────────────────────────
 
 const httpServer = http.createServer(serverListener).listen(1335, '127.0.0.1');
-const wss = new WebSocket.Server({ server: httpServer });
+// Cap inbound frame size: game packets are tiny; the largest legitimate message
+// is a barrier-config import (setbarriers), well under this. The cap stops a
+// client from forcing huge per-message allocations.
+const wss = new WebSocket.Server({ server: httpServer, maxPayload: 256 * 1024 });
 
 wss.on('connection', (ws, req) => {
     try {
         // ── per-IP connection gate ────────────────────────────────────────────
-        // Use the real remote address — don't trust X-Forwarded-For because bots
-        // can spoof headers, whereas the TCP remote address is harder to fake when
-        // connecting directly.  For NAT'd networks (schools, offices) all students
-        // share one IP, so the limit of 30 is intentionally generous.
-        const clientIP = req.socket.remoteAddress || '::1';
+        // The real client IP arrives from the trusted reverse proxy. The grey-cloud
+        // game subdomains hit the proxy directly, so the proxy stamps the player's
+        // actual IP into X-Forwarded-For (and X-Real-IP). We take the LEFTMOST XFF
+        // entry — the proxy sets that first and strips any client-supplied value, so
+        // it can't be spoofed; entries appended by the backend web server are hops
+        // to its right. Fall back to X-Real-IP, then the socket (local/dev).
+        // SECURITY: the backend must be firewalled so ONLY the proxy can reach it.
+        const xff = req.headers['x-forwarded-for'];
+        const clientIP = (typeof xff === 'string' && xff.trim())
+            ? xff.split(',')[0].trim()
+            : (req.headers['x-real-ip'] || req.socket.remoteAddress || '::1');
 
         if (!AntiBotTracker.isConnectionAllowed(clientIP)) {
             ws.close(1008, 'Too many connections from your network');
