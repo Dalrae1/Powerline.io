@@ -7,8 +7,10 @@
 //
 //     0 Player     — cannot open the panel (shows a denial message)
 //     1 Moderator  — Players tab: mute / kick / ban / kill / freeze / warn …
-//     2 Admin      — + My Snake, Arena tabs (full arena + any-snake control)
-//     3 Developer  — + server-structural controls (lifetime, owner, barriers …)
+//     2 Admin      — + My Snake, Arena, Server tabs (full server management:
+//                    name, max players, ownership, barriers, bans, delete …)
+//     3 Developer  — + the Server tab's "Developer Only" section: extend the
+//                    ephemeral idle timer and set the idle lifetime.
 //
 //  The player list comes from the server (OPCODE_ADMIN_PLAYERS) so it shows ALL
 //  players on the server, not just the ones streamed to this client.
@@ -500,85 +502,108 @@ var AdminPanel = function () {
         body.appendChild(r3);
     }
 
-    // ── Server tab (admins see it; dev-only items are greyed for non-devs) ──────
+    // ── Server tab ──────────────────────────────────────────────────────────────
+    //  Every admin who can open this tab may use everything here EXCEPT the two
+    //  controls in the "Developer Only" section (extend ephemeral timer + idle
+    //  lifetime), which require developer rank and are greyed out for everyone else.
     function renderServer() {
-        var canManage = isOwner || isDev;   // add/remove admin, delete
-        var devOnly = !isDev;               // structural items require developer
+        var devOnly = !isDev;   // gates ONLY the Developer Only section below
+        var SCSS = 'flex:1;min-width:150px;font-size:13px;color:' + CYAN + ';';
 
-        body.appendChild(sectionTitle('Admins'));
-        var note = el('div', 'font-size:12px;color:#9fdede;margin-bottom:6px;');
-        if (isDev) note.textContent = 'Developer: full control of this server regardless of ownership.';
-        else if (isOwner) note.textContent = 'Owner: you can manage admins and delete this server.';
-        else note.textContent = 'Admin: server management is limited to the owner or a developer.';
+        var note = el('div', 'font-size:12px;color:#9fdede;margin-bottom:8px;');
+        note.textContent = isDev
+            ? 'Developer: full control of this server.'
+            : (isOwner ? 'Owner: full control of this server.'
+                       : 'Admin: full control of this server. The Developer Only section below is reserved for developers.');
         body.appendChild(note);
 
-        var SCSS = 'flex:1;min-width:150px;font-size:13px;color:' + CYAN + ';';
+        // ── Admins ────────────────────────────────────────────────────────────────
+        body.appendChild(sectionTitle('Admins'));
         var a1 = row();
         a1.appendChild(labelInfo('Add admin (user id)', 'Grant this user id full admin powers (level 2) on this server.', SCSS));
-        var addInp = field('userid', 110); if (!canManage) addInp.disabled = true;
+        var addInp = field('userid', 110);
         a1.appendChild(addInp);
-        a1.appendChild(button('Add', function () { if (addInp.value !== '') send('addadmin ' + addInp.value); }, { disabled: !canManage }));
+        a1.appendChild(button('Add', function () { if (addInp.value !== '') send('addadmin ' + addInp.value); }));
         body.appendChild(a1);
 
         var a2 = row();
         a2.appendChild(labelInfo('Remove admin (user id)', 'Revoke this user id’s admin powers on this server.', SCSS));
-        var remInp = field('userid', 110); if (!canManage) remInp.disabled = true;
+        var remInp = field('userid', 110);
         a2.appendChild(remInp);
-        a2.appendChild(button('Remove', function () { if (remInp.value !== '') send('removeadmin ' + remInp.value); }, { disabled: !canManage }));
+        a2.appendChild(button('Remove', function () { if (remInp.value !== '') send('removeadmin ' + remInp.value); }));
         body.appendChild(a2);
 
-        body.appendChild(sectionTitle('Ephemeral Server'));
-        var e1 = row();
-        e1.appendChild(labelInfo('Time left until idle delete', 'Custom servers auto-delete after sitting empty too long. Check shows the remaining time; Extend resets that countdown.', SCSS));
-        e1.appendChild(button('Check', function () { send('timeleft'); }, { title: 'Show how long until this idle server is auto-deleted.' }));
-        e1.appendChild(button('Extend (reset timer)', function () { send('extendserver'); }, { title: 'Reset the idle-deletion countdown.' }));
-        body.appendChild(e1);
-
-        var e2 = row();
-        e2.appendChild(labelInfo('Idle lifetime (minutes) — dev', 'How many minutes this server may sit empty before it auto-deletes.', SCSS));
-        var lifeInp = field('minutes', 90); if (devOnly) lifeInp.disabled = true;
-        e2.appendChild(lifeInp);
-        e2.appendChild(button('Set', function () { if (lifeInp.value !== '') send('setservertime ' + lifeInp.value); }, { disabled: devOnly }));
-        body.appendChild(e2);
-
-        body.appendChild(sectionTitle('Server Stats (Developer)'));
-        body.appendChild(numControl('Max players', 'setmaxplayers', '1-1000', devOnly, 'Maximum number of human players allowed on this server at once.'));
-        body.appendChild(numControl('Artificial ping (ms)', 'setping', '0-5000', devOnly, 'Adds fake latency (ms) to every client — used for testing lag compensation.'));
+        // ── Server Settings ─────────────────────────────────────────────────────────
+        body.appendChild(sectionTitle('Server Settings'));
         var s1 = row();
         s1.appendChild(labelInfo('Server name', 'Renames this server as it appears in the public server list.', SCSS));
-        var nameInp = field('name', 140, 'text'); if (devOnly) nameInp.disabled = true;
+        var nameInp = field('name', 140, 'text');
         s1.appendChild(nameInp);
-        s1.appendChild(button('Set', function () { if (nameInp.value !== '') send('setservername ' + nameInp.value); }, { disabled: devOnly }));
+        s1.appendChild(button('Set', function () { if (nameInp.value !== '') send('setservername ' + nameInp.value); }));
         body.appendChild(s1);
+
+        body.appendChild(numControl('Max players', 'setmaxplayers', '1-1000', false, 'Maximum number of human players allowed on this server at once.'));
+        body.appendChild(numControl('Artificial ping (ms)', 'setping', '0-5000', false, 'Adds fake latency (ms) to every client — used for testing lag compensation.'));
+
         var s2 = row();
-        s2.appendChild(labelInfo('Transfer ownership (user id)', 'Makes another user id the owner of this server (they gain owner powers; you keep yours if you’re a dev).', SCSS));
-        var ownInp = field('userid', 110); if (devOnly) ownInp.disabled = true;
+        s2.appendChild(labelInfo('Transfer ownership (user id)', 'Makes another user id the owner of this server (they gain owner powers).', SCSS));
+        var ownInp = field('userid', 110);
         s2.appendChild(ownInp);
-        s2.appendChild(button('Set Owner', function () { if (ownInp.value !== '') send('setowner ' + ownInp.value); }, { disabled: devOnly }));
+        s2.appendChild(button('Set Owner', function () { if (ownInp.value !== '') send('setowner ' + ownInp.value); }));
         body.appendChild(s2);
 
-        body.appendChild(sectionTitle('Barriers & Bans (Developer)'));
+        // ── Barriers & Bans ─────────────────────────────────────────────────────────
+        body.appendChild(sectionTitle('Barriers & Bans'));
         var b1 = row();
         b1.appendChild(labelInfo('Spawn barrier (x,y,w,h)', 'Creates a solid rectangular wall centred at (x,y) with the given width/height. Snakes die if they hit it.', 'flex:1;min-width:120px;font-size:13px;color:' + CYAN + ';'));
         var bx = field('x', 55), by = field('y', 55), bw = field('w', 55), bh = field('h', 55);
-        [bx, by, bw, bh].forEach(function (i) { if (devOnly) i.disabled = true; b1.appendChild(i); });
+        [bx, by, bw, bh].forEach(function (i) { b1.appendChild(i); });
         b1.appendChild(button('Add', function () {
             if (bx.value !== '' && by.value !== '' && bw.value !== '' && bh.value !== '')
                 send('spawnbarrier ' + bx.value + ' ' + by.value + ' ' + bw.value + ' ' + bh.value);
-        }, { disabled: devOnly }));
+        }));
         body.appendChild(b1);
         var b2 = row();
-        b2.appendChild(button('Clear Barriers', function () { send('clearbarriers'); }, { danger: true, disabled: devOnly, title: 'Remove every barrier wall from the arena.' }));
-        b2.appendChild(button('Reset All Bans', function () { send('resetbans'); }, { danger: true, disabled: devOnly, title: 'Lift every IP and account ban on this server.' }));
+        b2.appendChild(button('Clear Barriers', function () { send('clearbarriers'); }, { danger: true, title: 'Remove every barrier wall from the arena.' }));
+        b2.appendChild(button('Reset All Bans', function () { send('resetbans'); }, { danger: true, title: 'Lift every IP and account ban on this server.' }));
         body.appendChild(b2);
 
+        // ── Ephemeral Server (status only; extend + lifetime live in Developer Only) ─
+        body.appendChild(sectionTitle('Ephemeral Server'));
+        var e1 = row();
+        e1.appendChild(labelInfo('Time left until idle delete', 'Custom servers auto-delete after sitting empty too long. Check shows the remaining time.', SCSS));
+        e1.appendChild(button('Check', function () { send('timeleft'); }, { title: 'Show how long until this idle server is auto-deleted.' }));
+        body.appendChild(e1);
+
+        // ── Danger Zone ───────────────────────────────────────────────────────────
         body.appendChild(sectionTitle('Danger Zone'));
         var d = row();
         d.appendChild(labelInfo('Delete this server', 'Permanently shuts down and removes this server. Everyone is returned to the lobby. Cannot be undone.', 'flex:1;min-width:150px;font-size:13px;color:' + DANGER + ';'));
         d.appendChild(button('Delete Server', function () {
             if (confirm('Delete this server? This cannot be undone.')) send('deleteserver');
-        }, { danger: true, disabled: !canManage }));
+        }, { danger: true }));
         body.appendChild(d);
+
+        // ── Developer Only ──────────────────────────────────────────────────────────
+        //  The only two developer-restricted controls. Greyed out for non-developers.
+        body.appendChild(sectionTitle('Developer Only'));
+        var dnote = el('div', 'font-size:12px;color:#9fdede;margin-bottom:6px;');
+        dnote.textContent = isDev
+            ? 'Developer: these control the ephemeral server lifecycle.'
+            : 'These controls require developer rank and are disabled for you.';
+        body.appendChild(dnote);
+
+        var e2 = row();
+        e2.appendChild(labelInfo('Extend ephemeral server time', 'Resets the idle-deletion countdown so the server stays alive longer.', SCSS));
+        e2.appendChild(button('Extend (reset timer)', function () { send('extendserver'); }, { disabled: devOnly, title: 'Reset the idle-deletion countdown.' }));
+        body.appendChild(e2);
+
+        var e3 = row();
+        e3.appendChild(labelInfo('Idle lifetime (minutes)', 'How many minutes this server may sit empty before it auto-deletes.', SCSS));
+        var lifeInp = field('minutes', 90); if (devOnly) lifeInp.disabled = true;
+        e3.appendChild(lifeInp);
+        e3.appendChild(button('Set', function () { if (lifeInp.value !== '') send('setservertime ' + lifeInp.value); }, { disabled: devOnly }));
+        body.appendChild(e3);
     }
 
     // ── show / hide ───────────────────────────────────────────────────────────────

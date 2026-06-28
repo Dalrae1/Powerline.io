@@ -354,12 +354,13 @@ class Client extends EventEmitter {
             defaultlength: 2, foodmultiplier: 2, foodvalue: 2,
             grow: 2, shrink: 2, boost: 2, sethue: 2, rename: 2, invincible: 2,
             tpto: 2, bring: 2, createfoodat: 2, killall: 2, freezeall: 2,
-            unfreezeall: 2, setspeedall: 2, extendserver: 2,
-            // Owner / Developer (case body does the finer owner-vs-dev check)
+            unfreezeall: 2, setspeedall: 2,
+            // Server management — available to any admin on a custom server.
             addadmin: 2, removeadmin: 2, deleteserver: 2,
-            // ── Developer (3): server lifecycle + structural ───────────────────
-            setservertime: 3, setmaxplayers: 3, setservername: 3, setowner: 3,
-            resetbans: 3, setping: 3, spawnbarrier: 3, clearbarriers: 3,
+            setmaxplayers: 2, setservername: 2, setowner: 2,
+            resetbans: 2, setping: 2, spawnbarrier: 2, clearbarriers: 2,
+            // ── Developer (3): ephemeral server lifecycle ──────────────────────
+            extendserver: 3, setservertime: 3,
         };
         const need = REQUIRED[cmd] ?? 2;
         if (level < need) {
@@ -882,7 +883,7 @@ class Client extends EventEmitter {
                 }
                 break;
             case 'addadmin':
-                if ((this.server.isEphemeral && this._isOwner()) || level >= 3) {
+                if (this.server.isEphemeral || level >= 3) {
                     const id = intArg(1);
                     if (id !== null) {
                         this.sendAdminMessage(
@@ -893,13 +894,11 @@ class Client extends EventEmitter {
                         this.sendAdminMessage('Usage: addadmin <userid>');
                     }
                 } else {
-                    this.sendAdminMessage(this.server.isEphemeral
-                        ? 'Only the server owner can add admins.'
-                        : 'This command only works on custom servers.');
+                    this.sendAdminMessage('This command only works on custom servers.');
                 }
                 break;
             case 'removeadmin':
-                if ((this.server.isEphemeral && this._isOwner()) || level >= 3) {
+                if (this.server.isEphemeral || level >= 3) {
                     const id = intArg(1);
                     if (id !== null) {
                         this.sendAdminMessage(
@@ -910,21 +909,17 @@ class Client extends EventEmitter {
                         this.sendAdminMessage('Usage: removeadmin <userid>');
                     }
                 } else {
-                    this.sendAdminMessage(this.server.isEphemeral
-                        ? 'Only the server owner can remove admins.'
-                        : 'This command only works on custom servers.');
+                    this.sendAdminMessage('This command only works on custom servers.');
                 }
                 break;
             case 'deleteserver':
-                // Owner can delete their own custom server; a developer (rank ≥ 3)
-                // can delete ANY server they are in.
-                if (level >= 3 || (this.server.isEphemeral && this._isOwner())) {
+                // Any admin can delete a custom server; a developer (rank ≥ 3) can
+                // delete ANY server they are in.
+                if (level >= 3 || this.server.isEphemeral) {
                     this.sendAdminMessage('Deleting server...');
                     setTimeout(() => this.server.destroy(), 500);
                 } else {
-                    this.sendAdminMessage(this.server.isEphemeral
-                        ? 'Only the server owner or a developer can delete this server.'
-                        : 'Only a developer can delete this server.');
+                    this.sendAdminMessage('Only a developer can delete this server.');
                 }
                 break;
         }
