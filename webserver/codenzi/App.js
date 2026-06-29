@@ -194,7 +194,6 @@ var App = function(aCanvas) {
 		// Start UI layer (reset transform matrix)
 		camera.startUILayer();
 
-		// Keyboard tutorials/prompts don't apply on touch devices.
 		if(speedupTutorial.isInitialized && !isTouchDevice)
 			speedupTutorial.draw(context);
 

@@ -1,41 +1,20 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  TouchControls — in-browser mobile controls (no native app).
-//
-//  Only active on touch devices (global `isTouchDevice`). Two schemes, chosen on
-//  the start screen and remembered in localStorage as `controlScheme`:
-//
-//    'swipe'  — camera stays north-up; swiping up/down/left/right turns the snake
-//               to that ABSOLUTE direction.
-//    'local'  — the camera rotates so the snake always points up (handled in
-//               Camera.js); tapping the LEFT half of the screen turns left,
-//               the RIGHT half turns right (RELATIVE to the snake's heading).
-//
-//  A held on-screen BOOST button works in both schemes. Desktop is untouched.
-//
-//  Directions: UP=1, LEFT=2, DOWN=3, RIGHT=4 (opposite = ±2). So a relative
-//  left turn is dir%4+1 and a right turn is dir-1 (wrapping 1→4).
-// ─────────────────────────────────────────────────────────────────────────────
-
 var TouchControls = function () {
     var enabled = (typeof isTouchDevice !== 'undefined') && isTouchDevice;
 
     var leftHint, rightHint;
     var cogBtn, settingsPopup, serverSelect, chatToggle, rotateNotice;
     var startX = 0, startY = 0, activeId = null;
-    var SWIPE_MIN = 26;   // px of travel before a swipe registers
+    var SWIPE_MIN = 26;
 
     function scheme() { return (typeof controlScheme !== 'undefined') ? controlScheme : 'local'; }
     function inGame() { return !UIVisible && isInGame && !!localPlayer; }
 
-    // Ignore touches that land on real UI (buttons, the admin panel, the start
-    // menu, form fields) so they don't also steer the snake.
     function isUIEl(t) {
         return !!(t && t.closest && t.closest(
             '#boostBtn,#adminMobileBtn,#adminPanelRoot,#overlay,#chat,#chatToggle,' +
             '#mobileBottomBar,#mobileServerScreen,#controlSettingsPopup,button,input,select,textarea,a'));
     }
 
-    // ── steering ────────────────────────────────────────────────────────────────
     function turnAbsolute(dir) {
         if (!localPlayer) return;
         var cur = input.direction;
@@ -54,25 +33,24 @@ var TouchControls = function () {
         else                              turnAbsolute(dy > 0 ? DIRECTION_DOWN  : DIRECTION_UP);
     }
 
-    // ── touch handlers (on document; guarded so they only act in-game) ───────────
     function onStart(e) {
         if (!enabled || !inGame() || isUIEl(e.target)) return;
         var t = e.changedTouches[0];
         activeId = t.identifier; startX = t.clientX; startY = t.clientY;
         if (scheme() === 'local') {
-            turnRelative(t.clientX < window.innerWidth / 2);   // tap side = relative turn
+            turnRelative(t.clientX < window.innerWidth / 2);
             e.preventDefault();
         }
     }
     function onMove(e) {
         if (!enabled || !inGame() || isUIEl(e.target)) return;
-        e.preventDefault();   // stop the page scrolling while playing (admin panel excluded above)
+        e.preventDefault();
         if (scheme() !== 'swipe') return;
         var t = byId(e.changedTouches, activeId); if (!t) return;
         var dx = t.clientX - startX, dy = t.clientY - startY;
         if (Math.abs(dx) >= SWIPE_MIN || Math.abs(dy) >= SWIPE_MIN) {
             fireSwipe(dx, dy);
-            startX = t.clientX; startY = t.clientY;   // reset origin so a drag can chain turns
+            startX = t.clientX; startY = t.clientY;
         }
     }
     function onEnd() { activeId = null; }
@@ -81,7 +59,6 @@ var TouchControls = function () {
         return null;
     }
 
-    // ── scheme selection ─────────────────────────────────────────────────────────
     function setScheme(s) {
         controlScheme = s;
         try { localStorage.setItem('controlScheme', s); } catch (_) {}
@@ -103,7 +80,6 @@ var TouchControls = function () {
         return b;
     }
 
-    // ── start-screen: big Play button + death-screen respawn button ───────────────
     function buildStartUI() {
         function play() {
             var n = document.getElementById('nick');
@@ -117,8 +93,6 @@ var TouchControls = function () {
             playBtn.onclick = play;
             host.appendChild(playBtn);
         }
-        // Respawn button on the death/stats screen — phones have no Enter key, so
-        // without this the death screen softlocks.
         var stats = document.getElementById('statsPanel');
         if (stats) {
             var again = document.createElement('button');
@@ -128,7 +102,6 @@ var TouchControls = function () {
         }
     }
 
-    // ── bottom button bar: Servers, Controls cog, Mute ────────────────────────────
     function buildBottomBar() {
         var bar = document.createElement('div');
         bar.id = 'mobileBottomBar';
@@ -147,7 +120,6 @@ var TouchControls = function () {
         };
         bar.appendChild(cogBtn);
 
-        // Re-home the existing mute button into the bar (keeps its toggleSound()).
         var mute = document.getElementById('muteButton');
         if (mute) { mute.classList.add('barBtn'); bar.appendChild(mute); }
 
@@ -168,7 +140,6 @@ var TouchControls = function () {
         paintSchemeButtons();
     }
 
-    // ── dedicated full-screen server-select screen (hides the rest of the UI) ──────
     function buildServerScreen() {
         var scr = document.createElement('div');
         scr.id = 'mobileServerScreen'; scr.style.display = 'none';
@@ -192,7 +163,6 @@ var TouchControls = function () {
     function openServerScreen()  { var s = document.getElementById('mobileServerScreen'); if (s) s.style.display = 'flex'; }
     function closeServerScreen() { var s = document.getElementById('mobileServerScreen'); if (s) s.style.display = 'none'; }
 
-    // ── fixed overlays outside the menu: chat toggle + portrait notice ───────────
     function buildOverlays() {
         chatToggle = document.createElement('div');
         chatToggle.id = 'chatToggle';
@@ -206,8 +176,6 @@ var TouchControls = function () {
         document.body.appendChild(rotateNotice);
     }
 
-    // ── in-game control overlays ────────────────────────────────────────────────
-    // (Boost is intentionally NOT exposed on mobile — it's an admin-only action.)
     function buildGameControls() {
         leftHint  = mkHint('left',  '‹');
         rightHint = mkHint('right', '›');
@@ -221,22 +189,18 @@ var TouchControls = function () {
         return d;
     }
 
-    // Toggle overlay visibility based on game state (cheap; runs each frame).
     function tick() {
         requestAnimationFrame(tick);
         if (!enabled) return;
         var playing = inGame();
-        // Left/right tap hints only make sense in 'local' mode.
         var hintDisp = (playing && scheme() === 'local') ? 'flex' : 'none';
         if (leftHint  && leftHint.style.display  !== hintDisp) leftHint.style.display  = hintDisp;
         if (rightHint && rightHint.style.display !== hintDisp) rightHint.style.display = hintDisp;
-        // Bottom bar (Servers/Controls/Mute) shows on the menu, not while playing.
         var bar = document.getElementById('mobileBottomBar');
         var barDisp = (!playing && UIVisible) ? 'flex' : 'none';
         if (bar && bar.style.display !== barDisp) bar.style.display = barDisp;
     }
 
-    // ── init ────────────────────────────────────────────────────────────────────
     (function () {
         if (!enabled) return;
         document.body.classList.add('touch-device');

@@ -895,9 +895,6 @@ class Client extends EventEmitter {
                 this.sendAdminMessage('All barriers cleared.');
                 break;
             }
-            // Replace a single barrier by its index in the list. Used by the visual
-            // Barrier Editor; intentionally silent (no admin message) so dragging a
-            // gizmo doesn't spam the tip feed.
             case 'editbarrier': {
                 const i = intArg(1);
                 const x = floatArg(2), y = floatArg(3), w = floatArg(4), h = floatArg(5);
@@ -910,9 +907,6 @@ class Client extends EventEmitter {
                 Object.values(this.server.clients).forEach(c => c.sendMapBarriers());
                 break;
             }
-            // Replace the ENTIRE barrier list in one shot (used by the editor's
-            // Import button). Accepts a JSON array of {x,y,width,height} or an
-            // object with a `barriers` array. Invalid entries are skipped.
             case 'setbarriers': {
                 const sp = command.indexOf(' ');
                 if (sp === -1) { this.sendAdminMessage('Usage: setbarriers <json>'); break; }
@@ -934,7 +928,6 @@ class Client extends EventEmitter {
                 this.sendAdminMessage(`Loaded ${clean.length} barrier(s).`);
                 break;
             }
-            // Remove a single barrier by its index in the list. Also silent.
             case 'deletebarrier': {
                 const i = intArg(1);
                 if (i === null) { this.sendAdminMessage('Usage: deletebarrier <index>'); break; }

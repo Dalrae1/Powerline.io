@@ -40,12 +40,6 @@ var commandPallete = false;
 var adminPanel = false;
 var barrierEditor = null;
 
-// Mobile / touch support. `controlScheme` is 'swipe' or 'local' (see TouchControls).
-// Mobile UI is only for touch-ONLY devices (phones/tablets). A touchscreen
-// laptop/desktop also has a mouse/trackpad — a "fine" pointer that can hover —
-// so we treat those as regular desktop. (There's no reliable physical-keyboard
-// API, and on-screen keyboards fire key events too, so pointer type is the
-// dependable proxy for "this machine has a desktop-class input / keyboard".)
 var isTouchDevice = (function () {
 	var hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 	if (!hasTouch) return false;
@@ -695,9 +689,6 @@ window['clickNoNames'] = function(element){
 var ua = window.navigator.userAgent;
 var usingIE = (ua.indexOf('MSIE ') > -1) || (ua.indexOf('Trident/') > -1);
 
-// The game now runs directly in the mobile browser (touch controls below), so we
-// no longer redirect mobile visitors to a native app.
-
 if(usingIE)
 {
 	$('#sndIcon').hide();
@@ -812,7 +803,6 @@ function showCountdownScreen()
 
 function updateStats()
 {
-	// Auto-close the mobile chat if the player died with it open.
 	if (typeof document !== 'undefined' && document.body) document.body.classList.remove('chat-open');
 
 	$('#basePanel').hide();
@@ -1272,8 +1262,6 @@ function refreshServers() {
             servers.sort((a, b) => b.playerCount - a.playerCount);
             servers.sort((a, b) => b.pinned - a.pinned);
 
-            // Mobile: rebuild the dedicated server-select screen's list (built by
-            // TouchControls). Tapping a row connects immediately and closes the screen.
             var mobileList = document.getElementById('mobileServerList');
             if (mobileList) mobileList.innerHTML = '';
 

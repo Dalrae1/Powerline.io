@@ -1,59 +1,31 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  BarrierEditor — visual, full-screen editor for arena barriers.
-//
-//  Opened from the admin panel's Server tab ("Open Barrier Editor"). It draws on
-//  its OWN full-screen canvas with its OWN free camera (pan + zoom), independent
-//  of the in-game camera, so it never interferes with normal gameplay rendering.
-//
-//  What it does:
-//    • Lists every existing barrier (left panel) — select / edit / delete.
-//    • Click a barrier in the arena to select it; drag its body to move it; drag
-//      the gizmo handles (Roblox-style) to resize width/height.
-//    • "Create New Barrier" → click a point in the arena = the new barrier's
-//      centre (spawned at a default size, then resizable with the gizmos).
-//    • Freezes the player's own snake while open (and unfreezes on close).
-//
-//  Coordinate spaces:
-//    • WORLD units — what map.getBarriers() stores and what the game renders in.
-//    • SERVER units — what the spawnbarrier/editbarrier commands expect.
-//      Relationship (see Network.js OPCODE_MAP_BARRIERS): world = server * 10,
-//      and the Y axis is negated. So:  sx = wx/GAME_SCALE,  sy = -wy/GAME_SCALE.
-//
-//  Per-barrier edits go through new server commands (editbarrier / deletebarrier)
-//  addressed by the barrier's INDEX, which is stable because the server always
-//  broadcasts the full list in array order.
-// ─────────────────────────────────────────────────────────────────────────────
-
 var BarrierEditor = function () {
     var ed = this;
 
     var TEAL = '#003a3a', CYAN = '#05ffff', DANGER = '#ff5b5b';
     var BARRIER_FILL = '#023139', ARENA_LINE = '#0555FF', ARENA_GLOW = '#AAFFFF';
 
-    var MIN_WORLD  = GAME_SCALE * 1;   // smallest barrier side (1 server unit)
-    var NEW_WORLD  = GAME_SCALE * 15;  // default size of a freshly created barrier
-    var HANDLE_PX  = 7;                // half-size of a gizmo handle, screen pixels
-    var HIT_PX     = 11;               // handle hit radius, screen pixels
+    var MIN_WORLD  = GAME_SCALE * 1;
+    var NEW_WORLD  = GAME_SCALE * 15;
+    var HANDLE_PX  = 7;
+    var HIT_PX     = 11;
 
     var built = false;
     var active = false;
     var overlay, canvas, ctx, sidePanel, listEl, hintEl, selBox, fileInput;
 
     var cam = { x: 0, y: 0, zoom: 1 };
-    var selected = -1;          // index into map.getBarriers()
-    var placing = false;        // armed by "Create New Barrier", waiting for a click
+    var selected = -1;
+    var placing = false;
     var mouse = { x: 0, y: 0, world: { x: 0, y: 0 } };
 
-    // While dragging we render an optimistic copy so the move/resize feels instant
-    // before the server round-trips. Cleared once the authoritative list updates.
-    var draft = null;           // { index, x, y, width, height } in WORLD units
-    var pendingVersion = null;  // map.barrierVersion when we last sent a change
+    var draft = null;
+    var pendingVersion = null;
     var selectLastAfterUpdate = false;
 
-    var drag = null;            // { type:'pan'|'move'|'resize', ... }
-    var moved = false;          // pointer moved past the click threshold
-    var downSX = 0, downSY = 0; // screen pos where the current drag started
-    var frozenId = 0;           // snake id we froze on open (to unfreeze on close)
+    var drag = null;
+    var moved = false;
+    var downSX = 0, downSY = 0;
+    var frozenId = 0;
     var lastVersionSeen = -1;
     var needListRebuild = false;
     var raf = null;
@@ -69,7 +41,6 @@ var BarrierEditor = function () {
     }
     function r2(v) { return Math.round(v * 100) / 100; }
 
-    // ── coordinate helpers ─────────────────────────────────────────────────────
     function worldToScreen(wx, wy) {
         return { x: (wx - cam.x) * cam.zoom + canvas.width / 2,
                  y: (wy - cam.y) * cam.zoom + canvas.height / 2 };
@@ -78,20 +49,17 @@ var BarrierEditor = function () {
         return { x: (sx - canvas.width / 2) / cam.zoom + cam.x,
                  y: (sy - canvas.height / 2) / cam.zoom + cam.y };
     }
-    // WORLD barrier → SERVER-unit command args.
     function toServer(b) {
         return { x: r2(b.x / GAME_SCALE), y: r2(-b.y / GAME_SCALE),
                  w: r2(b.width / GAME_SCALE), h: r2(b.height / GAME_SCALE) };
     }
 
     function barriers() { return (typeof map === 'object' && map && map.getBarriers) ? map.getBarriers() : []; }
-    // The barrier to DISPLAY at index i (draft overrides the live value mid-drag).
     function dispBarrier(i) {
         if (draft && draft.index === i) return draft;
         return barriers()[i];
     }
 
-    // ── DOM construction (once) ─────────────────────────────────────────────────
     function elm(tag, css, text) {
         var e = document.createElement(tag);
         if (css) e.style.cssText = css;
@@ -143,7 +111,6 @@ var BarrierEditor = function () {
 
         sidePanel.appendChild(btn('➕ Create New Barrier', function () { startPlacing(); }));
 
-        // Import / Export config (share barrier layouts as a .json file).
         var io = elm('div', 'display:flex;gap:6px;');
         var impBtn = btn('⬆ Import', function () { fileInput.click(); });
         var expBtn = btn('⬇ Export', function () { exportBarriers(); });
@@ -157,7 +124,7 @@ var BarrierEditor = function () {
         fileInput.accept = '.json,application/json';
         fileInput.onchange = function () {
             if (fileInput.files && fileInput.files[0]) importBarriers(fileInput.files[0]);
-            fileInput.value = '';   // allow re-importing the same file later
+            fileInput.value = '';
         };
         sidePanel.appendChild(fileInput);
 
@@ -173,8 +140,6 @@ var BarrierEditor = function () {
         listEl = elm('div', '');
         sidePanel.appendChild(listEl);
 
-        // Canvas input.  Listeners are on the canvas itself and stop propagation so
-        // game input handlers (which live on document) never see these events.
         canvas.addEventListener('mousedown', onMouseDown, false);
         window.addEventListener('mousemove', onMouseMove, false);
         window.addEventListener('mouseup', onMouseUp, false);
@@ -194,13 +159,11 @@ var BarrierEditor = function () {
         hintEl.textContent = msg || 'Drag empty space to pan · scroll to zoom · click a barrier to select · drag its handles to resize.';
     }
 
-    // ── open / close ────────────────────────────────────────────────────────────
     this.open = function () {
         build();
         active = true;
         overlay.style.display = 'block';
         resize();
-        // Frame the whole arena.
         cam.x = arenaCenterX; cam.y = arenaCenterY;
         var zx = canvas.width / (arenaWidth + GAME_SCALE * 40);
         var zy = canvas.height / (arenaHeight + GAME_SCALE * 40);
@@ -209,7 +172,6 @@ var BarrierEditor = function () {
         lastVersionSeen = -1; needListRebuild = true;
         setHint();
 
-        // Freeze our own snake so it doesn't wander while we edit.
         frozenId = (typeof localPlayerID !== 'undefined' && localPlayerID) ? localPlayerID : 0;
         if (frozenId) send('freeze ' + frozenId);
 
@@ -224,13 +186,11 @@ var BarrierEditor = function () {
         if (frozenId) { send('unfreeze ' + frozenId); frozenId = 0; }
         document.removeEventListener('keydown', onKeyDown, true);
         if (raf) { cancelAnimationFrame(raf); raf = null; }
-        // Hand control back to the admin panel where the user came from.
         if (typeof adminPanel === 'object' && adminPanel && adminPanel.show) adminPanel.show();
     };
 
     this.isOpen = function () { return active; };
 
-    // ── placing / creating ──────────────────────────────────────────────────────
     function startPlacing() {
         placing = true;
         canvas.style.cursor = 'crosshair';
@@ -247,9 +207,6 @@ var BarrierEditor = function () {
         setHint('Barrier created — drag the handles to size it.');
     }
 
-    // ── import / export ──────────────────────────────────────────────────────────
-    // Barriers are stored/shared in SERVER units (same format as a server config's
-    // `Barriers` array), so exported files are portable between servers.
     function exportBarriers() {
         var arr = barriers().map(function (b) { var s = toServer(b); return { x: s.x, y: s.y, width: s.w, height: s.h }; });
         var data = { type: 'powerline-barriers', version: 1, count: arr.length, barriers: arr };
@@ -293,10 +250,9 @@ var BarrierEditor = function () {
         reader.readAsText(file);
     }
 
-    // ── selection helpers ───────────────────────────────────────────────────────
     function barrierAt(world) {
         var list = barriers();
-        for (var i = list.length - 1; i >= 0; i--) {   // topmost first
+        for (var i = list.length - 1; i >= 0; i--) {
             var b = dispBarrier(i);
             if (Math.abs(world.x - b.x) <= b.width / 2 && Math.abs(world.y - b.y) <= b.height / 2) return i;
         }
@@ -312,7 +268,6 @@ var BarrierEditor = function () {
             var p = worldToScreen(b.x + hx * b.width / 2, b.y + hy * b.height / 2);
             var dx = p.x - screen.x, dy = p.y - screen.y;
             var d = dx * dx + dy * dy;
-            // Corners win ties over edges (they're checked with a small bias).
             var bias = (hx !== 0 && hy !== 0) ? 4 : 0;
             if (d - bias <= bestD) { bestD = d; best = [hx, hy]; }
         }
@@ -324,7 +279,6 @@ var BarrierEditor = function () {
         if (recenter && i >= 0) { var b = barriers()[i]; if (b) { cam.x = b.x; cam.y = b.y; } }
     }
 
-    // ── mouse handling ──────────────────────────────────────────────────────────
     function localPos(e) {
         var r = canvas.getBoundingClientRect();
         return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -340,14 +294,11 @@ var BarrierEditor = function () {
 
         if (placing) { placeAt(w); return; }
 
-        // Right / middle button always pans.
         if (e.button === 1 || e.button === 2) { drag = { type: 'pan', sx: s.x, sy: s.y }; return; }
 
-        // 1) a resize handle on the selected barrier?
         var h = handleAt(s);
         if (h && (h[0] !== 0 || h[1] !== 0)) { beginResize(h, w); return; }
 
-        // 2) a barrier body? select + arm a move.
         var i = barrierAt(w);
         if (i >= 0) {
             if (i !== selected) selectBarrier(i, false);
@@ -356,13 +307,11 @@ var BarrierEditor = function () {
             return;
         }
 
-        // 3) empty space → pan (and a click with no drag will deselect).
         drag = { type: 'pan', sx: s.x, sy: s.y, fromEmpty: true };
     }
 
     function beginResize(h, w) {
         var b = barriers()[selected];
-        // Fixed edge = the side opposite the handle being dragged.
         var fx = h[0] > 0 ? b.x - b.width / 2 : (h[0] < 0 ? b.x + b.width / 2 : null);
         var fy = h[1] > 0 ? b.y - b.height / 2 : (h[1] < 0 ? b.y + b.height / 2 : null);
         drag = { type: 'resize', index: selected, hx: h[0], hy: h[1], fx: fx, fy: fy,
@@ -402,19 +351,19 @@ var BarrierEditor = function () {
         canvas.style.cursor = placing ? 'crosshair' : 'default';
 
         if (d.type === 'pan') {
-            if (!moved && d.fromEmpty) selectBarrier(-1, false);   // click empty = deselect
+            if (!moved && d.fromEmpty) selectBarrier(-1, false);
             return;
         }
         if ((d.type === 'move' || d.type === 'resize') && draft) {
             if (moved) commitDraft(d.index);
-            else draft = null;   // a plain click, nothing changed
+            else draft = null;
         }
     }
 
     function commitDraft(i) {
         var s = toServer(draft);
         send('editbarrier ' + i + ' ' + s.x + ' ' + s.y + ' ' + s.w + ' ' + s.h);
-        pendingVersion = map.barrierVersion;   // keep the draft until the server echoes back
+        pendingVersion = map.barrierVersion;
         needListRebuild = true;
     }
 
@@ -446,22 +395,20 @@ var BarrierEditor = function () {
 
     function onKeyDown(e) {
         if (!active) return;
-        // Swallow everything while open so game shortcuts (boost, admin panel
-        // toggle, etc.) don't fire behind the editor.
         var tag = document.activeElement && document.activeElement.tagName;
         var typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
         var panStep = 60 / cam.zoom;
         var k = e.keyCode;
-        e.stopPropagation();              // never let the game see editor keystrokes
+        e.stopPropagation();
         if (k === 27) { e.preventDefault(); ed.close(); return; }
-        if (typing) return;               // but let normal text editing behave
-        if (k === 87 || k === 38) cam.y -= panStep;        // W / ↑
-        else if (k === 83 || k === 40) cam.y += panStep;   // S / ↓
-        else if (k === 65 || k === 37) cam.x -= panStep;   // A / ←
-        else if (k === 68 || k === 39) cam.x += panStep;   // D / →
-        else if (k === 187 || k === 107) cam.zoom = Math.min(12, cam.zoom * 1.12);   // + / =
-        else if (k === 189 || k === 109) cam.zoom = Math.max(0.01, cam.zoom / 1.12); // - / _
-        else if ((k === 46 || k === 8) && selected >= 0) deleteSelected();           // Del / Backspace
+        if (typing) return;
+        if (k === 87 || k === 38) cam.y -= panStep;
+        else if (k === 83 || k === 40) cam.y += panStep;
+        else if (k === 65 || k === 37) cam.x -= panStep;
+        else if (k === 68 || k === 39) cam.x += panStep;
+        else if (k === 187 || k === 107) cam.zoom = Math.min(12, cam.zoom * 1.12);
+        else if (k === 189 || k === 109) cam.zoom = Math.max(0.01, cam.zoom / 1.12);
+        else if ((k === 46 || k === 8) && selected >= 0) deleteSelected();
         else e.preventDefault();
     }
 
@@ -472,7 +419,6 @@ var BarrierEditor = function () {
         selected = -1; draft = null; needListRebuild = true;
     }
 
-    // ── side-panel list ─────────────────────────────────────────────────────────
     function field(value, onChange) {
         var i = elm('input',
             'width:52px;margin:0 3px;padding:3px;background-color:' + TEAL + ';border:1px solid ' + CYAN + ';' +
@@ -532,7 +478,6 @@ var BarrierEditor = function () {
         });
     }
 
-    // ── render loop ─────────────────────────────────────────────────────────────
     function loop() {
         raf = requestAnimationFrame(loop);
         if (!active) return;
@@ -540,14 +485,13 @@ var BarrierEditor = function () {
         draw();
     }
 
-    // Detect authoritative-list changes pushed by the server and reconcile.
     function syncFromServer() {
         var v = (typeof map === 'object' && map) ? map.barrierVersion : 0;
         if (v === lastVersionSeen) return;
         lastVersionSeen = v;
 
         if (pendingVersion !== null && v !== pendingVersion) {
-            draft = null; pendingVersion = null;   // our change came back — drop optimistic copy
+            draft = null; pendingVersion = null;
         }
         if (selectLastAfterUpdate) {
             selectLastAfterUpdate = false;
@@ -565,7 +509,7 @@ var BarrierEditor = function () {
 
         drawGrid(W, H);
         drawArena();
-        drawSnakes();   // beneath barriers so they stay editable, but give a sense of scale
+        drawSnakes();
 
         var list = barriers();
         for (var i = 0; i < list.length; i++) drawBarrier(i);
@@ -574,15 +518,14 @@ var BarrierEditor = function () {
         if (placing) drawCrosshair();
         drawHud(W, H);
 
-        // The list is rebuilt outside the tight drag path so typing isn't clobbered.
         var tag = document.activeElement && document.activeElement.tagName;
         var typing = (tag === 'INPUT') && sidePanel.contains(document.activeElement);
         if (needListRebuild && !drag && !typing) { needListRebuild = false; rebuildList(); }
     }
 
     function drawGrid(W, H) {
-        var step = GAME_SCALE * 10;                      // 10 server units
-        while (step * cam.zoom < 28) step *= 5;          // keep grid readable when zoomed out
+        var step = GAME_SCALE * 10;
+        while (step * cam.zoom < 28) step *= 5;
         var tl = screenToWorld(0, 0), br = screenToWorld(W, H);
         ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(5,255,255,0.06)';
         ctx.beginPath();
@@ -610,9 +553,6 @@ var BarrierEditor = function () {
         ctx.restore();
     }
 
-    // Live snakes, drawn at their true size so barriers can be judged against
-    // them. Reuses each snake's own body polyline + width; the game keeps these
-    // updated every frame (it's still running behind the opaque overlay).
     function drawSnakes() {
         if (typeof entities !== 'object' || !entities) return;
         ctx.save();
@@ -643,7 +583,6 @@ var BarrierEditor = function () {
                 ctx.stroke();
             }
 
-            // Head dot (brighter, ringed white for the local player so it's findable).
             var hp = worldToScreen(e.x, e.y);
             var hr = Math.max(2, (w / 2) * cam.zoom);
             ctx.beginPath();
@@ -672,7 +611,6 @@ var BarrierEditor = function () {
         ctx.lineWidth = sel ? 2.5 : 1.5;
         ctx.strokeRect(p.x, p.y, w, h);
         ctx.restore();
-        // index label
         ctx.fillStyle = sel ? CYAN : 'rgba(170,255,255,0.7)';
         ctx.font = '11px Arial';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

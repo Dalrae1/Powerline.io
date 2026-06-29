@@ -1,26 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  AdminPanel — in-game moderation / admin console
-//
-//  Toggled with the Backslash ( \ ) key. Shows controls appropriate to the
-//  player's effective permission level for the CURRENT server, which the server
-//  sends via OPCODE_PERMISSIONS:
-//
-//     0 Player     — cannot open the panel (shows a denial message)
-//     1 Moderator  — Players tab: mute / kick / ban / kill / freeze / warn …
-//     2 Admin      — + My Snake, Arena, Server tabs (full server management:
-//                    name, max players, ownership, barriers, bans, delete …)
-//     3 Developer  — + the Server tab's "Developer Only" section: extend the
-//                    ephemeral idle timer and set the idle lifetime.
-//
-//  The player list comes from the server (OPCODE_ADMIN_PLAYERS) so it shows ALL
-//  players on the server, not just the ones streamed to this client.
-//
-//  Every action is sent as a normal command (network.sendCommand) and
-//  RE-VALIDATED server-side, so a tampered client cannot gain privileges.
-//
-//  Theme matches the game: dark teal (#003a3a) panels, cyan (#05ffff) accents.
-// ─────────────────────────────────────────────────────────────────────────────
-
 var AdminPanel = function () {
     var level = 0, isOwner = false, isDev = false, isEphemeral = false, isDevServer = false;
     var visible = false;
@@ -46,7 +23,6 @@ var AdminPanel = function () {
         if (text != null) e.textContent = text;
         return e;
     }
-    // opts: { danger, disabled, title, small }
     function button(label, onClick, opts) {
         opts = opts || {};
         var pad = opts.small ? '3px 7px' : '5px 10px';
@@ -68,7 +44,6 @@ var AdminPanel = function () {
         return b;
     }
 
-    // A small "?" badge that shows an explanation on hover (native title tooltip).
     function info(text) {
         var q = el('span',
             'display:inline-block;width:15px;height:15px;line-height:14px;text-align:center;' +
@@ -78,7 +53,6 @@ var AdminPanel = function () {
         return q;
     }
 
-    // A label span with an attached info "?" mark.
     function labelInfo(text, infoText, css) {
         var s = el('span', css || ('flex:1;min-width:150px;font-size:13px;color:' + CYAN + ';'), text);
         if (infoText) s.appendChild(info(infoText));
@@ -104,7 +78,6 @@ var AdminPanel = function () {
         if (typeof network === 'object' && network && network.sendCommand) network.sendCommand(command);
     }
 
-    // Transient themed toast (used for the no-permission message).
     function toast(message) {
         var t = el('div',
             'position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:1003;' +
@@ -116,8 +89,6 @@ var AdminPanel = function () {
         setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2300);
     }
 
-    // A labelled numeric control with a SLIDER + live value + Set button.
-    // onApply(value) is called with the slider's value.
     function sliderRow(label, min, max, value, onApply, step, infoText) {
         var r = row();
         var lab = el('span', 'flex:1;min-width:120px;color:' + CYAN + ';font-size:13px;', label);
@@ -134,8 +105,6 @@ var AdminPanel = function () {
         return r;
     }
 
-    // Hue slider with a LIVE colour swatch that previews hsl(hue,100%,50%) as the
-    // slider moves, before the value is applied.
     function hueRow(label, value, onApply, infoText) {
         var r = row();
         var lab = el('span', 'flex:1;min-width:90px;color:' + CYAN + ';font-size:13px;', label);
@@ -156,7 +125,6 @@ var AdminPanel = function () {
         return r;
     }
 
-    // A labelled numeric control with a typed input + Set button (for arena cfg).
     function numControl(label, cmd, ph, disabled, infoText) {
         var r = row();
         var lab = el('span', 'flex:1;min-width:150px;color:' + CYAN + ';font-size:13px;', label);
@@ -217,9 +185,6 @@ var AdminPanel = function () {
         root.id = 'adminPanelRoot';   // lets the mobile touch layer ignore taps on the panel
         root.addEventListener('mousedown', function (e) { if (e.target === root) hide(); });
 
-        // Floating button so touch users (no Backslash key) can open the panel.
-        // Shown only on touch devices, and only once they actually have admin
-        // access in this server (see updateMobileButton / onPermissions).
         if (typeof isTouchDevice !== 'undefined' && isTouchDevice) {
             mobileBtn = el('div',
                 'display:none;position:fixed;left:10px;bottom:10px;z-index:1001;width:46px;height:46px;' +
@@ -308,8 +273,6 @@ var AdminPanel = function () {
 
     // ── Players tab ──────────────────────────────────────────────────────────────
     function renderPlayers() {
-        // Persistent toolbar (filter + global actions + refresh) — NOT rebuilt by
-        // the periodic refresh, so the filter textbox keeps focus while typing.
         var toolbar = el('div', 'margin-bottom:8px;');
 
         var botsTab = (activeTab === 'bots');
@@ -323,7 +286,6 @@ var AdminPanel = function () {
         filterRow.appendChild(button('⟳ Refresh', requestList));
         toolbar.appendChild(filterRow);
 
-        // Global moderation actions (humans only — bots don't chat or get muted)
         if (!botsTab) {
             var glob = row();
             glob.appendChild(button('📢 Announce', function () {
@@ -346,7 +308,6 @@ var AdminPanel = function () {
         renderPlayerCards();
     }
 
-    // Rebuilds ONLY the player cards (cheap, focus-aware).
     function renderPlayerCards() {
         if (!listContainer) return;
         listContainer.innerHTML = '';
@@ -364,8 +325,6 @@ var AdminPanel = function () {
     }
 
     function playerCard(p) {
-        // Can act on lower-ranked players. On a dev server everyone is level 3
-        // and may act on anyone (sandbox), so targeting is always allowed.
         var canTarget = isDevServer || level > p.level;
         var card = el('div',
             'border:1px solid ' + CYAN + ';border-radius:6px;padding:8px;margin-bottom:8px;background-color:' + TEAL_DK + ';');
@@ -381,8 +340,6 @@ var AdminPanel = function () {
         head.appendChild(name);
         card.appendChild(head);
 
-        // Developer-only: real client IP. The server only includes it in the list
-        // for level-3 developers, so p.ip is empty (and this line hidden) otherwise.
         if (p.ip) {
             var ipRow = el('div', 'font-size:11px;color:#9fdede;margin:2px 0 4px;');
             ipRow.appendChild(el('span', 'opacity:0.7;', 'IP: '));
@@ -390,7 +347,6 @@ var AdminPanel = function () {
             card.appendChild(ipRow);
         }
 
-        // Moderation (level >= 1)
         var mod = row();
         mod.appendChild(button('Kill', function () { send('kill ' + p.id); },
             { danger: true, disabled: !(canTarget || p.isSelf), title: 'Instantly kill this snake — it dies and drops its food.' }));
@@ -410,7 +366,6 @@ var AdminPanel = function () {
             { disabled: !(canTarget || p.isSelf), title: 'Reset this player’s kill streak back to zero.' }));
         card.appendChild(mod);
 
-        // Snake control (level >= 2) — advanced actions use sliders.
         if (level >= 2) {
             var allow = canTarget || p.isSelf;
             if (allow) {
@@ -527,10 +482,6 @@ var AdminPanel = function () {
         body.appendChild(r3);
     }
 
-    // ── Server tab ──────────────────────────────────────────────────────────────
-    //  Every admin who can open this tab may use everything here EXCEPT the two
-    //  controls in the "Developer Only" section (extend ephemeral timer + idle
-    //  lifetime), which require developer rank and are greyed out for everyone else.
     function renderServer() {
         var devOnly = !isDev;   // gates ONLY the Developer Only section below
         var SCSS = 'flex:1;min-width:150px;font-size:13px;color:' + CYAN + ';';
@@ -590,7 +541,7 @@ var AdminPanel = function () {
         b2.appendChild(button('Reset All Bans', function () { send('resetbans'); }, { danger: true, title: 'Lift every IP and account ban on this server.' }));
         body.appendChild(b2);
 
-        // ── Ephemeral Server (status only; extend + lifetime live in Developer Only) ─
+        // ── Ephemeral Server ─────────────────────────────────────────────────────────
         body.appendChild(sectionTitle('Ephemeral Server'));
         var e1 = row();
         e1.appendChild(labelInfo('Time left until idle delete', 'Custom servers auto-delete after sitting empty too long. Check shows the remaining time.', SCSS));
@@ -607,7 +558,6 @@ var AdminPanel = function () {
         body.appendChild(d);
 
         // ── Developer Only ──────────────────────────────────────────────────────────
-        //  The only two developer-restricted controls. Greyed out for non-developers.
         body.appendChild(sectionTitle('Developer Only'));
         var dnote = el('div', 'font-size:12px;color:#9fdede;margin-bottom:6px;');
         dnote.textContent = isDev
@@ -636,9 +586,6 @@ var AdminPanel = function () {
         root.style.display = 'block';
         requestList();
         if (requestTimer) clearInterval(requestTimer);
-        // Periodically ask the server for a fresh list. The response handler
-        // (onPlayers) rebuilds ONLY the cards, and skips when an input/slider in
-        // the list is focused — so it never steals focus from the filter box.
         requestTimer = setInterval(function () { if (visible && (activeTab === 'players' || activeTab === 'bots')) requestList(); }, 2000);
     }
     function hide() {
@@ -647,19 +594,15 @@ var AdminPanel = function () {
         if (requestTimer) { clearInterval(requestTimer); requestTimer = null; }
     }
 
-    // Server pushed a fresh player list.
     function onPlayers(list, cfg) {
         players = list || [];
         haveServerData = true;
         if (cfg) arenaConfig = cfg;
         if (!visible) return;
-        // Bot presence changed → rebuild the tab bar so the Bots tab appears/hides.
         if (hasBots() !== lastHasBots) { render(); return; }
         var ae = document.activeElement;
-        // Keep the Arena tab showing live values, but never while a control is in use.
         if (activeTab === 'arena') { if (!(ae && body.contains(ae))) render(); return; }
         if ((activeTab !== 'players' && activeTab !== 'bots') || !listContainer) return;
-        // Don't disrupt a control the user is actively using inside the list.
         if (ae && listContainer.contains(ae)) return;
         renderPlayerCards();
     }
@@ -677,8 +620,6 @@ var AdminPanel = function () {
         if (visible) render(); else updateHeader();
     };
 
-    // Show the floating mobile button only when this player actually has admin
-    // access (Moderator+) in the current server.
     function updateMobileButton() {
         if (!mobileBtn) return;
         mobileBtn.style.display = (level >= 1) ? 'block' : 'none';

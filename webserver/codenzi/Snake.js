@@ -1020,8 +1020,6 @@ var Snake = function () {
 		context.save();
 		context.globalAlpha = alpha;
 		context.translate(this.headPos.x, this.headPos.y);
-		// Keep labels (name, crown, killstreak) upright when the world is rotated
-		// in Local Turn mode — otherwise they'd be upside down heading downward.
 		if (typeof camera === 'object' && camera && camera.rotation) context.rotate(-camera.rotation);
 
 		// King Crown

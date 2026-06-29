@@ -669,14 +669,6 @@ const wss = new WebSocket.Server({ server: httpServer, maxPayload: 256 * 1024 })
 
 wss.on('connection', (ws, req) => {
     try {
-        // ── per-IP connection gate ────────────────────────────────────────────
-        // The real client IP arrives from the trusted reverse proxy. The grey-cloud
-        // game subdomains hit the proxy directly, so the proxy stamps the player's
-        // actual IP into X-Forwarded-For (and X-Real-IP). We take the LEFTMOST XFF
-        // entry — the proxy sets that first and strips any client-supplied value, so
-        // it can't be spoofed; entries appended by the backend web server are hops
-        // to its right. Fall back to X-Real-IP, then the socket (local/dev).
-        // SECURITY: the backend must be firewalled so ONLY the proxy can reach it.
         const xff = req.headers['x-forwarded-for'];
         const clientIP = (typeof xff === 'string' && xff.trim())
             ? xff.split(',')[0].trim()

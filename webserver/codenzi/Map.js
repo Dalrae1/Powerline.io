@@ -52,8 +52,6 @@ var Mapp = function() {
 
 	var barriers = [];  // Array to store barriers
 
-	// Bumped on every change so the Barrier Editor can cheaply detect when the
-	// authoritative list (pushed by the server via OPCODE_MAP_BARRIERS) changed.
 	this.barrierVersion = 0;
 
 	this.addBarrier = function(x, y, width, height) {
@@ -64,8 +62,6 @@ var Mapp = function() {
 		barriers = [];
 		map.barrierVersion++;
 	}
-	// Live, ordered list (same order as the server's barriers array, so an index
-	// here maps to the same index server-side for editbarrier / deletebarrier).
 	this.getBarriers = function() {
 		return barriers;
 	}
@@ -187,11 +183,6 @@ var Mapp = function() {
 		context.fillStyle = resources.bgGrid;
 		var s = 0.65;
 		context.scale(s, s);
-		// Cover the whole (possibly rotated) viewport with a camera-centred square
-		// whose half-size is the screen's diagonal radius in world units. A plain
-		// width×height fill leaves the screen uncovered once the camera is rotated
-		// 90°/270° (Local Turn), and with no separate clear the old frames smear
-		// into streaks. A diagonal-sized square always covers, at any rotation.
 		var diag = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height) * 0.5 * z;
 		context.fillRect((camera.x - diag) / s, (camera.y - diag) / s, (diag * 2) / s, (diag * 2) / s);
 

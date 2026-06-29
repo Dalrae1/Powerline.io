@@ -11,18 +11,15 @@ var Camera = function(aCanvas, aContext, x, y) {
 	this.maxZoom = 2.0;
 	this.zoom = this.minZoom;
 
-	// World rotation (radians), used by the "Local Turn" mobile control scheme to
-	// keep the followed snake pointing up. 0 for desktop / swipe mode.
 	this.rotation = 0;
 	this.targetRotation = 0;
 
-	// Rotation that makes a snake heading point to screen-up (UP=1 LEFT=2 DOWN=3 RIGHT=4).
 	function rotationForDirection(dir) {
 		switch (dir) {
-			case 2: return  Math.PI / 2;   // LEFT
-			case 3: return  Math.PI;       // DOWN
-			case 4: return -Math.PI / 2;   // RIGHT
-			default: return 0;             // UP / NONE
+			case 2: return  Math.PI / 2;
+			case 3: return  Math.PI;
+			case 4: return -Math.PI / 2;
+			default: return 0;
 		}
 	}
 
@@ -49,9 +46,6 @@ var Camera = function(aCanvas, aContext, x, y) {
 
 	this.setupContext = function(ctx) {
 		var zoom = camera.zoom;
-		// Rotate + scale around the screen centre (where the followed snake sits) so
-		// "Local Turn" mode can spin the world to keep the snake pointing up. With
-		// rotation 0 this is identical to the old translate+scale.
 		ctx.setTransform(1,0,0,1,0,0);
 		ctx.translate(canvas.width / 2 + shakeShiftX, canvas.height / 2 + shakeShiftY);
 		if (camera.rotation) ctx.rotate(camera.rotation);
@@ -135,7 +129,6 @@ var Camera = function(aCanvas, aContext, x, y) {
 				}
 			}
 		}
-		// Local-Turn camera: ease the world rotation so the snake's heading is up.
 		var wantRot = 0;
 		if (typeof controlScheme !== 'undefined' && controlScheme === 'local'
 			&& typeof isTouchDevice !== 'undefined' && isTouchDevice
@@ -179,9 +172,7 @@ var Camera = function(aCanvas, aContext, x, y) {
 	    shakePower = power;
 	};
 
-	// Gets bounds of current zoom level of current position. When the world is
-	// rotated (Local Turn), expand to the axis-aligned box that still covers the
-	// rotated viewport, so edge culling doesn't clip the corners.
+	// Gets bounds of current zoom level of current position
 	this.getBounds = function() {
 		var hw = canvas.width / 2 / camera.zoom;
 		var hh = canvas.height / 2 / camera.zoom;
