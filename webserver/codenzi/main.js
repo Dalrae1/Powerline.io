@@ -41,7 +41,19 @@ var adminPanel = false;
 var barrierEditor = null;
 
 // Mobile / touch support. `controlScheme` is 'swipe' or 'local' (see TouchControls).
-var isTouchDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+// Mobile UI is only for touch-ONLY devices (phones/tablets). A touchscreen
+// laptop/desktop also has a mouse/trackpad — a "fine" pointer that can hover —
+// so we treat those as regular desktop. (There's no reliable physical-keyboard
+// API, and on-screen keyboards fire key events too, so pointer type is the
+// dependable proxy for "this machine has a desktop-class input / keyboard".)
+var isTouchDevice = (function () {
+	var hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+	if (!hasTouch) return false;
+	var mq = window.matchMedia;
+	var canHover     = !!(mq && mq('(any-hover: hover)').matches);
+	var finePointer  = !!(mq && mq('(any-pointer: fine)').matches);
+	return !canHover && !finePointer;
+})();
 var controlScheme = 'local';
 try { controlScheme = localStorage.getItem('controlScheme') || 'local'; } catch (e) {}
 var touchControls = null;
