@@ -41,12 +41,13 @@ var adminPanel = false;
 var barrierEditor = null;
 
 var isTouchDevice = (function () {
+	var ua = navigator.userAgent || '';
+	if (/Android|iPhone|iPad|iPod|IEMobile|BlackBerry|Opera Mini|Mobile/i.test(ua)) return true;
 	var hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 	if (!hasTouch) return false;
 	var mq = window.matchMedia;
-	var canHover     = !!(mq && mq('(any-hover: hover)').matches);
-	var finePointer  = !!(mq && mq('(any-pointer: fine)').matches);
-	return !canHover && !finePointer;
+	if (!mq) return true;
+	return mq('(pointer: coarse)').matches || mq('(hover: none)').matches;
 })();
 var controlScheme = 'local';
 try { controlScheme = localStorage.getItem('controlScheme') || 'local'; } catch (e) {}
